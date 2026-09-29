@@ -1,6 +1,6 @@
 """Stiahne tabuľky, zápasy a štatistiky zo Sportnetu do data/ligy.json.
 Spúšťa ho GitHub Actions. Ak niektorá liga zlyhá, ostanú jej posledné uložené údaje."""
-import datetime, json, pathlib, re
+import datetime, json, pathlib, re, shutil
 import requests
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -127,7 +127,7 @@ def parse_anchor(a, mid, names, rnd):
         time = f'{int(dm.group(3)):02d}:{dm.group(4)}'
     return {'id': mid, 'round': rnd, 'home': home, 'away': away,
             'hs': int(sm.group(1)) if sm else None, 'as': int(sm.group(2)) if sm else None,
-            'date': date, 'time': time}
+            'date': date, 'time': time, 'url': requests.compat.urljoin('https://sportnet.sme.sk/', a.get('href'))}
 
 
 def in_match_link(node):
@@ -210,43 +210,93 @@ def scrape(lg, prev):
             'stats': stats or prev.get('stats', [])}
 
 
-def debug_dump(home_league):
-    """Dočasne: uloží surové stránky do data/debug, aby sa dal doladiť detail zápasu, rozhodcovia a live."""
-    d = ROOT / 'data' / 'debug'
-    d.mkdir(parents=True, exist_ok=True)
-    B = home_league['url']
-    pages = {'liga_prehlad': B, 'liga_vysledky': B + 'vysledky/', 'liga_tabulky': B + 'tabulky/',
-             'tim_vysledky': TEAM_URL + 'vysledky/', 'tim_program': TEAM_URL + 'program/'}
-    info = []
-    for k, u in pages.items():
-        html = RAW.get(u)
-        if html is None:
-            try:
-                html = S.get(u, timeout=30).text
-            except Exception as e:
-                info.append(f'{k}: CHYBA {e}')
-                continue
-        (d / f'{k}.html').write_text(html, encoding='utf-8')
-    try:
-        for name, key in (('zapas_odohrany', 'vysledky/'), ('zapas_buduci', 'program/')):
-            soup = BeautifulSoup(RAW.get(TEAM_URL + key, ''), 'html.parser')
-            link = soup.find('a', href=re.compile(r'/zapas/'))
-            if link:
-                u = requests.compat.urljoin('https://sportnet.sme.sk/', link['href'])
-                (d / f'{name}.html').write_text(S.get(u, timeout=30).text, encoding='utf-8')
-                info.append(f'{name}: {u}')
-    except Exception as e:
-        info.append(f'detail: CHYBA {e}')
-    urls = set()
-    for html in RAW.values():
-        urls.update(re.findall(r'https://[a-z0-9.-]*sportnet\.online/[^"\'\s<>\\]*', html))
-    for u in sorted(u for u in urls if not re.search(r'\.(png|jpe?g|svg|webp|gif|css|js)(\?|$)|/logo', u))[:15]:
+def rsc_text(html):
+    """Next.js vkladá dáta stránky ako reťazce v self.__next_f.push([1,"..."])."""
+    out = []
+    for p in re.findall(r'self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)', html):
         try:
-            r = S.get(u, timeout=20, headers={'Origin': 'https://luboliak.github.io'})
-            info.append(f'API {r.status_code} CORS={r.headers.get("Access-Control-Allow-Origin")} {u}')
-        except Exception as e:
-            info.append(f'API CHYBA {e} {u}')
-    (d / 'info.txt').write_text('\n'.join(info), encoding='utf-8')
+            out.append(json.loads('"' + p + '"'))
+        except ValueError:
+            pass
+    return ''.join(out)
+
+
+def compact_match(m):
+    teams = m.get('teams') or []
+    side = {t.get('_id'): ('home' if (t.get('additionalProperties') or {}).get('homeaway') == 'home' else 'away') for t in teams}
+    names = {side[t.get('_id')]: t.get('name') for t in teams}
+    ev = []
+    for e in (m.get('protocol') or {}).get('events') or []:
+        ev.append({'t': e.get('eventType'), 'k': e.get('type'), 'ph': e.get('phase'),
+                   'min': (e.get('eventTime') or '').split(':')[0], 'side': side.get(e.get('team')),
+                   'p': (e.get('player') or {}).get('name'), 'r': (e.get('replacement') or {}).get('name')})
+    lineups = {}
+    for n in m.get('nominations') or []:
+        sd = side.get(n.get('teamId'))
+        if not sd:
+            continue
+        pl = []
+        for a in n.get('athletes') or []:
+            ad = a.get('additionalData') or {}
+            pl.append({'nr': ad.get('nr'), 'name': (a.get('sportnetUser') or {}).get('name'),
+                       'sub': bool(ad.get('substitute')), 'c': bool(ad.get('captain')), 'gk': ad.get('position') == 'goalkeeper'})
+        crew = [{'pos': c.get('position'), 'name': (c.get('sportnetUser') or {}).get('name')} for c in n.get('crew') or []]
+        lineups[sd] = {'players': pl, 'crew': crew}
+    return {'id': m.get('_id'), 'status': m.get('__issfMatchStatus'), 'closed': bool(m.get('closed')),
+            'start': m.get('startDate'), 'round': (m.get('round') or {}).get('name'),
+            'comp': (m.get('competition') or {}).get('name'), 'ground': (m.get('sportGround') or {}).get('name'),
+            'home': names.get('home'), 'away': names.get('away'), 'score': m.get('score'),
+            'phases': m.get('scoreByPhases'), 'timer': m.get('timer'),
+            'refs': [{'role': (x.get('type') or {}).get('label'), 'name': (x.get('user') or {}).get('name')} for x in m.get('managers') or []],
+            'events': ev, 'lineups': lineups,
+            'at': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')}
+
+
+def match_detail(url):
+    t = rsc_text(S.get(url, timeout=30).text)
+    i = t.find('"match":{"_id"')
+    if i < 0:
+        return None
+    return compact_match(json.JSONDecoder().raw_decode(t, i + 8)[0])
+
+
+def update_details(res):
+    """Detaily zápasov (strelci, karty, zostavy, rozhodcovia) pre zápasy okolo dneška a všetky zápasy Beše."""
+    d = ROOT / 'data' / 'zapasy'
+    d.mkdir(parents=True, exist_ok=True)
+    today = datetime.date.today()
+    lo, hi = (today - datetime.timedelta(days=8)).isoformat(), (today + datetime.timedelta(days=10)).isoformat()
+    n = 0
+    for lg in res:
+        for m in lg.get('matches', []):
+            ours = US in (m.get('home'), m.get('away'))
+            near = m.get('date') and lo <= m['date'] <= hi
+            if not m.get('url') or not (near or ours) or BYE in (m.get('home'), m.get('away')):
+                continue
+            f = d / f"{m['id']}.json"
+            old = None
+            if f.exists():
+                try:
+                    old = json.loads(f.read_text(encoding='utf-8'))
+                except ValueError:
+                    pass
+            if not (old and old.get('closed')):
+                try:
+                    det = match_detail(m['url'])
+                    n += 1
+                    if det:
+                        f.write_text(json.dumps(det, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+                        old = det
+                except Exception as e:
+                    print(f"  detail {m['id']}: CHYBA {e}")
+            if old:
+                ref = next((r['name'] for r in old.get('refs', []) if r.get('role') == 'Rozhodca'), None)
+                if ref:
+                    m['ref'] = ref
+                if old.get('closed') and old.get('score') and m.get('hs') is None:
+                    m['hs'], m['as'] = old['score'][0], old['score'][1]
+                m['det'] = True
+    print(f'Detaily zápasov: stiahnutých {n}')
 
 
 def main():
@@ -266,14 +316,13 @@ def main():
             print(f'  CHYBA {e}')
             if lg['id'] in old:
                 res.append(old[lg['id']])
+    shutil.rmtree(ROOT / 'data' / 'debug', ignore_errors=True)  # ukážkové stránky už netreba
+    try:
+        update_details(res)
+    except Exception as e:
+        print('Detaily zápasov: CHYBA', e)
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps({'ligy': res}, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-    home = next((l for l in leagues if l.get('home')), None)
-    if home:
-        try:
-            debug_dump(home)
-        except Exception as e:
-            print('debug:', e)
 
 
 if __name__ == '__main__':
