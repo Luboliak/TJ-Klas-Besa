@@ -14,9 +14,13 @@ S = requests.Session()
 S.headers['User-Agent'] = 'Mozilla/5.0 (Linux; Android 14) TJKlasBesa/1.0'
 
 
+RAW = {}
+
+
 def get(url):
     r = S.get(url, timeout=30)
     r.raise_for_status()
+    RAW[url] = r.text
     return BeautifulSoup(r.text, 'html.parser')
 
 
@@ -104,7 +108,8 @@ def season_year():
 
 
 def parse_anchor(a, mid, names, rnd):
-    text = clean(a)
+    # medzera medzi prvkami, inak sa skóre 2 a 0 zlepí do "20"
+    text = re.sub(r'\s+', ' ', a.get_text(' ')).strip()
     lst = names or [i.get('alt', '').strip() for i in a.find_all('img') if i.get('alt')]
     lst = list(dict.fromkeys(lst + [BYE]))
     found = sorted([(text.find(n), n) for n in lst if text.find(n) >= 0])
@@ -112,7 +117,7 @@ def parse_anchor(a, mid, names, rnd):
         return None
     home, away = found[0][1], found[1][1]
     after = text[text.rfind(away) + len(away):]
-    sm = re.match(r'\s*(\d+)\s*[:\s]\s*(\d+)', after)
+    sm = re.match(r'\s*(\d{1,2})\s*(?::|\s)\s*(\d{1,2})(?![\d:.])', after)
     dm = re.search(r'(\d{1,2})\.(\d{1,2})\.?\s*(\d{1,2}):(\d{2})', text)
     date = time = None
     if dm:
@@ -140,7 +145,7 @@ def parse_matches(soup, names):
                     if x:
                         out.append(x)
         elif isinstance(n, NavigableString):
-            k = re.fullmatch(r'(\d{1,2})\.\s*kolo', n.strip(), re.I)
+            k = re.search(r'(\d{1,2})\.\s*kolo\b', n.strip(), re.I)
             if k and not in_match_link(n):
                 rnd = int(k.group(1))
     return out
@@ -205,6 +210,45 @@ def scrape(lg, prev):
             'stats': stats or prev.get('stats', [])}
 
 
+def debug_dump(home_league):
+    """Dočasne: uloží surové stránky do data/debug, aby sa dal doladiť detail zápasu, rozhodcovia a live."""
+    d = ROOT / 'data' / 'debug'
+    d.mkdir(parents=True, exist_ok=True)
+    B = home_league['url']
+    pages = {'liga_prehlad': B, 'liga_vysledky': B + 'vysledky/', 'liga_tabulky': B + 'tabulky/',
+             'tim_vysledky': TEAM_URL + 'vysledky/', 'tim_program': TEAM_URL + 'program/'}
+    info = []
+    for k, u in pages.items():
+        html = RAW.get(u)
+        if html is None:
+            try:
+                html = S.get(u, timeout=30).text
+            except Exception as e:
+                info.append(f'{k}: CHYBA {e}')
+                continue
+        (d / f'{k}.html').write_text(html, encoding='utf-8')
+    try:
+        for name, key in (('zapas_odohrany', 'vysledky/'), ('zapas_buduci', 'program/')):
+            soup = BeautifulSoup(RAW.get(TEAM_URL + key, ''), 'html.parser')
+            link = soup.find('a', href=re.compile(r'/zapas/'))
+            if link:
+                u = requests.compat.urljoin('https://sportnet.sme.sk/', link['href'])
+                (d / f'{name}.html').write_text(S.get(u, timeout=30).text, encoding='utf-8')
+                info.append(f'{name}: {u}')
+    except Exception as e:
+        info.append(f'detail: CHYBA {e}')
+    urls = set()
+    for html in RAW.values():
+        urls.update(re.findall(r'https://[a-z0-9.-]*sportnet\.online/[^"\'\s<>\\]*', html))
+    for u in sorted(u for u in urls if not re.search(r'\.(png|jpe?g|svg|webp|gif|css|js)(\?|$)|/logo', u))[:15]:
+        try:
+            r = S.get(u, timeout=20, headers={'Origin': 'https://luboliak.github.io'})
+            info.append(f'API {r.status_code} CORS={r.headers.get("Access-Control-Allow-Origin")} {u}')
+        except Exception as e:
+            info.append(f'API CHYBA {e} {u}')
+    (d / 'info.txt').write_text('\n'.join(info), encoding='utf-8')
+
+
 def main():
     leagues = json.loads((ROOT / 'ligy.json').read_text(encoding='utf-8'))
     old = {}
@@ -224,6 +268,12 @@ def main():
                 res.append(old[lg['id']])
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps({'ligy': res}, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    home = next((l for l in leagues if l.get('home')), None)
+    if home:
+        try:
+            debug_dump(home)
+        except Exception as e:
+            print('debug:', e)
 
 
 if __name__ == '__main__':

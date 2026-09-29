@@ -1,6 +1,28 @@
 [
-  {"id": "levice", "name": "VII. liga ObFZ Levice", "url": "https://sportnet.sme.sk/futbalnet/z/obfz-levice/s/viiliga-obfz-levice/", "home": true},
-  {"id": "zsfz-6-vychod", "name": "VI. liga východ ZsFZ", "url": "https://sportnet.sme.sk/futbalnet/z/zsfz/s/vi-liga-vychod-macron-yoursport-zsfz/"},
-  {"id": "nz-7", "name": "VII. liga ObFZ Nové Zámky", "url": "https://sportnet.sme.sk/futbalnet/z/obfz-nove-zamky/s/majstrovstva-oblasti-vii-liga-macron-yoursport-obfz-nz/"},
-  {"id": "nz-8", "name": "VIII. liga ObFZ Nové Zámky", "url": "https://sportnet.sme.sk/futbalnet/z/obfz-nove-zamky/s/viii-liga-macron-yoursport-obfz-nz/"}
+  {
+    "id": "levice",
+    "name": "VII. liga ObFZ Levice",
+    "url": "https://sportnet.sme.sk/futbalnet/z/obfz-levice/s/viiliga-obfz-levice/",
+    "home": true
+  },
+  {
+    "id": "levice-8",
+    "name": "VIII. liga ObFZ Levice",
+    "url": "https://sportnet.sme.sk/futbalnet/z/obfz-levice/s/viii-liga-obfz-levice/"
+  },
+  {
+    "id": "zsfz-6-vychod",
+    "name": "VI. liga východ ZsFZ",
+    "url": "https://sportnet.sme.sk/futbalnet/z/zsfz/s/vi-liga-vychod-macron-yoursport-zsfz/"
+  },
+  {
+    "id": "nz-7",
+    "name": "VII. liga ObFZ Nové Zámky",
+    "url": "https://sportnet.sme.sk/futbalnet/z/obfz-nove-zamky/s/majstrovstva-oblasti-vii-liga-macron-yoursport-obfz-nz/"
+  },
+  {
+    "id": "nz-8",
+    "name": "VIII. liga ObFZ Nové Zámky",
+    "url": "https://sportnet.sme.sk/futbalnet/z/obfz-nove-zamky/s/viii-liga-macron-yoursport-obfz-nz/"
+  }
 ]
