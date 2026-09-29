@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E2022">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Klas Beša">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>TJ Klas Beša</title>
+<style>
+:root{
+  --bg:#1E2022; --panel:#26292C; --panel2:#2E3134; --line:#383C40;
+  --ink:#F1F1EE; --mute:#979CA1; --inv:#F1F1EE; --inv-ink:#1E2022;
+  --win:#6DAA75; --loss:#CF6A5C; --draw:#8C9095;
+  --cond:"sans-serif-condensed","Roboto Condensed","Arial Narrow",sans-serif;
+}
+:root.light{
+  --bg:#F2F3F4; --panel:#FFFFFF; --panel2:#E9EBED; --line:#D5D8DB;
+  --ink:#232628; --mute:#696E73; --inv:#2B2E31; --inv-ink:#FFFFFF;
+  --win:#3E8A4A; --loss:#B4473A; --draw:#7A7F84;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 Roboto,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* hlavička */
+header{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
+header img{width:40px;height:40px;object-fit:contain}
+.hname{flex:1;min-width:0}
+.hname b{display:block;font-family:var(--cond);font-size:20px;letter-spacing:.3px;line-height:1.1}
+.hname span{color:var(--mute);font-size:13px}
+.ibtn{width:40px;height:40px;border:1px solid var(--line);background:var(--panel);border-radius:8px;display:grid;place-items:center}
+.ibtn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
+.spin svg{animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin svg{animation:none}}
+
+main{padding:12px 12px 84px;max-width:720px;margin:0 auto}
+.note{color:var(--mute);font-size:13px;margin:6px 2px 12px}
+h2{font-family:var(--cond);font-size:18px;margin:18px 2px 8px;font-weight:700}
+
+/* spodná navigácia */
+nav{position:fixed;bottom:0;left:0;right:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{background:none;border:0;padding:10px 2px 9px;color:var(--mute);font-family:var(--cond);font-size:15px;border-top:3px solid transparent}
+nav button.on{color:var(--ink);border-top-color:var(--ink)}
+nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
+
+/* tabuľka ligy */
+.lt{width:100%;border-collapse:collapse}
+.lt th{font-weight:400;color:var(--mute);font-size:12px;text-align:right;padding:4px 5px}
+.lt th.l{text-align:left}
+.lt td{padding:7px 5px;text-align:right;border-bottom:1px solid var(--line)}
+.lt td.pos{width:26px;color:var(--mute);font-family:var(--cond)}
+.lt td.tm{text-align:left;width:100%}
+.lt td.tm div{display:flex;align-items:center;gap:8px}
+.lt td.tm img{width:22px;height:22px;object-fit:contain;flex:none}
+.lt td.pts{font-family:var(--cond);font-size:17px;font-weight:700}
+.lt tr.us td{background:var(--inv);color:var(--inv-ink);border-bottom-color:var(--inv)}
+.lt tr.us td.pos{color:var(--inv-ink)}
+.lt tr.us td:first-child{border-radius:6px 0 0 6px}
+.lt tr.us td:last-child{border-radius:0 6px 6px 0}
+.hide-s{display:table-cell}
+@media (max-width:380px){.hide-s{display:none}}
+
+.form{display:flex;gap:6px;margin:4px 2px}
+.fr{width:30px;height:30px;border-radius:6px;display:grid;place-items:center;font-family:var(--cond);font-weight:700;color:#fff}
+.fr.V{background:var(--win)} .fr.P{background:var(--loss)} .fr.R{background:var(--draw)}
+
+/* zápasy */
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.seg button{flex:1;background:var(--panel);border:0;padding:9px;color:var(--mute)}
+.seg button.on{background:var(--inv);color:var(--inv-ink)}
+.next{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:6px}
+.next .when{color:var(--mute);font-size:13px}
+.next .vs{font-family:var(--cond);font-size:22px;line-height:1.2;margin:4px 0}
+.mrow{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line)}
+.mrow .d{width:52px;flex:none;color:var(--mute);font-size:12px;line-height:1.2}
+.mrow .t{flex:1;min-width:0}
+.mrow .t div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .t .me{font-weight:700}
+.mrow .s{font-family:var(--cond);font-size:17px;text-align:right;min-width:34px}
+.mrow .s div{line-height:1.25}
+.res{width:24px;height:24px;flex:none;border-radius:5px;display:grid;place-items:center;font-family:var(--cond);font-size:13px;color:#fff}
+.res.V{background:var(--win)} .res.P{background:var(--loss)} .res.R{background:var(--draw)} .res.x{background:none;border:1px solid var(--line)}
+.kolo{font-family:var(--cond);color:var(--mute);margin:14px 4px 2px;font-size:14px}
+
+/* dochádzka / výplata */
+.mbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.mbar b{flex:1;text-align:center;font-family:var(--cond);font-size:19px}
+.acts{display:flex;gap:8px;margin-bottom:12px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:10px 14px}
+.btn.pri{background:var(--inv);color:var(--inv-ink);border-color:var(--inv)}
+.btn.grow{flex:1}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn.danger{color:var(--loss)}
+.ev{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:6px}
+.ev .tag{width:28px;height:28px;flex:none;border-radius:6px;display:grid;place-items:center;font-family:var(--cond);font-weight:700;border:1px solid var(--line)}
+.ev .tag.Z{background:var(--inv);color:var(--inv-ink);border-color:var(--inv)}
+.ev .x{flex:1;min-width:0}
+.ev .x small{display:block;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .n{font-family:var(--cond);font-size:18px}
+.empty{border:1px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--mute)}
+
+.pay{display:grid;grid-template-columns:1fr auto auto auto;gap:4px 10px;align-items:center}
+.pay .h{color:var(--mute);font-size:12px;text-align:right}
+.pay .h.l{text-align:left}
+.pay .c{text-align:right}
+.pay .nm{padding:8px 0;border-top:1px solid var(--line)}
+.pay .c,.pay .pb{border-top:1px solid var(--line);padding:8px 0}
+.pay .sum{font-family:var(--cond);font-size:17px}
+.paid{color:var(--win);font-size:12px}
+.tot{display:flex;gap:10px;margin-top:14px}
+.tot div{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
+.tot small{color:var(--mute);display:block}
+.tot b{font-family:var(--cond);font-size:22px}
+
+/* modálne okno */
+.ov{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center}
+.ov.on{display:flex}
+.sheet{background:var(--bg);width:100%;max-width:720px;max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:14px 14px 20px;border-top:1px solid var(--line)}
+.sheet h3{font-family:var(--cond);font-size:20px;margin:2px 0 12px;display:flex;align-items:center;gap:8px}
+.sheet h3 span{flex:1}
+label.f{display:block;margin-bottom:10px}
+label.f span{display:block;color:var(--mute);font-size:13px;margin-bottom:3px}
+input[type=text],input[type=number],input[type=date],input[type=time],select{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+.row2{display:flex;gap:8px}.row2>*{flex:1}
+.pl{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:5px}
+.pl .ck{width:24px;height:24px;border-radius:6px;border:2px solid var(--mute);flex:none;display:grid;place-items:center}
+.pl.on .ck{background:var(--ink);border-color:var(--ink)}
+.pl.on .ck::after{content:"";width:6px;height:11px;border:solid var(--bg);border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.pl.off{opacity:.45}
+.lgsel{margin-bottom:10px;font-family:var(--cond);font-size:17px}
+.lrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.lrow .x{flex:1;min-width:0}
+.lrow small{display:block;color:var(--mute);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stbl{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px}
+.stbl td,.stbl th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left}
+.stbl th{color:var(--mute);font-weight:400}
+pre.diag{white-space:pre-wrap;font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:240px;overflow:auto}
+.toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);background:var(--inv);color:var(--inv-ink);padding:9px 16px;border-radius:8px;z-index:30;display:none;max-width:90vw}
+details{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:14px}
+summary{font-family:var(--cond);font-size:16px;cursor:pointer}
+.tr{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;gap:12px;align-items:center}
+.tr .dd{width:46px;flex:none;text-align:center;font-family:var(--cond);line-height:1.1}
+.tr .dd b{display:block;font-size:22px}
+.tr .dd span{color:var(--mute);font-size:12px}
+.tr .x{flex:1;min-width:0}
+.tr .x small{display:block;color:var(--mute)}
+.tr.past{opacity:.5}
+.tr.first{background:var(--inv);color:var(--inv-ink);border-color:var(--inv)}
+.tr.first .dd span,.tr.first .x small{color:var(--inv-ink);opacity:.75}
+.news{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px}
+.news small{color:var(--mute)}
+.news b{display:block;font-family:var(--cond);font-size:18px;margin:2px 0 4px}
+.news p{margin:0;white-space:pre-wrap}
+.hint{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.hint div{flex:1}
+</style>
+</head>
+<body>
+<header>
+  <img id="logo" src="logo.png" alt="Logo TJ Klas Beša">
+  <div class="hname"><b>TJ Klas Beša</b><span id="hsub">VII. liga ObFZ Levice</span></div>
+  <button class="ibtn" id="bRefresh" title="Obnoviť" aria-label="Obnoviť"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+</header>
+
+<main id="view"><p class="note">Načítavam…</p></main>
+
+<nav id="nav">
+  <button data-t="tab" class="on">Tabuľka</button>
+  <button data-t="zap">Zápasy</button>
+  <button data-t="tren">Tréningy</button>
+  <button data-t="akt">Aktuality</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script src="nastavenie.js"></script>
+<script>
+const US='TJ Klas Beša', BYE='Nez. družstvo';
+const MES=['jan','feb','mar','apr','máj','jún','júl','aug','sep','okt','nov','dec'];
+const DNI=['ne','po','ut','st','št','pi','so'];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=()=>iso(new Date());
+function dLabel(ds){ if(!ds) return ''; const d=new Date(ds+'T12:00'); return DNI[d.getDay()]+' '+d.getDate()+'.'+(d.getMonth()+1)+'.'; }
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2600);}
+
+let LIGY=[], TREN=null, AKT=null, tab='tab', zapMode='nase', cur=null;
+try{ cur=localStorage.getItem('liga'); }catch(e){}
+
+/* téma podľa systému */
+function theme(){ const l=matchMedia('(prefers-color-scheme: light)').matches; document.documentElement.classList.toggle('light',l); }
+theme(); matchMedia('(prefers-color-scheme: light)').addEventListener('change',theme);
+
+/* CSV z Google tabuľky */
+function csv(t){
+  const rows=[]; let row=[], f='', q=false;
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&t[i+1]==='\n') i++; row.push(f); rows.push(row); row=[]; f=''; }
+    else f+=c;
+  }
+  if(f||row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r=>r.some(x=>x.trim()));
+}
+function pDate(s){
+  s=(s||'').trim(); let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  m=s.match(/^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})?/);
+  if(m){ const y=m[3]||new Date().getFullYear(); return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
+  return null;
+}
+async function sheet(url){
+  if(!url) return null;
+  const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
+  return csv(await r.text()).slice(1);
+}
+
+async function loadAll(manual){
+  $('#bRefresh').classList.add('spin');
+  const [lg,tr,ak]=await Promise.allSettled([
+    fetch('data/ligy.json',{cache:'no-store'}).then(r=>r.json()),
+    sheet(typeof TRENINGY_CSV!=='undefined'?TRENINGY_CSV:''),
+    sheet(typeof AKTUALITY_CSV!=='undefined'?AKTUALITY_CSV:'')
+  ]);
+  if(lg.status==='fulfilled') LIGY=lg.value.ligy||[];
+  if(tr.status==='fulfilled') TREN=tr.value; else TREN=TREN||'err';
+  if(ak.status==='fulfilled') AKT=ak.value; else AKT=AKT||'err';
+  if(!LIGY.find(l=>l.id===cur)) cur=(LIGY.find(l=>l.home)||LIGY[0]||{}).id;
+  $('#bRefresh').classList.remove('spin');
+  if(manual) toast(lg.status==='fulfilled'?'Aktualizované':'Bez internetu, zobrazujem uložené údaje');
+  head(); render();
+}
+
+const home=()=>LIGY.find(l=>l.home)||{teams:[],matches:[]};
+const L=()=>LIGY.find(l=>l.id===cur)||{teams:[],matches:[],stats:[]};
+const played=m=>m.hs!=null;
+const byDate=(a,b)=>((a.date||'')+(a.time||'')).localeCompare((b.date||'')+(b.time||''));
+function resFor(m){ if(m.hs==null) return null; const my=m.home===US?m.hs:m.as, th=m.home===US?m.as:m.hs; return my>th?'V':my<th?'P':'R'; }
+const ours=()=>home().matches.filter(m=>(m.home===US||m.away===US)&&m.home!==BYE&&m.away!==BYE).sort(byDate);
+
+function head(){
+  const t=home().teams.find(t=>t.name===US);
+  $('#hsub').textContent=t?`${t.pos}. miesto, ${t.b} ${t.b===1?'bod':t.b>=2&&t.b<=4?'body':'bodov'}`:'VII. liga ObFZ Levice';
+}
+function stamp(l){ if(!l.at) return ''; const d=new Date(l.at); return `<p class="note">Zo Sportnetu ${d.getDate()}.${d.getMonth()+1}. o ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}</p>`; }
+function pick(){ return LIGY.length>1?`<select class="lgsel" id="lgSel" aria-label="Liga">${LIGY.map(l=>`<option value="${esc(l.id)}" ${l.id===cur?'selected':''}>${esc(l.name)}</option>`).join('')}</select>`:''; }
+
+function hint(){
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  let off=false; try{off=localStorage.getItem('hint')==='0';}catch(e){}
+  if(standalone||off) return '';
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  return `<div class="hint"><div>${ios?'Pridaj si appku na plochu: v Safari ťukni na Zdieľať a potom na „Pridať na plochu".':'Pridaj si appku na plochu: v menu prehliadača (⋮) ťukni na „Pridať na plochu" alebo „Inštalovať aplikáciu".'}</div><button class="btn sm" data-hint="0">OK</button></div>`;
+}
+
+function render(){
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+  const v=$('#view');
+  v.innerHTML=hint()+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='tren'?vTren():vAkt());
+  v.querySelectorAll('img.tl').forEach(i=>i.onerror=()=>i.style.visibility='hidden');
+  const s=$('#lgSel'); if(s) s.onchange=()=>{ cur=s.value; try{localStorage.setItem('liga',cur);}catch(e){} render(); };
+}
+
+function vTable(){
+  const l=L();
+  if(!l.teams||!l.teams.length) return pick()+'<div class="empty">Tabuľka zatiaľ nie je k dispozícii.</div>';
+  const full=l.teams.every(t=>t.v!=null);
+  let h=pick()+`<table class="lt"><thead><tr><th></th><th class="l">Klub</th><th>Z</th>${full?'<th class="hide-s">V</th><th class="hide-s">R</th><th class="hide-s">P</th>':''}<th>Skóre</th><th>B</th></tr></thead><tbody>`;
+  l.teams.forEach(t=>{ h+=`<tr class="${t.name===US?'us':''}"><td class="pos">${t.pos}</td><td class="tm"><div><img class="tl" src="https://api.sportnet.online/data/ppo/${esc(t.slug)}.futbalnet.sk/logo" alt="" loading="lazy">${esc(t.name)}</div></td><td>${t.z}</td>${full?`<td class="hide-s">${t.v}</td><td class="hide-s">${t.r}</td><td class="hide-s">${t.p}</td>`:''}<td>${esc(t.g)}</td><td class="pts">${t.b}</td></tr>`; });
+  h+='</tbody></table>'+stamp(l);
+  if(l.home){
+    const last=ours().filter(played).slice(-5);
+    if(last.length) h+='<h2>Forma Beše</h2><div class="form">'+last.map(m=>`<div class="fr ${resFor(m)}">${resFor(m)}</div>`).join('')+'</div><p class="note">Posledných '+last.length+' zápasov, najnovší vpravo.</p>';
+  }
+  if(l.stats&&l.stats.length){
+    h+='<details><summary>Štatistiky súťaže</summary>';
+    l.stats.forEach(s=>{ h+=`<h2>${esc(s.title)}</h2><table class="stbl">`+(s.head.length?'<tr>'+s.head.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr>':'')+s.rows.map(r=>'<tr>'+r.map(x=>`<td>${esc(x)}</td>`).join('')+'</tr>').join('')+'</table>'; });
+    h+='</details>';
+  }
+  return h;
+}
+
+function mRow(m,our){
+  const r=our?resFor(m):null;
+  const sc=played(m)?`<div>${m.hs}</div><div>${m.as}</div>`:`<div style="font-size:13px;color:var(--mute)">${esc(m.time||'')}</div>`;
+  const nm=x=>esc(x===BYE?'voľno':x);
+  return `<div class="mrow"><div class="d">${dLabel(m.date)}${m.round?'<br>'+m.round+'. kolo':''}</div><div class="t"><div class="${m.home===US?'me':''}">${nm(m.home)}</div><div class="${m.away===US?'me':''}">${nm(m.away)}</div></div><div class="s">${sc}</div>${our?`<div class="res ${r||'x'}">${r||''}</div>`:''}</div>`;
+}
+
+function vMatches(){
+  const l=L(), isHome=!!l.home, mode=isHome?zapMode:'liga';
+  let h=pick();
+  if(isHome) h+=`<div class="seg"><button data-z="nase" class="${zapMode==='nase'?'on':''}">Beša</button><button data-z="liga" class="${zapMode==='liga'?'on':''}">Celá liga</button></div>`;
+  if(!l.matches||!l.matches.length) return h+'<div class="empty">Zápasy zatiaľ nie sú k dispozícii.</div>';
+  if(mode==='nase'){
+    const ms=ours(), up=ms.filter(m=>!played(m)&&(!m.date||m.date>=today())), done=ms.filter(played).reverse();
+    if(up[0]){ const n=up[0], hm=n.home===US; h+=`<div class="next"><div class="when">Najbližší zápas, ${dLabel(n.date)} o ${esc(n.time||'?')}${n.round?', '+n.round+'. kolo':''}</div><div class="vs">${hm?'Doma proti':'Vonku v'} ${esc(hm?n.away:n.home)}</div></div>`; }
+    if(up.length>1) h+='<h2>Program</h2>'+up.slice(1).map(m=>mRow(m,true)).join('');
+    if(done.length) h+='<h2>Výsledky</h2>'+done.map(m=>mRow(m,true)).join('');
+  } else {
+    const g={}; l.matches.forEach(m=>{(g[m.round||0]=g[m.round||0]||[]).push(m);});
+    Object.keys(g).map(Number).sort((a,b)=>b-a).forEach(k=>{ h+=`<div class="kolo">${k?k+'. kolo':'Bez kola'}</div>`+g[k].sort(byDate).map(m=>mRow(m,false)).join(''); });
+  }
+  return h+stamp(l);
+}
+
+function vTren(){
+  if(typeof TRENINGY_CSV==='undefined'||!TRENINGY_CSV) return '<div class="empty">Tréningy ešte nie sú prepojené s Google tabuľkou.</div>';
+  if(TREN==='err') return '<div class="empty">Tréningy sa nepodarilo načítať. Skús obnoviť.</div>';
+  if(!TREN) return '<p class="note">Načítavam…</p>';
+  const t=today();
+  const list=TREN.map(r=>({d:pDate(r[0]),cas:(r[1]||'').trim(),kde:(r[2]||'').trim(),pozn:(r[3]||'').trim()})).filter(x=>x.d).sort((a,b)=>(a.d+a.cas).localeCompare(b.d+b.cas));
+  const up=list.filter(x=>x.d>=t), past=list.filter(x=>x.d<t).slice(-3).reverse();
+  const nextMatch=ours().find(m=>!played(m)&&m.date&&m.date>=t);
+  const card=(x,cls)=>{ const d=new Date(x.d+'T12:00'); return `<div class="tr ${cls}"><div class="dd"><b>${d.getDate()}</b><span>${MES[d.getMonth()]}, ${DNI[d.getDay()]}</span></div><div class="x">${x.cas?'<b>'+esc(x.cas)+'</b> ':''}${esc(x.kde)}${x.pozn?`<small>${esc(x.pozn)}</small>`:''}</div></div>`; };
+  let h='';
+  if(!up.length) h+='<div class="empty">Najbližší tréning ešte nie je zapísaný.</div>';
+  else h+='<h2 style="margin-top:0">Najbližší tréning</h2>'+card(up[0],'first')+(up.length>1?'<h2>Ďalšie tréningy</h2>'+up.slice(1).map(x=>card(x,'')).join(''):'');
+  if(nextMatch) h+=`<h2>Najbližší zápas</h2><div class="next"><div class="when">${dLabel(nextMatch.date)} o ${esc(nextMatch.time||'?')}</div><div class="vs">${nextMatch.home===US?'Doma proti':'Vonku v'} ${esc(nextMatch.home===US?nextMatch.away:nextMatch.home)}</div></div>`;
+  if(past.length) h+='<h2>Posledné tréningy</h2>'+past.map(x=>card(x,'past')).join('');
+  return h;
+}
+
+function vAkt(){
+  if(typeof AKTUALITY_CSV==='undefined'||!AKTUALITY_CSV) return '<div class="empty">Aktuality ešte nie sú prepojené s Google tabuľkou.</div>';
+  if(AKT==='err') return '<div class="empty">Aktuality sa nepodarilo načítať. Skús obnoviť.</div>';
+  if(!AKT) return '<p class="note">Načítavam…</p>';
+  const list=AKT.map(r=>({d:pDate(r[0]),n:(r[1]||'').trim(),t:(r[2]||'').trim()})).filter(x=>x.n||x.t).sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+  if(!list.length) return '<div class="empty">Zatiaľ žiadne aktuality.</div>';
+  return list.map(x=>`<div class="news">${x.d?`<small>${dLabel(x.d)}</small>`:''}<b>${esc(x.n)}</b>${x.t?`<p>${esc(x.t)}</p>`:''}</div>`).join('');
+}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.t){ tab=b.dataset.t; render(); scrollTo(0,0); }
+  else if(b.dataset.z){ zapMode=b.dataset.z; render(); }
+  else if(b.dataset.hint){ try{localStorage.setItem('hint','0');}catch(e){} render(); }
+  else if(b.id==='bRefresh') loadAll(true);
+});
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') loadAll(false); });
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+loadAll(false);
+</script>
+</body>
+</html>
+
+[
+  {"id": "levice", "name": "VII. liga ObFZ Levice", "url": "https://sportnet.sme.sk/futbalnet/z/obfz-levice/s/viiliga-obfz-levice/", "home": true},
+  {"id": "zsfz-6-vychod", "name": "VI. liga východ ZsFZ", "url": "https://sportnet.sme.sk/futbalnet/z/zsfz/s/vi-liga-vychod-macron-yoursport-zsfz/"},
+  {"id": "nz-7", "name": "VII. liga ObFZ Nové Zámky", "url": "https://sportnet.sme.sk/futbalnet/z/obfz-nove-zamky/s/majstrovstva-oblasti-vii-liga-macron-yoursport-obfz-nz/"},
+  {"id": "nz-8", "name": "VIII. liga ObFZ Nové Zámky", "url": "https://sportnet.sme.sk/futbalnet/z/obfz-nove-zamky/s/viii-liga-macron-yoursport-obfz-nz/"}
+]
+
+{
+  "name": "TJ Klas Beša",
+  "short_name": "Klas Beša",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1E2022",
+  "theme_color": "#1E2022",
+  "lang": "sk",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
+
+// Sem vlož odkazy na zverejnené hárky Google tabuľky (Súbor > Zdieľať > Zverejniť na webe > CSV).
+// Odkaz daj medzi úvodzovky. Kým je prázdny, appka zobrazí len návod.
+const TRENINGY_CSV = '';
+const AKTUALITY_CSV = '';
+
+# TJ Klas Beša – webová appka pre hráčov
+
+## 1. GitHub
+1. Založ si účet na github.com.
+2. Vpravo hore **+ → New repository**. Názov napr. `tjklas`, zvoľ **Public**, potvrď **Create repository**.
+3. Na stránke repozitára klikni na **uploading an existing file** a myšou pretiahni **celý obsah** rozbaleného priečinka (aj priečinok `.github`). Dole klikni **Commit changes**.
+   - Ak by sa priečinok `.github` nenahral: **Add file → Create new file**, do názvu napíš `.github/workflows/stranka.yml` a vlož obsah toho súboru.
+4. **Settings → Pages → Source:** vyber **GitHub Actions**.
+5. **Actions → Ligy a stránka → Run workflow**. Po 1–2 minútach je appka na adrese
+   `https://TVOJE-MENO.github.io/tjklas/`
+   (Prvý beh po nahratí súborov môže zlyhať, ak ešte nebol nastavený krok 4. Stačí ho spustiť znova.)
+
+Ligy sa potom sťahujú samy každé 3 hodiny, cez víkend popoludní každých 30 minút.
+
+## 2. Google tabuľka (tréningy a aktuality)
+1. Otvor sheets.new.
+2. **Súbor → Importovať → Nahrať** súbor `sablony/treningy.csv`, zvoľ **Nahradiť aktuálny hárok**. Hárok premenuj na `Tréningy`.
+3. Pridaj druhý hárok (+ vľavo dole), pomenuj ho `Aktuality` a rovnako doň importuj `sablony/aktuality.csv`.
+4. **Súbor → Zdieľať → Zverejniť na webe**. Vyber hárok **Tréningy**, formát **Hodnoty oddelené čiarkami (.csv)**, klikni **Zverejniť** a skopíruj odkaz. To isté sprav pre hárok **Aktuality**.
+5. Na GitHube otvor súbor `nastavenie.js`, klikni na ceruzku a vlož oba odkazy medzi úvodzovky. Ulož cez **Commit changes**.
+
+Dátumy píš ako `4.10.2026`, čas ako `17:30`. Po úprave tabuľky sa zmena v appke ukáže do pár minút (Google zverejnený hárok chvíľu drží v pamäti).
+Vedeniu stačí tabuľku zdieľať s právom upravovať.
+
+## 3. Hráčom
+Pošli im odkaz. Na iPhone: Safari → Zdieľať → Pridať na plochu. Na Androide: Chrome → ⋮ → Pridať na plochu / Inštalovať.
+
+## Ďalšie ligy
+V súbore `ligy.json` na GitHube pridaj riadok podľa vzoru (id, názov, odkaz na súťaž zo Sportnetu).
+
+## Keď niečo nejde
+V záložke **Actions** otvor posledný beh a krok „Stiahnuť ligy zo Sportnetu". Pri každej lige je vypísané, koľko tímov a zápasov našiel, alebo chyba.
+
+// Vždy skúsi najprv internet, bez internetu použije poslednú uloženú verziu.
+const CACHE = 'tjklas-v1';
+const SHELL = ['./', 'index.html', 'nastavenie.js', 'logo.png', 'manifest.webmanifest', 'icon-192.png'];
+self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    fetch(e.request).then(r => {
+      if (r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); }
+      return r;
+    }).catch(() => caches.match(e.request, {ignoreSearch: true}))
+  );
+});
