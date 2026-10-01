@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1E2022">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="googlebot" content="noindex, nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Klas Beša">
@@ -46,7 +48,7 @@ main{padding:12px 12px 84px;max-width:720px;margin:0 auto}
 h2{font-family:var(--cond);font-size:18px;margin:18px 2px 8px;font-weight:700}
 
 /* spodná navigácia */
-nav{position:fixed;bottom:0;left:0;right:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:5;display:grid;grid-template-columns:repeat(5,1fr);background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 nav button{background:none;border:0;padding:10px 2px 9px;color:var(--mute);font-family:var(--cond);font-size:15px;border-top:3px solid transparent}
 nav button.on{color:var(--ink);border-top-color:var(--ink)}
 nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
@@ -181,6 +183,10 @@ summary{font-family:var(--cond);font-size:16px;cursor:pointer}
 .lu .nr{display:inline-block;width:24px;color:var(--mute);font-family:var(--cond)}
 .refs div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
 .refs span{color:var(--mute)}
+.ldot{display:inline-block;min-width:17px;height:17px;line-height:17px;border-radius:9px;background:var(--loss);color:#fff;font-size:11px;font-family:Roboto,sans-serif;vertical-align:2px}
+nav button{font-size:14px}
+.src{color:var(--mute);font-size:12px;margin:22px 2px 4px;text-align:center}
+.src a{color:inherit}
 </style>
 </head>
 <body>
@@ -196,6 +202,7 @@ summary{font-family:var(--cond);font-size:16px;cursor:pointer}
 <nav id="nav">
   <button data-t="tab" class="on">Tabuľka</button>
   <button data-t="zap">Zápasy</button>
+  <button data-t="live">Live</button>
   <button data-t="tren">Tréningy</button>
   <button data-t="akt">Aktuality</button>
 </nav>
@@ -299,7 +306,9 @@ function hint(){
 function render(){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   const v=$('#view');
-  v.innerHTML=hint()+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='tren'?vTren():vAkt());
+  v.innerHTML=hint()+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():vAkt())
+    +(['tab','zap','live'].includes(tab)?'<p class="src">Zdroj údajov: <a href="https://sportnet.sme.sk/futbalnet/" target="_blank" rel="noopener">Sportnet / Futbalnet</a> (SFZ). Neoficiálna klubová appka TJ Klas Beša.</p>':'');
+  navBadge();
   v.querySelectorAll('img.tl').forEach(i=>i.onerror=()=>i.style.visibility='hidden');
   const s=$('#lgSel'); if(s) s.onchange=()=>{ cur=s.value; try{localStorage.setItem('liga',cur);}catch(e){} render(); };
 }
@@ -347,8 +356,8 @@ function score(m){
 }
 function findMatch(id){ for(const l of LIGY) for(const m of l.matches||[]) if(m.id===id) return m; return null; }
 
-function mRow(m,our){
-  const sc=score(m), li=liveInfo(LIVE[m.id]);
+function mRow(m,our,forceLabel){
+  const sc=score(m), li=liveInfo(LIVE[m.id]) || (forceLabel?{label:forceLabel}:null);
   const r = our && sc && !li ? (sc[0]===sc[1]?'R':((m.home===US)===(sc[0]>sc[1])?'V':'P')) : null;
   const scH = sc ? `<div>${sc[0]}</div><div>${sc[1]}</div>` : `<div style="font-size:13px;color:var(--mute)">${esc(m.time||'')}</div>`;
   const nm=x=>esc(x===BYE?'voľno':x);
@@ -366,7 +375,7 @@ async function getDetail(m, preferLive){
   if(PROXY && preferLive && m.url){
     try{ const r=await fetch(PROXY+'/?zapas='+encodeURIComponent(m.url),{cache:'no-store'}); if(r.ok){ const j=await r.json(); if(!j.error){ LIVE[m.id]=j; return j; } } }catch(e){}
   }
-  try{ const r=await fetch('data/zapasy/'+m.id+'.json',{cache:'no-store'}); if(r.ok) return await r.json(); }catch(e){}
+  try{ const r=await fetch('data/zapasy/'+m.id+'.json',{cache:'no-store'}); if(r.ok){ const j=await r.json(); if(!PROXY || !LIVE[m.id]) LIVE[m.id]=j; return j; } }catch(e){}
   return null;
 }
 function nearNow(m){
@@ -427,10 +436,57 @@ function vDetail(m,d){
 }
 
 /* živé výsledky v zozname: zápasy, ktoré práve bežia alebo začínajú */
+const allLeagues=()=>LIGY;
+const LIVE_NOTE = PROXY ? 'Živé výsledky sa obnovujú každé 2 minúty.' : 'Výsledky sa obnovujú približne každých 15 minút (cez víkend popoludní), inak každú hodinu.';
+/* ===== LIVE sekcia: zápasy zo všetkých sledovaných líg, ktoré sa hrajú dnes ===== */
+function startTs(m){ return new Date(m.date+'T'+(m.time||'00:00')).getTime(); }
+function isLiveNow(m){
+  const d=LIVE[m.id];
+  if(d && d.closed) return false;
+  if(liveInfo(d)) return true;
+  const s=startTs(m), now=Date.now();
+  return !played(m) && now>=s && now<s+115*60000;
+}
+function liveCount(){
+  const t=today(); let n=0;
+  allLeagues().forEach(l=>(l.matches||[]).forEach(m=>{ if(m.date===t && m.home!==BYE && m.away!==BYE && isLiveNow(m)) n++; }));
+  return n;
+}
+function liveGroup(list, labelFn){
+  const by=new Map();
+  list.forEach(x=>{ if(!by.has(x.l.name)) by.set(x.l.name,[]); by.get(x.l.name).push(x.m); });
+  let h='';
+  by.forEach((ms,name)=>{ h+=`<div class="kolo">${esc(name)}</div>`+ms.sort(byDate).map(m=>mRow(m,false,labelFn?labelFn(m):null)).join(''); });
+  return h;
+}
+function vLive(){
+  const t=today(), rows=[];
+  allLeagues().forEach(l=>(l.matches||[]).forEach(m=>{ if(m.date===t && m.home!==BYE && m.away!==BYE) rows.push({l,m}); }));
+  let h='';
+  const live=rows.filter(x=>isLiveNow(x.m)), rest=rows.filter(x=>!isLiveNow(x.m));
+  if(live.length) h+='<h2 style="margin-top:4px">Práve sa hrá</h2>'+liveGroup(live, m=>liveInfo(LIVE[m.id])?null:'hrá sa');
+  if(rest.length) h+='<h2>Dnes</h2>'+liveGroup(rest);
+  if(!rows.length){
+    let nd=null;
+    allLeagues().forEach(l=>(l.matches||[]).forEach(m=>{ if(m.date && m.date>t && m.home!==BYE && m.away!==BYE && (!nd||m.date<nd)) nd=m.date; }));
+    h+='<div class="empty">Dnes sa v sledovaných ligách nehrá žiadny zápas.</div>';
+    if(nd){
+      const nx=[]; allLeagues().forEach(l=>(l.matches||[]).forEach(m=>{ if(m.date===nd && m.home!==BYE && m.away!==BYE) nx.push({l,m}); }));
+      h+=`<h2>Najbližší hrací deň: ${dLabel(nd)}</h2>`+liveGroup(nx);
+    }
+  }
+  h+=`<p class="note" style="margin-top:14px">${LIVE_NOTE}</p>`;
+  return h;
+}
+function navBadge(){
+  const b=document.querySelector('#nav [data-t="live"]'); if(!b) return;
+  const n=liveCount(); b.innerHTML='Live'+(n?` <span class="ldot">${n}</span>`:'')+(b.dataset.key?`<small>${b.dataset.key}</small>`:'');
+}
+
 async function pollLive(){
-  if(!PROXY || document.visibilityState!=='visible') return;
+  if(document.visibilityState!=='visible') return;
   const want=new Map();
-  [L(), home()].forEach(l=>(l.matches||[]).forEach(m=>{ if(m.url && nearNow(m) && !(LIVE[m.id]&&LIVE[m.id].closed)) want.set(m.id,m); }));
+  LIGY.forEach(l=>(l.matches||[]).forEach(m=>{ if(m.url && nearNow(m) && !(LIVE[m.id]&&LIVE[m.id].closed)) want.set(m.id,m); }));
   if(!want.size) return;
   await Promise.all([...want.values()].map(m=>getDetail(m,true)));
   render();

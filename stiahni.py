@@ -1,6 +1,7 @@
 """Stiahne tabuľky, zápasy a štatistiky zo Sportnetu do data/ligy.json.
 Spúšťa ho GitHub Actions. Ak niektorá liga zlyhá, ostanú jej posledné uložené údaje."""
 import datetime, json, pathlib, re, shutil
+from concurrent.futures import ThreadPoolExecutor
 import requests
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -14,14 +15,25 @@ S = requests.Session()
 S.headers['User-Agent'] = 'Mozilla/5.0 (Linux; Android 14) TJKlasBesa/1.0'
 
 
-RAW = {}
+UA = {'User-Agent': S.headers['User-Agent']}
+FULL_EVERY = datetime.timedelta(hours=6)   # celý rozpis cez stránky tímov stačí raz za 6 hodín
 
 
 def get(url):
-    r = S.get(url, timeout=30)
+    r = requests.get(url, timeout=30, headers=UA)
     r.raise_for_status()
-    RAW[url] = r.text
     return BeautifulSoup(r.text, 'html.parser')
+
+
+def get_many(urls):
+    def one(u):
+        try:
+            return u, get(u)
+        except Exception as e:
+            print(f'  {u}: CHYBA {e}')
+            return u, None
+    with ThreadPoolExecutor(6) as ex:
+        return dict(ex.map(one, urls))
 
 
 def clean(el):
@@ -68,7 +80,7 @@ def parse_table(soup):
                 continue
             txt = [clean(c) for c in expand_row(tr)]
             pos = next((int(t.rstrip('.')) for t in txt if re.fullmatch(r'\d+\.?', t)), len(rows) + 1)
-            r = {'pos': pos, 'name': clean(a), 'slug': slug_of(a.get('href')), 'g': '',
+            r = {'pos': pos, 'name': clean(a), 'slug': slug_of(a.get('href')), 'href': a.get('href'), 'g': '',
                  'z': None, 'v': None, 'r': None, 'p': None, 'b': None}
 
             def num(i):
@@ -167,46 +179,64 @@ def parse_stats(soup):
     return out
 
 
+def merge(ms, m):
+    o = ms.get(m['id'])
+    if not o:
+        ms[m['id']] = m
+        return
+    for k in ('round', 'date', 'time', 'url', 'home', 'away'):
+        if m.get(k) is not None:
+            o[k] = m[k]
+    if m.get('hs') is not None:
+        o['hs'], o['as'] = m['hs'], m['as']
+
+
 def scrape(lg, prev):
     B = lg['url']
     src = {'tabulky': B + 'tabulky/', 'prehlad': B, 'vysledky': B + 'vysledky/',
            'program': B + 'program/', 'statistiky': B + 'statistiky/'}
-    if lg.get('home'):
-        src['tim_vysledky'] = TEAM_URL + 'vysledky/'
-        src['tim_program'] = TEAM_URL + 'program/'
-    docs = {}
-    for k, u in src.items():
-        try:
-            docs[k] = get(u)
-        except Exception as e:
-            print(f'  {k}: CHYBA {e}')
+    got = get_many(src.values())
+    docs = {k: got[u] for k, u in src.items() if got.get(u) is not None}
     teams = parse_table(docs['tabulky']) if 'tabulky' in docs else []
     if not teams and 'prehlad' in docs:
         teams = parse_table(docs['prehlad'])
-    names = [t['name'] for t in teams]
+    names = [t['name'] for t in teams] or [t['name'] for t in prev.get('teams', [])]
     if lg.get('home') and US not in names:
         names.append(US)
     ms = {}
-    for k in ('prehlad', 'vysledky', 'program', 'tim_vysledky', 'tim_program'):
-        if k not in docs:
-            continue
-        for m in parse_matches(docs[k], names):
-            o = ms.get(m['id'])
-            if not o:
-                ms[m['id']] = m
-            else:
-                if o['hs'] is None and m['hs'] is not None:
-                    o['hs'], o['as'] = m['hs'], m['as']
-                if o['round'] is None:
-                    o['round'] = m['round']
+    for m in prev.get('matches', []):
+        ms[m['id']] = dict(m)
+    for k in ('prehlad', 'vysledky', 'program'):
+        if k in docs:
+            for m in parse_matches(docs[k], names):
+                merge(ms, m)
+    # celý rozpis: stránky výsledkov a programu každého tímu (Sportnet inak ukazuje len posledné kolá)
+    full_at = prev.get('full_at')
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if not full_at or now - datetime.datetime.fromisoformat(full_at) > FULL_EVERY:
+        hrefs = {t['href'] for t in (teams or prev.get('teams', [])) if t.get('href')}
+        if lg.get('home'):
+            hrefs.add(TEAM_URL.replace('https://sportnet.sme.sk', ''))
+        urls = []
+        for h in hrefs:
+            base = requests.compat.urljoin('https://sportnet.sme.sk/', h)
+            urls += [base + 'vysledky/', base + 'program/']
+        pages = get_many(urls)
+        for soup in pages.values():
+            if soup is not None:
+                for m in parse_matches(soup, names):
+                    merge(ms, m)
+        if pages and sum(v is not None for v in pages.values()) >= len(pages) * 0.8:
+            full_at = now.isoformat(timespec='seconds')
+        print(f'  celý rozpis: {len(pages)} stránok tímov')
     stats = parse_stats(docs['statistiky']) if 'statistiky' in docs else []
     us = next((t for t in teams if t['name'] == US), None)
     print(f"  tímov {len(teams)}, zápasov {len(ms)}, štatistík {len(stats)}" + (f", Beša {us['pos']}. miesto {us['b']} b" if us else ''))
     ok = bool(teams or ms)
-    return {'id': lg['id'], 'name': lg['name'], 'home': bool(lg.get('home')),
-            'at': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds') if ok else prev.get('at'),
+    return {'id': lg['id'], 'name': lg['name'], 'home': bool(lg.get('home')), 'url': B,
+            'at': now.isoformat(timespec='seconds') if ok else prev.get('at'), 'full_at': full_at,
             'teams': teams or prev.get('teams', []),
-            'matches': list(ms.values()) or prev.get('matches', []),
+            'matches': list(ms.values()),
             'stats': stats or prev.get('stats', [])}
 
 
@@ -253,7 +283,7 @@ def compact_match(m):
 
 
 def match_detail(url):
-    t = rsc_text(S.get(url, timeout=30).text)
+    t = rsc_text(requests.get(url, timeout=30, headers=UA).text)
     i = t.find('"match":{"_id"')
     if i < 0:
         return None
@@ -261,12 +291,15 @@ def match_detail(url):
 
 
 def update_details(res):
-    """Detaily zápasov (strelci, karty, zostavy, rozhodcovia) pre zápasy okolo dneška a všetky zápasy Beše."""
+    """Detaily zápasov (strelci, karty, zostavy, rozhodcovia, live) okolo dneška a všetky zápasy Beše.
+    Uzavreté zápasy sa už nesťahujú. Zápasy do 3 dní dopredu pri každom behu, ostatné raz za 6 hodín."""
     d = ROOT / 'data' / 'zapasy'
     d.mkdir(parents=True, exist_ok=True)
     today = datetime.date.today()
+    now = datetime.datetime.now(datetime.timezone.utc)
     lo, hi = (today - datetime.timedelta(days=8)).isoformat(), (today + datetime.timedelta(days=10)).isoformat()
-    n = 0
+    soon = (today + datetime.timedelta(days=3)).isoformat()
+    olds, todo = {}, []
     for lg in res:
         for m in lg.get('matches', []):
             ours = US in (m.get('home'), m.get('away'))
@@ -280,23 +313,36 @@ def update_details(res):
                     old = json.loads(f.read_text(encoding='utf-8'))
                 except ValueError:
                     pass
-            if not (old and old.get('closed')):
-                try:
-                    det = match_detail(m['url'])
-                    n += 1
-                    if det:
-                        f.write_text(json.dumps(det, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-                        old = det
-                except Exception as e:
-                    print(f"  detail {m['id']}: CHYBA {e}")
-            if old:
-                ref = next((r['name'] for r in old.get('refs', []) if r.get('role') == 'Rozhodca'), None)
-                if ref:
-                    m['ref'] = ref
-                if old.get('closed') and old.get('score') and m.get('hs') is None:
-                    m['hs'], m['as'] = old['score'][0], old['score'][1]
-                m['det'] = True
-    print(f'Detaily zápasov: stiahnutých {n}')
+            olds[m['id']] = old
+            if old and old.get('closed'):
+                continue
+            fresh = old and old.get('at') and now - datetime.datetime.fromisoformat(old['at']) < FULL_EVERY
+            if not old or (m.get('date') and m['date'] <= soon) or not fresh:
+                todo.append(m)
+
+    def one(m):
+        try:
+            return m['id'], match_detail(m['url'])
+        except Exception as e:
+            print(f"  detail {m['id']}: CHYBA {e}")
+            return m['id'], None
+    with ThreadPoolExecutor(6) as ex:
+        for mid, det in ex.map(one, todo):
+            if det:
+                (d / f'{mid}.json').write_text(json.dumps(det, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+                olds[mid] = det
+    for lg in res:
+        for m in lg.get('matches', []):
+            old = olds.get(m['id'])
+            if not old:
+                continue
+            ref = next((r['name'] for r in old.get('refs', []) if r.get('role') == 'Rozhodca'), None)
+            if ref:
+                m['ref'] = ref
+            if old.get('closed') and old.get('score'):
+                m['hs'], m['as'] = old['score'][0], old['score'][1]
+            m['det'] = True
+    print(f'Detaily zápasov: stiahnutých {len(todo)}')
 
 
 def main():
