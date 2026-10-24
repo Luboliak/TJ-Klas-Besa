@@ -2,10 +2,10 @@
 # Riadky s mriežkou (#) appka nezobrazí, sú len návod.
 #
 # PRAVIDELNÉ TRÉNINGY (každý týždeň):   pravidelne: deň | čas | miesto | poznámka
-pravidelne: streda | 18:00 | Ihrisko Beša
-pravidelne: piatok | 18:00 | Ihrisko Beša
+pravidelne: streda | 17:45 | Ihrisko Beša
+pravidelne: piatok | 17:45 | Ihrisko Beša
 #
-# PRESTÁVKA (napr. zimná):              prestavka: 1.12.2026 - 31.1.2027
+# PRESTÁVKA (napr. zimná):              prestavka: 1.11.2026 - 06.1.2027
 #
 # ZMENY JEDNÉHO TRÉNINGU:
 #   iný čas alebo poznámka:   30.10.2026 | 17:00 | Ihrisko Beša | Skôr kvôli tme
