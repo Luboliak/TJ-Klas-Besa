@@ -4,7 +4,6 @@
 # PRAVIDELNÉ TRÉNINGY (každý týždeň):   pravidelne: deň | čas | miesto | poznámka
 pravidelne: streda | 17:45 | Ihrisko Beša
 pravidelne: piatok | 17:45 | Ihrisko Beša
-pravidelne do prestávky
 #
 # PRESTÁVKA (napr. zimná):              prestavka: 1.11.2026 - 06.1.2027
 #
@@ -13,3 +12,4 @@ pravidelne do prestávky
 #   zrušený tréning:          4.11.2026 | ZRUŠENÝ | Ihrisko obsadené
 #   tréning navyše:           2.11.2026 | 18:00 | Ihrisko Beša
 #
+prestávka zimná : 1.11.2026 - 06.1.2027
