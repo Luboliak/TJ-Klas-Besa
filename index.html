@@ -283,9 +283,9 @@ function parseTren(txt){
   const reg=[], extra=new Map(), pauses=[];
   txt.replace(/\r/g,'').split('\n').forEach(raw=>{
     const l=raw.trim(); if(!l || l.startsWith('#')) return;
-    let m=l.match(/^pravideln[eé]\s*:\s*(.*)$/i);
+    let m=l.match(/^pravideln[eé][^:|]*:\s*(.*)$/i);
     if(m){ const p=m[1].split('|').map(x=>x.trim()); const dw=DEN[(p[0]||'').toLowerCase()]; if(dw!=null) reg.push({dw,cas:p[1]||'',kde:p[2]||'',pozn:p[3]||''}); return; }
-    m=l.match(/^prest[aá]vka\s*:\s*(.+?)\s*[-–]\s*(.+?)\s*(?:\|\s*(.*))?$/i);
+    m=l.match(/^prest[aá]vka[^:|]*:\s*(.+?)\s*[-–]\s*(.+?)\s*(?:\|\s*(.*))?$/i);
     if(m){ const a=pDate(m[1]), b=pDate(m[2]); if(a&&b) pauses.push([a,b]); return; }
     const p=l.split('|').map(x=>x.trim()); const d=pDate(p[0]); if(!d) return;
     if(/^zru[sš]en/i.test(p[1]||'')) extra.set(d,{d,cas:'',kde:'',pozn:'ZRUŠENÝ'+(p[2]?' – '+p[2]:''),zrus:true});
