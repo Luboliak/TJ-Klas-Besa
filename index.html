@@ -265,12 +265,60 @@ async function sheet(url){
   return csv(await r.text()).slice(1);
 }
 
+/* aktuality zo súboru aktuality.txt v repozitári (Google tabuľka nepovinná) */
+function parseAkt(txt){
+  return txt.replace(/\r/g,'').split(/^\s*---+\s*$/m).map(b=>{
+    const lines=b.split('\n').filter(l=>!/^\s*#/.test(l));
+    while(lines.length && !lines[0].trim()) lines.shift();
+    if(!lines.length) return null;
+    const first=lines.shift().trim(); let d='', n=first;
+    const m=first.match(/^(\d{1,2}\.\s*\d{1,2}\.\s*\d{0,4})\s*[|\-–]\s*(.*)$/);
+    if(m){ d=m[1]; n=m[2]; }
+    return [d, n, lines.join('\n').trim()];
+  }).filter(Boolean);
+}
+/* tréningy zo súboru treningy.txt: pravidelné dni + zmeny, zrušenia a prestávky */
+const DEN={'nedela':0,'nedeľa':0,'pondelok':1,'utorok':2,'streda':3,'stvrtok':4,'štvrtok':4,'piatok':5,'sobota':6};
+function parseTren(txt){
+  const reg=[], extra=new Map(), pauses=[];
+  txt.replace(/\r/g,'').split('\n').forEach(raw=>{
+    const l=raw.trim(); if(!l || l.startsWith('#')) return;
+    let m=l.match(/^pravideln[eé]\s*:\s*(.*)$/i);
+    if(m){ const p=m[1].split('|').map(x=>x.trim()); const dw=DEN[(p[0]||'').toLowerCase()]; if(dw!=null) reg.push({dw,cas:p[1]||'',kde:p[2]||'',pozn:p[3]||''}); return; }
+    m=l.match(/^prest[aá]vka\s*:\s*(.+?)\s*[-–]\s*(.+?)\s*(?:\|\s*(.*))?$/i);
+    if(m){ const a=pDate(m[1]), b=pDate(m[2]); if(a&&b) pauses.push([a,b]); return; }
+    const p=l.split('|').map(x=>x.trim()); const d=pDate(p[0]); if(!d) return;
+    if(/^zru[sš]en/i.test(p[1]||'')) extra.set(d,{d,cas:'',kde:'',pozn:'ZRUŠENÝ'+(p[2]?' – '+p[2]:''),zrus:true});
+    else extra.set(d,{d,cas:p[1]||'',kde:p[2]||'',pozn:p[3]||''});
+  });
+  const out=new Map(), t0=new Date(), from=new Date(t0.getTime()-21*864e5), to=new Date(t0.getTime()+70*864e5);
+  for(let x=new Date(from); x<=to; x.setDate(x.getDate()+1)){
+    const d=iso(x); if(pauses.some(([a,b])=>d>=a&&d<=b)) continue;
+    reg.filter(r=>r.dw===x.getDay()).forEach(r=>out.set(d,{d,cas:r.cas,kde:r.kde,pozn:r.pozn}));
+  }
+  extra.forEach((v,d)=>{ const o=out.get(d); out.set(d, v.zrus||!o ? v : {...o, ...Object.fromEntries(Object.entries(v).filter(([k,val])=>val))}); });
+  return [...out.values()].map(x=>[x.d,x.cas,x.kde,x.pozn,x.zrus?1:0]);
+}
+async function trenSource(){
+  if(typeof TRENINGY_CSV!=='undefined' && TRENINGY_CSV) return sheet(TRENINGY_CSV);
+  const r=await fetch('treningy.txt',{cache:'no-store'});
+  if(r.status===404) return [];
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return parseTren(await r.text());
+}
+async function aktSource(){
+  if(typeof AKTUALITY_CSV!=='undefined' && AKTUALITY_CSV) return sheet(AKTUALITY_CSV);
+  const r=await fetch('aktuality.txt',{cache:'no-store'});
+  if(r.status===404) return [];
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return parseAkt(await r.text());
+}
 async function loadAll(manual){
   $('#bRefresh').classList.add('spin');
   const [lg,tr,ak]=await Promise.allSettled([
     fetch('data/ligy.json',{cache:'no-store'}).then(r=>r.json()),
-    sheet(typeof TRENINGY_CSV!=='undefined'?TRENINGY_CSV:''),
-    sheet(typeof AKTUALITY_CSV!=='undefined'?AKTUALITY_CSV:'')
+    trenSource(),
+    aktSource()
   ]);
   if(lg.status==='fulfilled') LIGY=lg.value.ligy||[];
   if(tr.status==='fulfilled') TREN=tr.value; else TREN=TREN||'err';
@@ -510,27 +558,26 @@ function vMatches(){
 }
 
 function vTren(){
-  if(typeof TRENINGY_CSV==='undefined'||!TRENINGY_CSV) return '<div class="empty">Tréningy ešte nie sú prepojené s Google tabuľkou.</div>';
   if(TREN==='err') return '<div class="empty">Tréningy sa nepodarilo načítať. Skús obnoviť.</div>';
   if(!TREN) return '<p class="note">Načítavam…</p>';
   const t=today();
-  const list=TREN.map(r=>({d:pDate(r[0]),cas:(r[1]||'').trim(),kde:(r[2]||'').trim(),pozn:(r[3]||'').trim()})).filter(x=>x.d).sort((a,b)=>(a.d+a.cas).localeCompare(b.d+b.cas));
-  const up=list.filter(x=>x.d>=t), past=list.filter(x=>x.d<t).slice(-3).reverse();
+  const list=TREN.map(r=>({d:pDate(r[0]),cas:(r[1]||'').trim(),kde:(r[2]||'').trim(),pozn:(r[3]||'').trim(),zrus:!!r[4]||/^zru[sš]en/i.test(r[3]||'')})).filter(x=>x.d).sort((a,b)=>(a.d+a.cas).localeCompare(b.d+b.cas));
+  const upAll=list.filter(x=>x.d>=t), past=list.filter(x=>x.d<t&&!x.zrus).slice(-3).reverse();
+  const fi=upAll.findIndex(x=>!x.zrus), up=fi<0?[]:[upAll[fi], ...upAll.filter((x,i)=>i!==fi)];
   const nextMatch=ours().find(m=>!played(m)&&m.date&&m.date>=t);
-  const card=(x,cls)=>{ const d=new Date(x.d+'T12:00'); return `<div class="tr ${cls}"><div class="dd"><b>${d.getDate()}</b><span>${MES[d.getMonth()]}, ${DNI[d.getDay()]}</span></div><div class="x">${x.cas?'<b>'+esc(x.cas)+'</b> ':''}${esc(x.kde)}${x.pozn?`<small>${esc(x.pozn)}</small>`:''}</div></div>`; };
+  const card=(x,cls)=>{ const d=new Date(x.d+'T12:00'); return `<div class="tr ${x.zrus&&cls!=='past'?'past':cls}"><div class="dd"><b>${d.getDate()}</b><span>${MES[d.getMonth()]}, ${DNI[d.getDay()]}</span></div><div class="x">${x.cas?'<b>'+esc(x.cas)+'</b> ':''}${esc(x.kde)}${x.pozn?`<small>${esc(x.pozn)}</small>`:''}</div></div>`; };
   let h='';
   if(!up.length) h+='<div class="empty">Najbližší tréning ešte nie je zapísaný.</div>';
-  else h+='<h2 style="margin-top:0">Najbližší tréning</h2>'+card(up[0],'first')+(up.length>1?'<h2>Ďalšie tréningy</h2>'+up.slice(1).map(x=>card(x,'')).join(''):'');
+  else h+='<h2 style="margin-top:0">Najbližší tréning</h2>'+card(up[0],'first')+(up.length>1?'<h2>Ďalšie tréningy</h2>'+up.slice(1,9).map(x=>card(x,'')).join(''):'');
   if(nextMatch) h+=`<h2>Najbližší zápas</h2><div class="next" data-mid="${esc(nextMatch.id)}"><div class="when">${dLabel(nextMatch.date)} o ${esc(nextMatch.time||'?')}</div><div class="vs">${nextMatch.home===US?'Doma proti':'Vonku v'} ${esc(nextMatch.home===US?nextMatch.away:nextMatch.home)}</div></div>`;
   if(past.length) h+='<h2>Posledné tréningy</h2>'+past.map(x=>card(x,'past')).join('');
   return h;
 }
 
 function vAkt(){
-  if(typeof AKTUALITY_CSV==='undefined'||!AKTUALITY_CSV) return '<div class="empty">Aktuality ešte nie sú prepojené s Google tabuľkou.</div>';
   if(AKT==='err') return '<div class="empty">Aktuality sa nepodarilo načítať. Skús obnoviť.</div>';
   if(!AKT) return '<p class="note">Načítavam…</p>';
-  const list=AKT.map(r=>({d:pDate(r[0]),n:(r[1]||'').trim(),t:(r[2]||'').trim()})).filter(x=>x.n||x.t).sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+  const list=AKT.map((r,i)=>({i,d:pDate(r[0]),n:(r[1]||'').trim(),t:(r[2]||'').trim()})).filter(x=>x.n||x.t).sort((a,b)=>(b.d||'').localeCompare(a.d||'')||a.i-b.i);
   if(!list.length) return '<div class="empty">Zatiaľ žiadne aktuality.</div>';
   return list.map(x=>`<div class="news">${x.d?`<small>${dLabel(x.d)}</small>`:''}<b>${esc(x.n)}</b>${x.t?`<p>${esc(x.t)}</p>`:''}</div>`).join('');
 }

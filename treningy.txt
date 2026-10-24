@@ -1,0 +1,14 @@
+# TRÉNINGY TJ KLAS BEŠA
+# Riadky s mriežkou (#) appka nezobrazí, sú len návod.
+#
+# PRAVIDELNÉ TRÉNINGY (každý týždeň):   pravidelne: deň | čas | miesto | poznámka
+pravidelne: streda | 18:00 | Ihrisko Beša
+pravidelne: piatok | 18:00 | Ihrisko Beša
+#
+# PRESTÁVKA (napr. zimná):              prestavka: 1.12.2026 - 31.1.2027
+#
+# ZMENY JEDNÉHO TRÉNINGU:
+#   iný čas alebo poznámka:   30.10.2026 | 17:00 | Ihrisko Beša | Skôr kvôli tme
+#   zrušený tréning:          4.11.2026 | ZRUŠENÝ | Ihrisko obsadené
+#   tréning navyše:           2.11.2026 | 18:00 | Ihrisko Beša
+#

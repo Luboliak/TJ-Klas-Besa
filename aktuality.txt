@@ -1,0 +1,10 @@
+# AKTUALITY TJ KLAS BEŠA
+# Novú správu napíš HORE, pod tieto riadky s mriežkou.
+# Prvý riadok správy: dátum | nadpis. Pod ním text (môže mať viac riadkov).
+# Správy oddeľ riadkom s tromi pomlčkami: ---
+# Riadky začínajúce mriežkou (#) appka nezobrazí.
+
+24.10.2026 | Nová appka klubu
+Tréningy, zápasy, tabuľky a živé výsledky nájdete v appke.
+Pridajte si ju na plochu telefónu.
+---
