@@ -1,0 +1,23 @@
+# O KLUBE TJ KLAS BEŠA
+# Riadky s mriežkou (#) appka nezobrazí, sú len návod.
+# Sekcia začína riadkom s dvoma rovnítkami, napríklad: == Kontakty
+# Kontakt píš ako:  Funkcia: Meno | telefón | e-mail
+# Odkaz na mapu:    mapa: názov miesta alebo celý odkaz z Google Máp
+# Prázdna sekcia sa v appke neukáže.
+
+== Kontakty
+# Predseda: Meno Priezvisko | 0900 000 000
+# Tréner: Meno Priezvisko | 0900 000 000
+# Vedúci mužstva: Meno Priezvisko | 0900 000 000 | meno@email.sk
+
+== Ihrisko
+Futbalové ihrisko Beša
+mapa: Futbalové ihrisko Beša, Beša
+
+== História
+TJ Klas Beša bol založený v roku 1949.
+# Sem dopíš ďalšie riadky o histórii klubu. Každý riadok je samostatný odsek.
+
+== Sponzori
+# Obec Beša
+# Názov firmy | https://www.stranka-firmy.sk
