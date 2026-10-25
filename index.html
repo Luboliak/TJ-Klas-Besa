@@ -48,7 +48,7 @@ main{padding:12px 12px 84px;max-width:720px;margin:0 auto}
 h2{font-family:var(--cond);font-size:18px;margin:18px 2px 8px;font-weight:700}
 
 /* spodná navigácia */
-nav{position:fixed;bottom:0;left:0;right:0;z-index:5;display:grid;grid-template-columns:repeat(5,1fr);background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:5;display:grid;grid-template-columns:repeat(6,1fr);background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 nav button{background:none;border:0;padding:10px 2px 9px;color:var(--mute);font-family:var(--cond);font-size:15px;border-top:3px solid transparent}
 nav button.on{color:var(--ink);border-top-color:var(--ink)}
 nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
@@ -184,7 +184,7 @@ summary{font-family:var(--cond);font-size:16px;cursor:pointer}
 .refs div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
 .refs span{color:var(--mute)}
 .ldot{display:inline-block;min-width:17px;height:17px;line-height:17px;border-radius:9px;background:var(--loss);color:#fff;font-size:11px;font-family:Roboto,sans-serif;vertical-align:2px}
-nav button{font-size:14px}
+nav button{font-size:13.5px;padding-left:0;padding-right:0}
 .src{color:var(--mute);font-size:12px;margin:22px 2px 4px;text-align:center}
 .src a{color:inherit}
 .st th button{background:none;border:0;padding:2px 4px;color:var(--mute);font:inherit;font-size:12px}
@@ -248,6 +248,24 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
 .rsg small{display:block;color:var(--mute)}
 .lnk{background:none;border:0;padding:0;color:inherit;text-decoration:underline;text-underline-offset:3px;font-size:inherit}
 .names{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.chead{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--mute);margin-bottom:8px}
+.clist{padding-bottom:6px}
+.cday{text-align:center;color:var(--mute);font-size:12px;margin:14px 0 6px}
+.cm{display:flex;flex-direction:column;align-items:flex-start;margin-top:8px}
+.cm.cont{margin-top:2px}
+.cm.me{align-items:flex-end}
+.cn{font-size:12px;color:var(--mute);margin:0 0 2px 10px}
+.cb{max-width:82%;background:var(--panel);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:7px 11px 5px}
+.cm.me .cb{background:var(--inv);color:var(--inv-ink);border-color:var(--inv);border-radius:14px 14px 4px 14px}
+.cm.cont .cb{border-radius:14px}
+.cm.pend .cb{opacity:.6}
+.ctx{white-space:pre-wrap;overflow-wrap:anywhere}
+.ctx a{color:inherit}
+.ct{display:block;text-align:right;font-size:11px;opacity:.65;margin-top:2px}
+.cdel{font-size:11px;margin-left:6px}
+.cin{position:sticky;bottom:calc(58px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:flex-end;background:var(--bg);padding:8px 0 4px}
+.cin textarea{flex:1;resize:none;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:9px 14px;max-height:140px;font:inherit;color:inherit}
+.cin .btn{border-radius:18px}
 </style>
 </head>
 <body>
@@ -265,6 +283,7 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
   <button data-t="zap">Zápasy</button>
   <button data-t="live">Live</button>
   <button data-t="tren">Tréningy</button>
+  <button data-t="chat">Chat</button>
   <button data-t="klub">Klub</button>
 </nav>
 <div class="toast" id="toast"></div>
@@ -415,9 +434,14 @@ function hint(){
 function render(){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   const v=$('#view');
-  v.innerHTML=hint()+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():vKlub())
+  const draft=$('#chText'), dv=draft?draft.value:null, df=draft&&document.activeElement===draft;
+  v.innerHTML=(tab==='chat'?'':hint())+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():tab==='chat'?vChat():vKlub())
     +(['tab','zap','live'].includes(tab)?'<p class="src">Zdroj údajov: <a href="https://sportnet.sme.sk/futbalnet/" target="_blank" rel="noopener">Sportnet / Futbalnet</a> (SFZ). Neoficiálna klubová appka TJ Klas Beša.</p>':'');
   navBadge(); fillWx(v); fillRsvp(v);
+  if(tab==='chat'){ const t=$('#chText'); if(t){ if(dv!=null) t.value=dv; if(df) t.focus();
+    t.oninput=()=>{ t.style.height=''; t.style.height=Math.min(t.scrollHeight,140)+'px'; };
+    t.onkeydown=e=>{ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){ e.preventDefault(); chatSend(); } }; }
+    chatMarkSeen(); navBadge(); }
   if(tab==='live' && NTFY && Date.now()-NT_AT>55000) loadNtfy().then(()=>{ if(tab==='live') render(); });
   v.querySelectorAll('img.tl').forEach(i=>i.onerror=()=>i.style.visibility='hidden');
   const s=$('#lgSel'); if(s) s.onchange=()=>{ cur=s.value; try{localStorage.setItem('liga',cur);}catch(e){} render(); };
@@ -596,6 +620,7 @@ function vLive(){
 function navBadge(){
   const b=document.querySelector('#nav [data-t="live"]'); if(!b) return;
   const n=liveCount(); b.innerHTML='Live'+(n?` <span class="ldot">${n}</span>`:'')+(b.dataset.key?`<small>${b.dataset.key}</small>`:'');
+  const c=document.querySelector('#nav [data-t="chat"]'); if(c){ const u=tab==='chat'?0:chatUnread(); c.innerHTML='Chat'+(u?` <span class="ldot">${u>9?'9+':u}</span>`:''); }
   const k=document.querySelector('#nav [data-t="klub"]'); if(k) k.innerHTML='Klub'+(aktUnseen()&&!(tab==='klub'&&ksub==='akt')?' <span class="ldot">1</span>':'');
 }
 
@@ -856,6 +881,169 @@ function setJa(n){
   closeSheet(); render(); toast('Si zapísaný ako '+n);
 }
 
+/* ===== CHAT ===== */
+const CH={state:'init', msgs:[], topic:'', err:'', ws:null, wsOk:false, retry:0, poll:null, older:true, sending:false};
+const lsGet=k=>{ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } };
+const lsSet=(k,v)=>{ try{ v?localStorage.setItem(k,v):localStorage.removeItem(k); }catch(e){} };
+let CHPIN=lsGet('chatPin'), CHADMIN=lsGet('chatAdmin');
+async function chatApi(path, body){
+  const r=await fetch(PROXY+path, body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
+  let j={}; try{ j=await r.json(); }catch(e){}
+  if(!r.ok) throw Object.assign(new Error(j.error||('HTTP '+r.status)),{status:r.status});
+  return j;
+}
+function chatLastSeen(){ return +lsGet('chatSeen')||0; }
+function chatUnread(){ const s=chatLastSeen(); return CH.msgs.filter(m=>m.id>s && m.meno!==JA).length; }
+function chatMarkSeen(){ if(tab==='chat' && CH.msgs.length) lsSet('chatSeen', String(CH.msgs[CH.msgs.length-1].id)); }
+
+async function chatStart(){
+  if(!PROXY){ CH.state='off'; return; }
+  if(CH.state==='loading') return;
+  const was=CH.state; if(was!=='ok') CH.state='loading';
+  if(!CHPIN){
+    try{ const s=await chatApi('/chat/status'); CH.state=s.setup?'pin':'setup'; }catch(e){ CH.state='error'; CH.err='Chat sa nepodarilo načítať.'; }
+    chatPaint(); return;
+  }
+  try{
+    const h=await chatApi('/chat/history?pin='+encodeURIComponent(CHPIN));
+    CH.msgs=h.msgs; CH.topic=h.topic; CH.older=h.msgs.length>=80; CH.state='ok'; CH.err='';
+    chatConnect();
+  }catch(e){
+    if(e.status===403){ CHPIN=''; lsSet('chatPin',''); CH.state='pin'; CH.err='PIN už neplatí, zadaj nový.'; }
+    else if(e.status===409){ CH.state='setup'; }
+    else { CH.state='error'; CH.err='Chat sa nepodarilo načítať. Skontroluj internet.'; }
+  }
+  chatPaint(); navBadge();
+}
+function chatConnect(){
+  if(CH.ws || !CHPIN || document.visibilityState!=='visible') return;
+  let ws;
+  try{ ws=new WebSocket(PROXY.replace(/^http/,'ws')+'/chat/ws?pin='+encodeURIComponent(CHPIN)); }catch(e){ chatPollOn(); return; }
+  CH.ws=ws;
+  ws.onopen=()=>{ CH.wsOk=true; CH.retry=0; chatPollOff(); };
+  ws.onmessage=e=>{
+    if(e.data==='pong') return;
+    let x; try{ x=JSON.parse(e.data); }catch(err){ return; }
+    if(x.type==='msg' && !CH.msgs.some(m=>m.id===x.m.id)){
+      CH.msgs=CH.msgs.filter(m=>!(m.pending && m.cid && m.cid===x.m.cid));
+      CH.msgs.push(x.m); chatPaint(true); navBadge();
+    } else if(x.type==='del'){ CH.msgs=CH.msgs.filter(m=>m.id!==x.id); chatPaint(); navBadge(); }
+  };
+  ws.onclose=e=>{
+    CH.ws=null; CH.wsOk=false;
+    if(e.code===4001){ CHPIN=''; lsSet('chatPin',''); CH.state='pin'; CH.err='PIN bol zmenený, zadaj nový.'; chatPaint(); return; }
+    chatPollOn();
+    if(document.visibilityState==='visible'){ CH.retry=Math.min(CH.retry+1,6); setTimeout(chatConnect, 1000*2**CH.retry); }
+  };
+}
+function chatPollOn(){ if(CH.poll) return; CH.poll=setInterval(async()=>{ if(document.visibilityState!=='visible'||!CHPIN) return;
+  try{ const h=await chatApi('/chat/history?pin='+encodeURIComponent(CHPIN)); const had=CH.msgs.length&&CH.msgs[CH.msgs.length-1].id;
+    CH.msgs=h.msgs.concat(CH.msgs.filter(m=>m.pending)); if(!had || (h.msgs.length&&h.msgs[h.msgs.length-1].id!==had)){ chatPaint(true); navBadge(); } }catch(e){} }, 15000); }
+function chatPollOff(){ clearInterval(CH.poll); CH.poll=null; }
+setInterval(()=>{ if(CH.ws && CH.wsOk) try{ CH.ws.send('ping'); }catch(e){} }, 45000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ if(CH.state==='ok') { chatStart(); } } else if(CH.ws){ CH.ws.close(); } });
+
+const linkText=t=>esc(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+function chatDay(t){ const d=new Date(t), n=new Date(); const y=new Date(n.getTime()-864e5);
+  if(d.toDateString()===n.toDateString()) return 'Dnes'; if(d.toDateString()===y.toDateString()) return 'Včera';
+  return DNI[d.getDay()]+' '+d.getDate()+'.'+(d.getMonth()+1)+'.'; }
+function chatList(){
+  if(!CH.msgs.length) return '<div class="empty">Zatiaľ tu nie je žiadna správa. Napíš prvú.</div>';
+  let h='', day='', prev=null;
+  if(CH.older) h+='<div style="text-align:center;margin:4px 0 10px"><button class="btn sm" data-chold="1">Staršie správy</button></div>';
+  CH.msgs.forEach(m=>{
+    const dd=chatDay(m.t); if(dd!==day){ h+=`<div class="cday">${dd}</div>`; day=dd; prev=null; }
+    const me=m.meno===JA, d=new Date(m.t), tm=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+    const cont=prev&&prev.meno===m.meno&&m.t-prev.t<5*60000;
+    const canDel=!m.pending&&(me||CHADMIN);
+    h+=`<div class="cm ${me?'me':''} ${cont?'cont':''} ${m.pending?'pend':''}">${!me&&!cont?`<div class="cn">${esc(m.meno)}</div>`:''}<div class="cb"><span class="ctx">${linkText(m.text)}</span><span class="ct">${tm}${m.pending?' …':''}${canDel?` <button class="lnk cdel" data-chdel="${m.id}" aria-label="Zmazať správu">zmazať</button>`:''}</span></div></div>`;
+    prev=m;
+  });
+  return h;
+}
+function vChat(){
+  if(!PROXY) return '<div class="empty">Chat ešte nie je zapnutý.</div>';
+  if(CH.state==='init'||CH.state==='loading'){ if(CH.state==='init') chatStart(); return '<p class="note">Načítavam chat…</p>'; }
+  if(CH.state==='error') return `<div class="empty">${esc(CH.err)}<br><br><button class="btn" data-chretry="1">Skúsiť znova</button></div>`;
+  if(CH.state==='setup') return `<h2 style="margin-top:0">Nastavenie chatu</h2>
+    <p class="note">Chat ešte nie je nastavený. Toto robí len správca, raz. Klubový PIN potom pošli hráčom, správcovský si nechaj pre seba (slúži na mazanie správ a zmenu PIN-u).</p>
+    <label class="f"><span>Klubový PIN pre hráčov (aspoň 4 znaky)</span><input type="text" id="chSetPin" inputmode="numeric" autocomplete="off"></label>
+    <label class="f"><span>Správcovský PIN (iný ako klubový)</span><input type="text" id="chSetAdmin" inputmode="numeric" autocomplete="off"></label>
+    ${CH.err?`<p class="note" style="color:var(--loss)">${esc(CH.err)}</p>`:''}
+    <button class="btn pri" data-chsetup="1">Nastaviť chat</button>`;
+  if(CH.state==='pin') return `<h2 style="margin-top:0">Klubový chat</h2>
+    <p class="note">Zadaj klubový PIN. Dostaneš ho od vedenia klubu. Telefón si ho zapamätá.</p>
+    <div class="acts"><input type="text" id="chPin" inputmode="numeric" autocomplete="off" placeholder="PIN" style="flex:1"><button class="btn pri" data-chpin="1">Vstúpiť</button></div>
+    ${CH.err?`<p class="note" style="color:var(--loss)">${esc(CH.err)}</p>`:''}`;
+  if(!JA) return `<h2 style="margin-top:0">Klubový chat</h2><div class="empty">Najprv si vyber, kto si.<br><br><button class="btn pri" data-ja="1">Vybrať meno</button></div>`;
+  return `<div class="chead"><span>Píšeš ako <b>${esc(JA)}</b> <button class="lnk" data-ja="1">zmeniť</button></span><button class="lnk" data-chmenu="1">Nastavenia</button></div>
+    <div id="chList" class="clist">${chatList()}</div>
+    <div class="cin"><textarea id="chText" rows="1" placeholder="Napíš správu…" maxlength="1000"></textarea><button class="btn pri" data-chsend="1" aria-label="Odoslať">Odoslať</button></div>`;
+}
+function chatPaint(scroll){
+  if(tab!=='chat') return;
+  const l=$('#chList');
+  if(l && CH.state==='ok' && JA){
+    const atBottom=window.innerHeight+window.scrollY>=document.body.scrollHeight-120;
+    l.innerHTML=chatList();
+    if(scroll===true ? atBottom||CH.msgs.length&&CH.msgs[CH.msgs.length-1].meno===JA : scroll==='force') scrollTo(0,document.body.scrollHeight);
+    chatMarkSeen(); navBadge();
+  } else render();
+}
+async function chatSend(){
+  const ta=$('#chText'); if(!ta) return;
+  const text=ta.value.trim(); if(!text || CH.sending) return;
+  const cid=Math.random().toString(36).slice(2);
+  CH.msgs.push({id:1e15+Date.now(),t:Date.now(),meno:JA,text,pending:true,cid}); ta.value=''; ta.style.height='';
+  chatPaint('force');
+  try{ const r=await chatApi('/chat/send',{pin:CHPIN,meno:JA,text,cid});
+    CH.msgs=CH.msgs.filter(m=>m.cid!==cid||!m.pending); if(!CH.msgs.some(m=>m.id===r.m.id)) CH.msgs.push(r.m); chatPaint('force');
+  }catch(e){ CH.msgs=CH.msgs.filter(m=>m.cid!==cid); ta.value=text; chatPaint(); toast(e.status===403?'PIN už neplatí':'Správu sa nepodarilo odoslať'); }
+}
+async function chatDelete(id){
+  if(!confirm('Zmazať túto správu?')) return;
+  try{ await chatApi('/chat/delete',{pin:CHPIN,adminPin:CHADMIN||undefined,id,meno:JA}); CH.msgs=CH.msgs.filter(m=>m.id!==id); chatPaint(); }
+  catch(e){ toast(e.message); }
+}
+async function chatOlder(){
+  if(!CH.msgs.length) return;
+  try{ const h=await chatApi('/chat/history?pin='+encodeURIComponent(CHPIN)+'&before='+CH.msgs[0].id);
+    CH.older=h.msgs.length>=80; CH.msgs=h.msgs.concat(CH.msgs); chatPaint(); }catch(e){ toast('Nepodarilo sa načítať'); }
+}
+function chatMenu(){
+  const close=`<button class="ibtn" data-close="1" aria-label="Zavrieť"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+  openSheet(`<h3><span>Nastavenia chatu</span>${close}</h3>
+    ${CH.topic?`<h2 style="margin-top:0">Upozornenia na nové správy</h2><p class="note">V appke ntfy odober túto tému (je iná ako pri góloch a tréningoch):</p>
+      <div class="acts"><code class="topic">${esc(CH.topic)}</code><button class="btn sm" data-copy="${esc(CH.topic)}">Kopírovať</button></div>`:''}
+    <h2>Správca</h2>
+    ${CHADMIN?`<p class="note">V tomto telefóne si prihlásený ako správca, môžeš mazať všetky správy.</p>
+      <label class="f"><span>Nový klubový PIN</span><input type="text" id="chNewPin" inputmode="numeric" autocomplete="off"></label>
+      <div class="acts"><button class="btn" data-chnewpin="1">Zmeniť klubový PIN</button><button class="btn" data-chadminout="1">Odhlásiť správcu</button></div>
+      <p class="note">Po zmene PIN-u ho musia zadať znova všetci hráči.</p>`
+    :`<div class="acts"><input type="text" id="chAdmin" inputmode="numeric" autocomplete="off" placeholder="Správcovský PIN" style="flex:1"><button class="btn" data-chadmin="1">Prihlásiť</button></div>`}
+    <h2>Odhlásenie</h2><button class="btn" data-chlogout="1">Odhlásiť sa z chatu v tomto telefóne</button>`);
+}
+async function chatClick(b){
+  const d=b.dataset;
+  if(d.chsend) return chatSend();
+  if(d.chdel) return chatDelete(+d.chdel);
+  if(d.chold) return chatOlder();
+  if(d.chretry){ CH.state='init'; return render(); }
+  if(d.chmenu) return chatMenu();
+  if(d.chpin){ const p=($('#chPin').value||'').trim(); if(!p) return; CHPIN=p; CH.err='';
+    try{ await chatApi('/chat/history?pin='+encodeURIComponent(p)); lsSet('chatPin',p); CH.state='init'; render(); }
+    catch(e){ CHPIN=''; CH.err=e.status===429?e.message:'Zlý PIN.'; render(); } return; }
+  if(d.chsetup){ const p=$('#chSetPin').value.trim(), a=$('#chSetAdmin').value.trim();
+    try{ await chatApi('/chat/setup',{pin:p,admin:a}); CHPIN=p; CHADMIN=a; lsSet('chatPin',p); lsSet('chatAdmin',a); CH.state='init'; CH.err=''; render(); toast('Chat je nastavený'); }
+    catch(e){ CH.err=e.message; render(); } return; }
+  if(d.chadmin){ const a=($('#chAdmin').value||'').trim();
+    try{ await chatApi('/chat/config',{admin:a}); CHADMIN=a; lsSet('chatAdmin',a); toast('Prihlásený ako správca'); closeSheet(); chatPaint(); }catch(e){ toast(e.message); } return; }
+  if(d.chnewpin){ const n=($('#chNewPin').value||'').trim();
+    try{ await chatApi('/chat/config',{admin:CHADMIN,newPin:n}); CHPIN=n; lsSet('chatPin',n); toast('Klubový PIN zmenený'); closeSheet(); if(CH.ws) CH.ws.close(); CH.state='init'; render(); }catch(e){ toast(e.message); } return; }
+  if(d.chadminout){ CHADMIN=''; lsSet('chatAdmin',''); closeSheet(); chatPaint(); return; }
+  if(d.chlogout){ CHPIN=''; CHADMIN=''; lsSet('chatPin',''); lsSet('chatAdmin',''); if(CH.ws) CH.ws.close(); CH.msgs=[]; CH.state='init'; closeSheet(); render(); return; }
+}
+
 /* ===== KLUB ===== */
 let KLUB=null, FOTO=null, KTXT=null, ksub='akt', statSort='g', fAlbum=null;
 try{ ksub=localStorage.getItem('ksub')||'akt'; }catch(e){}
@@ -990,8 +1178,9 @@ document.addEventListener('click',e=>{
   if(mr && !e.target.closest('button')){ openMatch(mr.dataset.mid); return; }
   const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.close){ closeSheet(); return; }
+  if(Object.keys(b.dataset).some(k=>k.startsWith('ch'))){ chatClick(b); return; }
   if(b.id==='bTheme'){ toggleTheme(); return; }
-  if(b.dataset.t){ tab=b.dataset.t; render(); scrollTo(0,0); }
+  if(b.dataset.t){ tab=b.dataset.t; render(); scrollTo(0, tab==='chat'?document.body.scrollHeight:0); if(tab==='chat'&&CH.state==='ok'&&!CH.ws) chatConnect(); }
   else if(b.dataset.z){ zapMode=b.dataset.z; render(); }
   else if(b.dataset.tm){ tabMode=b.dataset.tm; render(); }
   else if(b.dataset.ks){ ksub=b.dataset.ks; fAlbum=null; try{localStorage.setItem('ksub',ksub);}catch(e){} render(); }
@@ -1011,7 +1200,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet();
   if($('#lb') && (e.key==='ArrowRight'||e.key==='ArrowLeft')) openPhoto(phIdx+(e.key==='ArrowRight'?1:-1)); });
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-loadAll(false).then(pollLive);
+loadAll(false).then(pollLive).then(()=>{ if(PROXY&&CHPIN) chatStart(); });
 setInterval(()=>{ if(document.visibilityState==='visible') loadAll(false); }, 5*60000);
 setInterval(pollLive, 2*60000);
 setInterval(()=>{ if(tab==='live' && NTFY && document.visibilityState==='visible') loadNtfy(true).then(()=>{ if(tab==='live') render(); }); }, 60000);
