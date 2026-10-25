@@ -1,0 +1,99 @@
+name: Cloudflare worker
+
+# Nasadí cloudflare/worker.js na Cloudflare (živé zápasy + Prídem/Neprídem).
+# Potrebuje jeden secret v repozitári: CLOUDFLARE_API_TOKEN (šablóna "Edit Cloudflare Workers").
+# Úložisko KV a adresu workers.dev si vytvorí samo, ak ešte neexistujú.
+
+on:
+  push:
+    branches: [main]
+    paths: ['cloudflare/**', '.github/workflows/cloudflare.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Skontrolovať token
+        run: |
+          if [ -z "$CF_TOKEN" ]; then
+            echo "::error::Chýba secret CLOUDFLARE_API_TOKEN (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+      - name: Účet, úložisko a adresa
+        id: cf
+        run: |
+          api() { curl -sS -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" "$@"; }
+          ACC=$(api https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id // empty')
+          if [ -z "$ACC" ]; then echo "::error::Token nevidí žiadny Cloudflare účet. Skontroluj oprávnenia tokenu."; exit 1; fi
+          echo "acc=$ACC" >> "$GITHUB_OUTPUT"
+
+          KV=$(api "https://api.cloudflare.com/client/v4/accounts/$ACC/storage/kv/namespaces?per_page=100" | jq -r '.result[] | select(.title=="tjklas-dochadzka") | .id' | head -1)
+          if [ -z "$KV" ]; then
+            KV=$(api -X POST "https://api.cloudflare.com/client/v4/accounts/$ACC/storage/kv/namespaces" -d '{"title":"tjklas-dochadzka"}' | jq -r '.result.id // empty')
+            echo "Vytvorené úložisko KV: $KV"
+          fi
+          if [ -z "$KV" ]; then echo "::error::Nepodarilo sa vytvoriť KV úložisko. Token potrebuje oprávnenie Workers KV Storage: Edit."; exit 1; fi
+          echo "kv=$KV" >> "$GITHUB_OUTPUT"
+
+          SUB=$(api "https://api.cloudflare.com/client/v4/accounts/$ACC/workers/subdomain" | jq -r '.result.subdomain // empty')
+          if [ -z "$SUB" ]; then
+            for name in tjklas-besa "tjklas-besa-$(date +%s | tail -c 5)"; do
+              SUB=$(api -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACC/workers/subdomain" -d "{\"subdomain\":\"$name\"}" | jq -r '.result.subdomain // empty')
+              [ -n "$SUB" ] && break
+            done
+            echo "Zaregistrovaná adresa: $SUB.workers.dev"
+          fi
+          if [ -z "$SUB" ]; then echo "::error::Nepodarilo sa nastaviť adresu workers.dev."; exit 1; fi
+          echo "sub=$SUB" >> "$GITHUB_OUTPUT"
+
+          cat > cloudflare/wrangler.toml <<EOF
+          name = "tjklas"
+          main = "worker.js"
+          compatibility_date = "2025-06-01"
+          workers_dev = true
+          account_id = "$ACC"
+
+          [[kv_namespaces]]
+          binding = "DOCHADZKA"
+          id = "$KV"
+          EOF
+          cat cloudflare/wrangler.toml
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Nasadiť worker
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.cf.outputs.acc }}
+        run: npx --yes wrangler@4 deploy
+
+      - name: Overiť a uložiť adresu
+        run: |
+          URL="https://tjklas.${{ steps.cf.outputs.sub }}.workers.dev"
+          for i in 1 2 3 4 5 6; do
+            OUT=$(curl -sS "$URL/" || true); echo "$OUT"
+            echo "$OUT" | grep -q '"dochadzka":true' && break
+            sleep 10
+          done
+          echo "$URL" > cloudflare/adresa.txt
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add cloudflare/adresa.txt
+          git diff --cached --quiet || (git commit -m "Adresa Cloudflare workera" && git push) || true
+          echo "### Worker beží na $URL" >> "$GITHUB_STEP_SUMMARY"
