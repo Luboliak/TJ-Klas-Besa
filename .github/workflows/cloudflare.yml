@@ -31,6 +31,12 @@ jobs:
             echo "::error::Chýba secret CLOUDFLARE_API_TOKEN (Settings > Secrets and variables > Actions)."
             exit 1
           fi
+          # očistí vložený text: medzery, nový riadok, "Bearer", prípadne celý príkaz curl zo stránky Cloudflare
+          T=$(printf '%s' "$CF_TOKEN" | tr -d '\r' | grep -oE '[A-Za-z0-9_-]{32,}' | awk '{ print length, $0 }' | sort -rn | head -1 | cut -d' ' -f2)
+          if [ -z "$T" ]; then echo "::error::V secrete CLOUDFLARE_API_TOKEN nie je platný token."; exit 1; fi
+          echo "::add-mask::$T"
+          echo "CF_TOKEN=$T" >> "$GITHUB_ENV"
+          echo "Dĺžka tokenu: ${#T}"
 
       - name: Účet, úložisko a adresa
         id: cf
@@ -86,9 +92,8 @@ jobs:
       - name: Nasadiť worker
         working-directory: cloudflare
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ steps.cf.outputs.acc }}
-        run: npx --yes wrangler@4 deploy
+        run: CLOUDFLARE_API_TOKEN="$CF_TOKEN" npx --yes wrangler@4 deploy
 
       - name: Overiť a uložiť adresu
         run: |
