@@ -135,17 +135,18 @@ export class ChatRoom {
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS mvp_polls (id TEXT PRIMARY KEY, start INTEGER, title TEXT)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS mvp_votes (poll TEXT, voter TEXT, za TEXT, t INTEGER, PRIMARY KEY (poll, voter))`);
       this.cfg = (await ctx.storage.get('cfg')) || null;
-      this.fails = [];
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fails (t INTEGER)`);
     });
   }
 
   async checkPin(pin, admin) {
     if (!this.cfg) return false;
+    // zlé pokusy sa ukladajú natrvalo: 15 zlých PIN-ov za 10 minút = 10 minút blokované
     const now = Date.now();
-    this.fails = this.fails.filter(t => now - t < 10 * 60000);
-    if (this.fails.length >= 15) return 'locked';
+    this.ctx.storage.sql.exec('DELETE FROM fails WHERE t < ?', now - 10 * 60000);
+    if (this.rows('SELECT COUNT(*) AS n FROM fails')[0].n >= 15) return 'locked';
     const ok = (await sha(this.cfg.salt + String(pin || ''))) === (admin ? this.cfg.admin : this.cfg.pin);
-    if (!ok) this.fails.push(now);
+    if (!ok) this.ctx.storage.sql.exec('INSERT INTO fails (t) VALUES (?)', now);
     return ok;
   }
 
@@ -165,7 +166,7 @@ export class ChatRoom {
     try {
       await Promise.race([
         fetch('https://ntfy.sh/', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic: this.cfg.topic, title: meno + ' (chat)', message: text.slice(0, 300), tags: ['speech_balloon'] }) }),
+          body: JSON.stringify({ topic: this.cfg.topic, title: 'Klubový chat', message: 'Nová správa od ' + meno, tags: ['speech_balloon'] }) }),
         new Promise(r => setTimeout(r, 3000)),
       ]);
     } catch (e) {}
