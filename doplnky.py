@@ -94,6 +94,24 @@ def goal_for(e, our_side):
     return (e.get('side') != our_side) if own else (e.get('side') == our_side)
 
 
+# ---------------------------------------------------------------- hráč zápasu (hlasovanie na Cloudflare)
+
+_MVP = None
+
+
+def mvp_summary():
+    global _MVP
+    if _MVP is None:
+        _MVP = []
+        url = setting('PROXY_URL').rstrip('/')
+        if url:
+            try:
+                _MVP = requests.get(url + '/mvp/summary', timeout=20).json().get('polls', [])
+            except Exception as e:
+                print(f'Hráč zápasu: CHYBA {e}')
+    return _MVP
+
+
 # ---------------------------------------------------------------- štatistiky
 
 def stats():
@@ -160,14 +178,23 @@ def stats():
             pl['matches'].append({'id': m['id'], 'date': m.get('date'), 'round': m.get('round'), 'opp': opp,
                                   'home': side == 'home', 'score': f'{my}:{th}', 'res': res, 'start': x['start'],
                                   'min': mins, 'g': x['g'], 'zk': x['zk'], 'ck': x['ck']})
+    polls = mvp_summary()
+    won = {}
+    for pol in polls:
+        for w in pol.get('winners', []):
+            won.setdefault(w, set()).add(pol['id'])
     out = []
     for pl in players.values():
+        pl['hz'] = len(won.get(pl['name'], ()))
+        for x in pl['matches']:
+            x['hz'] = x['id'] in won.get(pl['name'], ())
         pl['nr'] = int(max(pl['nr'], key=pl['nr'].get)) if pl['nr'] else None
         pl['gk'] = pl['gk'] * 2 >= pl['z']
         pl['matches'].sort(key=lambda x: x['date'] or '', reverse=True)
         out.append(pl)
     out.sort(key=lambda p: (-p['g'], -p['z'], p['name']))
-    jsave(DATA / 'klub.json', {'at': NOW.isoformat(timespec='seconds'), 'zapasy': played, 'hraci': out})
+    jsave(DATA / 'klub.json', {'at': NOW.isoformat(timespec='seconds'), 'zapasy': played, 'hraci': out,
+                               'mvp': [{k: p.get(k) for k in ('id', 'title', 'winners', 'top', 'n')} for p in polls]})
     print(f'Štatistiky: {played} zápasov, {len(out)} hráčov')
 
 
@@ -416,6 +443,11 @@ def notify():
             pk = ' (penalta)' if e.get('k') == 'goal_penalty' else ''
             add(f"gol:{m['id']}:{e.get('min')}:{e.get('p')}:{e.get('side')}", 'Gól Beše! ⚽' if ours else 'Gól súpera',
                 f"{name} {h}:{a}\n{e.get('min')}' {e.get('p') or ''}{pk}{vg}", 'soccer', 4 if ours else 3)
+
+    for pol in mvp_summary():
+        if pol.get('winners'):
+            c = pol['top'][0][1]
+            add(f"mvp:{pol['id']}", '🏆 Hráč zápasu', f"{pol.get('title') or 'Beša'}: {', '.join(pol['winners'])} ({c} {'hlas' if c == 1 else 'hlasy' if c < 5 else 'hlasov'})", 'trophy', 4)
 
     lines = tren_lines()
     for l in lines:

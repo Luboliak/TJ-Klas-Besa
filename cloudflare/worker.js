@@ -117,6 +117,8 @@ async function attendance(request, env) {
 // PIN a správcovský PIN sa nastavia pri prvom spustení priamo z appky (/chat/setup).
 
 const KEEP_DAYS = 60;
+// Hráč zápasu: hlasuje sa od konca zápasu (výkop + 100 min) do 3 dní po zápase
+const mvpWindow = start => ({ opens: start + 100 * 60000, closes: start + 105 * 60000 + 72 * 3600000 });
 
 async function sha(s) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
@@ -130,6 +132,8 @@ export class ChatRoom {
     this.env = env;
     ctx.blockConcurrencyWhile(async () => {
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS msgs (id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER, meno TEXT, text TEXT, del INTEGER DEFAULT 0)`);
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS mvp_polls (id TEXT PRIMARY KEY, start INTEGER, title TEXT)`);
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS mvp_votes (poll TEXT, voter TEXT, za TEXT, t INTEGER, PRIMARY KEY (poll, voter))`);
       this.cfg = (await ctx.storage.get('cfg')) || null;
       this.fails = [];
     });
@@ -174,6 +178,7 @@ export class ChatRoom {
     const pin = body.pin ?? url.searchParams.get('pin');
 
     if (path === '/chat/status') return json({ setup: !!this.cfg });
+    if (path === '/mvp/summary') return json({ polls: this.mvpSummary() }, 200, { 'Cache-Control': 'public, max-age=300' });
 
     if (path === '/chat/setup' && request.method === 'POST') {
       if (this.cfg) return json({ error: 'Chat je už nastavený' }, 409);
@@ -202,6 +207,32 @@ export class ChatRoom {
     const ok = admin || await this.checkPin(pin, false);
     if (ok === 'locked') return json({ error: 'Príliš veľa pokusov, skús o 10 minút' }, 429);
     if (!ok) return json({ error: this.cfg ? 'Zlý PIN' : 'Chat ešte nie je nastavený' }, this.cfg ? 403 : 409);
+
+    if (path === '/mvp/get') {
+      const meno = url.searchParams.get('meno') || '';
+      const ids = (url.searchParams.get('ids') || '').split(',').filter(x => ID.test(x)).slice(0, 20);
+      const out = {};
+      for (const id of ids) out[id] = this.mvpState(id, meno);
+      return json(out, 200, { 'Cache-Control': 'no-store' });
+    }
+    if (path === '/mvp/vote' && request.method === 'POST') {
+      const id = String(body.id || ''), meno = String(body.meno || '').trim().slice(0, 60), za = String(body.za || '').trim().slice(0, 60);
+      if (!ID.test(id) || !meno) return json({ error: 'Zlé údaje' }, 400);
+      if (za && za === meno) return json({ error: 'Za seba hlasovať nemôžeš' }, 400);
+      let poll = this.rows('SELECT start FROM mvp_polls WHERE id=?', id)[0];
+      if (!poll) {
+        const st = Number(body.start) || 0;
+        if (Math.abs(st - Date.now()) > 10 * 86400000) return json({ error: 'Zlý čas zápasu' }, 400);
+        poll = { start: st, nova: true };
+      }
+      const w = mvpWindow(poll.start), now = Date.now();
+      if (now < w.opens) return json({ error: 'Hlasovanie sa otvorí po zápase' }, 400);
+      if (now > w.closes) return json({ error: 'Hlasovanie už skončilo' }, 400);
+      if (poll.nova) this.ctx.storage.sql.exec('INSERT INTO mvp_polls (id, start, title) VALUES (?, ?, ?)', id, poll.start, String(body.title || '').slice(0, 120));
+      if (za) this.ctx.storage.sql.exec('INSERT OR REPLACE INTO mvp_votes (poll, voter, za, t) VALUES (?, ?, ?, ?)', id, meno, za, now);
+      else this.ctx.storage.sql.exec('DELETE FROM mvp_votes WHERE poll=? AND voter=?', id, meno);
+      return json(this.mvpState(id, meno));
+    }
 
     if (path === '/chat/ws') {
       if (request.headers.get('Upgrade') !== 'websocket') return json({ error: 'Treba WebSocket' }, 426);
@@ -237,6 +268,28 @@ export class ChatRoom {
     return json({ error: 'Neznáma adresa' }, 404);
   }
 
+  mvpState(id, meno) {
+    const poll = this.rows('SELECT start FROM mvp_polls WHERE id=?', id)[0];
+    if (!poll) return { exists: false };
+    const w = mvpWindow(poll.start), now = Date.now();
+    const n = this.rows('SELECT COUNT(*) AS n FROM mvp_votes WHERE poll=?', id)[0].n;
+    const mine = (this.rows('SELECT za FROM mvp_votes WHERE poll=? AND voter=?', id, meno)[0] || {}).za || '';
+    const st = { exists: true, opens: w.opens, closes: w.closes, open: now >= w.opens && now <= w.closes, n, mine };
+    if (now > w.closes) st.results = this.rows('SELECT za, COUNT(*) AS c FROM mvp_votes WHERE poll=? GROUP BY za ORDER BY c DESC, za', id).map(r => [r.za, r.c]);
+    return st;
+  }
+  mvpSummary() {
+    const now = Date.now(), out = [];
+    for (const p of this.rows('SELECT id, start, title FROM mvp_polls ORDER BY start')) {
+      const w = mvpWindow(p.start);
+      if (now <= w.closes) continue;
+      const res = this.rows('SELECT za, COUNT(*) AS c FROM mvp_votes WHERE poll=? GROUP BY za ORDER BY c DESC, za', p.id).map(r => [r.za, r.c]);
+      if (!res.length) continue;
+      out.push({ id: p.id, title: p.title, closes: w.closes, n: res.reduce((a, r) => a + r[1], 0), winners: res.filter(r => r[1] === res[0][1]).map(r => r[0]), top: res.slice(0, 5) });
+    }
+    return out;
+  }
+
   webSocketMessage(ws, msg) { if (msg === 'ping') { try { ws.send('pong'); } catch (e) {} } }
   webSocketClose(ws) { try { ws.close(); } catch (e) {} }
 }
@@ -247,7 +300,7 @@ export default {
       if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
       const path = new URL(request.url).pathname.replace(/\/+$/, '');
       if (path === '/dochadzka') return await attendance(request, env);
-      if (path.startsWith('/chat/')) {
+      if (path.startsWith('/chat/') || path.startsWith('/mvp/')) {
         if (!env.CHAT) return json({ error: 'Chat nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('klub')).fetch(request);
       }
