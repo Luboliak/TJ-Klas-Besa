@@ -193,8 +193,7 @@ def merge(ms, m):
 
 def scrape(lg, prev):
     B = lg['url']
-    src = {'tabulky': B + 'tabulky/', 'prehlad': B, 'vysledky': B + 'vysledky/',
-           'program': B + 'program/', 'statistiky': B + 'statistiky/'}
+    src = {'tabulky': B + 'tabulky/', 'prehlad': B, 'vysledky': B + 'vysledky/', 'program': B + 'program/'}
     got = get_many(src.values())
     docs = {k: got[u] for k, u in src.items() if got.get(u) is not None}
     teams = parse_table(docs['tabulky']) if 'tabulky' in docs else []
@@ -229,7 +228,7 @@ def scrape(lg, prev):
         if pages and sum(v is not None for v in pages.values()) >= len(pages) * 0.8:
             full_at = now.isoformat(timespec='seconds')
         print(f'  celý rozpis: {len(pages)} stránok tímov')
-    stats = parse_stats(docs['statistiky']) if 'statistiky' in docs else []
+    stats = []  # štatistiky súťaže sa už nesťahujú (zbytočná záťaž pre Sportnet)
     us = next((t for t in teams if t['name'] == US), None)
     print(f"  tímov {len(teams)}, zápasov {len(ms)}, štatistík {len(stats)}" + (f", Beša {us['pos']}. miesto {us['b']} b" if us else ''))
     ok = bool(teams or ms)
@@ -237,7 +236,7 @@ def scrape(lg, prev):
             'at': now.isoformat(timespec='seconds') if ok else prev.get('at'), 'full_at': full_at,
             'teams': teams or prev.get('teams', []),
             'matches': list(ms.values()),
-            'stats': stats or prev.get('stats', [])}
+            'stats': []}
 
 
 def rsc_text(html):

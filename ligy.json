@@ -24,5 +24,15 @@
     "id": "nz-8",
     "name": "VIII. liga ObFZ Nové Zámky",
     "url": "https://sportnet.sme.sk/futbalnet/z/obfz-nove-zamky/s/viii-liga-macron-yoursport-obfz-nz/"
+  },
+  {
+    "id": "zsfz-5-juhovychod",
+    "name": "V. liga juhovýchod ZsFZ",
+    "url": "https://sportnet.sme.sk/futbalnet/z/zsfz/s/v-liga-juhovychod-macron-yoursport-zsfz/"
+  },
+  {
+    "id": "zsfz-4",
+    "name": "IV. liga ZsFZ",
+    "url": "https://sportnet.sme.sk/futbalnet/z/zsfz/s/majstrovstva-regionu-iv-liga-macron-yoursport-zsfz/"
   }
 ]

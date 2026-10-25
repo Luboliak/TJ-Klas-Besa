@@ -466,11 +466,6 @@ function vTable(){
     if(last.length) h+='<h2>Forma Beše</h2><div class="form">'+last.map(m=>`<div class="fr ${resFor(m)}">${resFor(m)}</div>`).join('')+'</div><p class="note">Posledných '+last.length+' zápasov, najnovší vpravo.</p>';
     h+=posChart(l);
   }
-  if(l.stats&&l.stats.length){
-    h+='<details><summary>Štatistiky súťaže</summary>';
-    l.stats.forEach(s=>{ h+=`<h2>${esc(s.title)}</h2><table class="stbl">`+(s.head.length?'<tr>'+s.head.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr>':'')+s.rows.map(r=>'<tr>'+r.map(x=>`<td>${esc(x)}</td>`).join('')+'</tr>').join('')+'</table>'; });
-    h+='</details>';
-  }
   return h;
 }
 
