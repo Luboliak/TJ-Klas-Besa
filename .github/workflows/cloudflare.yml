@@ -36,8 +36,15 @@ jobs:
         id: cf
         run: |
           api() { curl -sS -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" "$@"; }
-          ACC=$(api https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id // empty')
-          if [ -z "$ACC" ]; then echo "::error::Token nevidí žiadny Cloudflare účet. Skontroluj oprávnenia tokenu."; exit 1; fi
+          ACC="${{ vars.CLOUDFLARE_ACCOUNT_ID }}"
+          [ -z "$ACC" ] && ACC=$(api https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id // empty')
+          [ -z "$ACC" ] && ACC=$(api https://api.cloudflare.com/client/v4/memberships | jq -r '.result[0].account.id // empty')
+          if [ -z "$ACC" ]; then
+            V=$(api https://api.cloudflare.com/client/v4/user/tokens/verify | jq -c '{success, status: .result.status, errors}')
+            A=$(api https://api.cloudflare.com/client/v4/accounts | jq -c '{success, n: (.result|length), errors}')
+            echo "::error::Token nevidí žiadny Cloudflare účet. verify=$V accounts=$A"
+            exit 1
+          fi
           echo "acc=$ACC" >> "$GITHUB_OUTPUT"
 
           KV=$(api "https://api.cloudflare.com/client/v4/accounts/$ACC/storage/kv/namespaces?per_page=100" | jq -r '.result[] | select(.title=="tjklas-dochadzka") | .id' | head -1)
