@@ -239,6 +239,15 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
 .feed{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
 .feed .ft{font-family:var(--cond);color:var(--mute);min-width:38px}
 .feed p{margin:2px 0 0;white-space:pre-wrap}
+.rsvp{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:-2px 0 10px}
+.rsq{font-family:var(--cond);font-size:17px;margin-bottom:8px}
+.rsq small{font-family:Roboto,sans-serif;font-size:13px;color:var(--mute)}
+.rsvp .acts{margin-bottom:6px}
+.rsn{margin:4px 0 0}
+.rsg{font-size:14px;margin-top:6px}
+.rsg small{display:block;color:var(--mute)}
+.lnk{background:none;border:0;padding:0;color:inherit;text-decoration:underline;text-underline-offset:3px;font-size:inherit}
+.names{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -408,7 +417,7 @@ function render(){
   const v=$('#view');
   v.innerHTML=hint()+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():vKlub())
     +(['tab','zap','live'].includes(tab)?'<p class="src">Zdroj údajov: <a href="https://sportnet.sme.sk/futbalnet/" target="_blank" rel="noopener">Sportnet / Futbalnet</a> (SFZ). Neoficiálna klubová appka TJ Klas Beša.</p>':'');
-  navBadge(); fillWx(v);
+  navBadge(); fillWx(v); fillRsvp(v);
   if(tab==='live' && NTFY && Date.now()-NT_AT>55000) loadNtfy().then(()=>{ if(tab==='live') render(); });
   v.querySelectorAll('img.tl').forEach(i=>i.onerror=()=>i.style.visibility='hidden');
   const s=$('#lgSel'); if(s) s.onchange=()=>{ cur=s.value; try{localStorage.setItem('liga',cur);}catch(e){} render(); };
@@ -493,7 +502,7 @@ async function openMatch(id){
   openSheet(`<h3><span>${esc(m.home)} – ${esc(m.away)}</span><button class="ibtn" data-close="1" aria-label="Zavrieť"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3><p class="note">Načítavam detail…</p>`);
   const d=await getDetail(m, true);
   if(sheetMatch!==id) return;
-  $('#sheet').innerHTML=vDetail(m,d); fillWx($('#sheet'));
+  $('#sheet').innerHTML=vDetail(m,d); fillWx($('#sheet')); fillRsvp($('#sheet'));
   clearInterval(sheetTimer);
   if(PROXY && d && !d.closed && nearNow(m)){
     sheetTimer=setInterval(async()=>{ const x=await getDetail(m,true); if(sheetMatch===id && x){ $('#sheet').innerHTML=vDetail(m,x); fillWx($('#sheet')); render(); } }, 60000);
@@ -606,7 +615,7 @@ function vMatches(){
   if(!l.matches||!l.matches.length) return h+'<div class="empty">Zápasy zatiaľ nie sú k dispozícii.</div>';
   if(mode==='nase'){
     const ms=ours(), up=ms.filter(m=>!played(m)&&(!m.date||m.date>=today())), done=ms.filter(played).reverse();
-    if(up[0]){ const n=up[0], hm=n.home===US, li=liveInfo(LIVE[n.id]), sc=score(n); h+=`<div class="next" data-mid="${esc(n.id)}"><div class="when">${li?'Práve sa hrá':'Najbližší zápas'}, ${dLabel(n.date)} o ${esc(n.time||'?')}${n.round?', '+n.round+'. kolo':''}</div><div class="vs">${hm?'Doma proti':'Vonku v'} ${esc(hm?n.away:n.home)}${li&&sc?` ${sc[0]}:${sc[1]} <span class="live">${li.label}</span>`:''}</div>${n.ref?`<div class="ref">Rozhodca: ${esc(n.ref)}</div>`:''}${wxWanted(n)?`<div data-wx="${esc(n.id)}" data-short="1"></div>`:''}</div>`; }
+    if(up[0]){ const n=up[0], hm=n.home===US, li=liveInfo(LIVE[n.id]), sc=score(n); h+=`<div class="next" data-mid="${esc(n.id)}"><div class="when">${li?'Práve sa hrá':'Najbližší zápas'}, ${dLabel(n.date)} o ${esc(n.time||'?')}${n.round?', '+n.round+'. kolo':''}</div><div class="vs">${hm?'Doma proti':'Vonku v'} ${esc(hm?n.away:n.home)}${li&&sc?` ${sc[0]}:${sc[1]} <span class="live">${li.label}</span>`:''}</div>${n.ref?`<div class="ref">Rozhodca: ${esc(n.ref)}</div>`:''}${wxWanted(n)?`<div data-wx="${esc(n.id)}" data-short="1"></div>`:''}</div>`+rsvp(n.id); }
     if(up.length>1) h+='<h2>Program</h2>'+up.slice(1).map(m=>mRow(m,true)).join('');
     if(done.length) h+='<h2>Výsledky</h2>'+done.map(m=>mRow(m,true)).join('');
   } else {
@@ -627,8 +636,8 @@ function vTren(){
   const card=(x,cls)=>{ const d=new Date(x.d+'T12:00'); return `<div class="tr ${x.zrus&&cls!=='past'?'past':cls}"><div class="dd"><b>${d.getDate()}</b><span>${MES[d.getMonth()]}, ${DNI[d.getDay()]}</span></div><div class="x">${x.cas?'<b>'+esc(x.cas)+'</b> ':''}${esc(x.kde)}${x.pozn?`<small>${esc(x.pozn)}</small>`:''}</div></div>`; };
   let h='';
   if(!up.length) h+='<div class="empty">Najbližší tréning ešte nie je zapísaný.</div>';
-  else h+='<h2 style="margin-top:0">Najbližší tréning</h2>'+card(up[0],'first')+(up.length>1?'<h2>Ďalšie tréningy</h2>'+up.slice(1,9).map(x=>card(x,'')).join(''):'');
-  if(nextMatch) h+=`<h2>Najbližší zápas</h2><div class="next" data-mid="${esc(nextMatch.id)}"><div class="when">${dLabel(nextMatch.date)} o ${esc(nextMatch.time||'?')}</div><div class="vs">${nextMatch.home===US?'Doma proti':'Vonku v'} ${esc(nextMatch.home===US?nextMatch.away:nextMatch.home)}</div>${wxWanted(nextMatch)?`<div data-wx="${esc(nextMatch.id)}" data-short="1"></div>`:''}</div>`;
+  else h+='<h2 style="margin-top:0">Najbližší tréning</h2>'+card(up[0],'first')+(up[0].zrus?'':rsvp('tren-'+up[0].d))+(up.length>1?'<h2>Ďalšie tréningy</h2>'+up.slice(1,9).map(x=>card(x,'')).join(''):'');
+  if(nextMatch) h+=`<h2>Najbližší zápas</h2><div class="next" data-mid="${esc(nextMatch.id)}"><div class="when">${dLabel(nextMatch.date)} o ${esc(nextMatch.time||'?')}</div><div class="vs">${nextMatch.home===US?'Doma proti':'Vonku v'} ${esc(nextMatch.home===US?nextMatch.away:nextMatch.home)}</div>${wxWanted(nextMatch)?`<div data-wx="${esc(nextMatch.id)}" data-short="1"></div>`:''}</div>`+rsvp(nextMatch.id);
   if(past.length) h+='<h2>Posledné tréningy</h2>'+past.map(x=>card(x,'past')).join('');
   return h;
 }
@@ -751,6 +760,7 @@ function matchTools(m,d){
   if(m.home===BYE||m.away===BYE) return '';
   const g=groundOf(m,d);
   let h=`<div class="acts tools"><a class="btn grow" href="${esc(navUrl(m,d))}" target="_blank" rel="noopener">Navigovať${g&&g.ground?' na '+esc(g.ground):''}</a></div>`;
+  if(m.home===US||m.away===US) h+=rsvp(m.id);
   if(wxWanted(m)) h+=`<div data-wx="${esc(m.id)}">${g&&g.geo?'<p class="note">Načítavam počasie…</p>':''}</div>`;
   return h;
 }
@@ -776,6 +786,74 @@ function vFeed(){
   if(!NT.length) h+='<p class="note">Za posledných 12 hodín žiadne správy.</p>';
   else h+=NT.slice(0,15).map(x=>{ const d=new Date(x.time*1000); return `<div class="feed"><span class="ft">${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}</span><div>${x.title?`<b>${esc(x.title)}</b>`:''}<p>${esc(x.message||'')}</p></div></div>`; }).join('');
   return h+'<p class="note">Sem patria aj správy, ktoré vedúci mužstva napíše počas zápasu do ntfy. Postup je v Klub → O klube.</p>';
+}
+
+/* ===== PRÍDEM / NEPRÍDEM (Cloudflare worker + KV) ===== */
+const RS={}, RSX={};
+let JA=''; try{ JA=localStorage.getItem('ja')||''; }catch(e){}
+function rsvp(id){ return PROXY ? `<div class="rsvp" data-rsvp="${esc(id)}"></div>` : ''; }
+function squad(){ return (KLUB&&KLUB.hraci||[]).map(p=>p.name).sort((a,b)=>a.localeCompare(b,'sk')); }
+function rsvpInner(id){
+  const ev=(RS[id]&&RS[id].d)||{};
+  const yes=Object.keys(ev).filter(n=>ev[n].o==='ano').sort((a,b)=>a.localeCompare(b,'sk'));
+  const no=Object.keys(ev).filter(n=>ev[n].o==='nie').sort((a,b)=>a.localeCompare(b,'sk'));
+  const none=squad().filter(n=>!ev[n]);
+  const mine=JA&&ev[JA]?ev[JA].o:'';
+  let h='';
+  if(!JA) h+=`<div class="rsq">Prídeš? <button class="lnk" data-ja="1">Najprv vyber svoje meno</button></div>`;
+  else h+=`<div class="rsq">Prídeš? <small>ako ${esc(JA)}, <button class="lnk" data-ja="1">zmeniť</button></small></div>
+    <div class="acts"><button class="btn grow ${mine==='ano'?'pri':''}" data-rs="${esc(id)}" data-o="ano">Prídem</button><button class="btn grow ${mine==='nie'?'pri':''}" data-rs="${esc(id)}" data-o="nie">Neprídem</button></div>`;
+  if(!RS[id]) return h+'<p class="note">Načítavam…</p>';
+  h+=`<p class="note rsn"><b>${yes.length}</b> príde, <b>${no.length}</b> nepríde${none.length?`, ${none.length} bez odpovede`:''}. <button class="lnk" data-rsl="${esc(id)}">${RSX[id]?'Skryť mená':'Kto?'}</button></p>`;
+  if(RSX[id]){
+    const grp=(t,a)=>a.length?`<div class="rsg"><small>${t}</small>${a.map(esc).join(', ')}</div>`:'';
+    h+=grp('Prídu',yes)+grp('Neprídu',no)+grp('Bez odpovede',none);
+  }
+  return h;
+}
+function paintRsvp(id){ document.querySelectorAll(`[data-rsvp="${CSS.escape(id)}"]`).forEach(el=>el.innerHTML=rsvpInner(id)); }
+async function fillRsvp(root){
+  if(!PROXY) return;
+  const els=[...(root||document).querySelectorAll('[data-rsvp]')];
+  const ids=[...new Set(els.map(e=>e.dataset.rsvp))];
+  ids.forEach(paintRsvp);
+  const stale=ids.filter(id=>!RS[id]||Date.now()-RS[id].at>60000);
+  if(!stale.length) return;
+  stale.forEach(id=>{ RS[id]=RS[id]||null; });
+  try{
+    const r=await fetch(PROXY+'/dochadzka?ids='+encodeURIComponent(stale.join(',')),{cache:'no-store'});
+    if(!r.ok) throw 0;
+    const j=await r.json();
+    stale.forEach(id=>{ RS[id]={d:j[id]||{},at:Date.now()}; paintRsvp(id); });
+  }catch(e){ stale.forEach(id=>{ if(!RS[id]) delete RS[id]; }); }
+}
+async function answer(id,o){
+  if(!JA){ pickName(); return; }
+  const ev={...((RS[id]&&RS[id].d)||{})}, prev=ev[JA]?ev[JA].o:'';
+  const nu=prev===o?'':o;
+  if(nu) ev[JA]={o:nu,t:Date.now()}; else delete ev[JA];
+  RS[id]={d:ev,at:Date.now()}; paintRsvp(id);
+  try{
+    const r=await fetch(PROXY+'/dochadzka',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,meno:JA,o:nu})});
+    if(!r.ok) throw 0;
+    RS[id]={d:await r.json(),at:Date.now()}; paintRsvp(id);
+    toast(nu==='ano'?'Zapísané: prídeš':nu==='nie'?'Zapísané: neprídeš':'Odpoveď zrušená');
+  }catch(e){ toast('Nepodarilo sa uložiť, skús znova'); RS[id].at=0; fillRsvp(); }
+}
+function pickName(){
+  const close=`<button class="ibtn" data-close="1" aria-label="Zavrieť"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+  const names=squad();
+  openSheet(`<h3><span>Kto si?</span>${close}</h3>
+    <p class="note">Meno si appka zapamätá v tomto telefóne a podľa neho sa zapisuje, či prídeš.</p>
+    <div class="names">${names.map(n=>`<button class="btn ${n===JA?'pri':''}" data-jaset="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+    <h2>Nie si v zozname?</h2>
+    <div class="acts"><input type="text" id="jaInput" placeholder="Meno a priezvisko" value="${names.includes(JA)?'':esc(JA)}" style="flex:1"><button class="btn pri" data-jaset="">Uložiť</button></div>`);
+}
+function setJa(n){
+  n=(n||($('#jaInput')&&$('#jaInput').value)||'').trim().replace(/\s+/g,' ').slice(0,60);
+  if(!n) return;
+  JA=n; try{ localStorage.setItem('ja',n); }catch(e){}
+  closeSheet(); render(); toast('Si zapísaný ako '+n);
 }
 
 /* ===== KLUB ===== */
@@ -921,6 +999,10 @@ document.addEventListener('click',e=>{
   else if(b.dataset.alb!=null){ fAlbum=+b.dataset.alb<0?null:+b.dataset.alb; render(); scrollTo(0,0); }
   else if(b.dataset.ph!=null){ openPhoto(+b.dataset.ph); }
   else if(b.dataset.phn){ openPhoto(phIdx+ +b.dataset.phn); }
+  else if(b.dataset.rs){ answer(b.dataset.rs,b.dataset.o); }
+  else if(b.dataset.rsl){ RSX[b.dataset.rsl]=!RSX[b.dataset.rsl]; paintRsvp(b.dataset.rsl); }
+  else if(b.dataset.ja){ pickName(); }
+  else if(b.dataset.jaset!=null){ setJa(b.dataset.jaset); }
   else if(b.dataset.copy){ (navigator.clipboard?navigator.clipboard.writeText(b.dataset.copy):Promise.reject()).then(()=>toast('Skopírované'),()=>toast('Označ a skopíruj text ručne')); }
   else if(b.dataset.hint){ try{localStorage.setItem('hint','0');}catch(e){} render(); }
   else if(b.id==='bRefresh') loadAll(true);
