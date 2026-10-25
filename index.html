@@ -696,11 +696,13 @@ function preMatch(m){
 
 /* ===== IHRISKÁ, NAVIGÁCIA, POČASIE ===== */
 let IHR={};
+// GPS, ktoré je od Beše ďalej ako 90 km, je na Sportnete zjavne zle zadané: použije sa hľadanie podľa názvu
+const BESA_GEO=[48.141,18.407];
+const okGeo=g=>g&&Math.hypot((g[0]-BESA_GEO[0])*111,(g[1]-BESA_GEO[1])*74)<90?g:null;
 function groundOf(m,d){
-  if(d&&d.geo) return {ground:d.ground,geo:d.geo};
-  const g=IHR[m.home];
-  if(g&&(g.geo||g.ground)) return {ground:g.ground||(d&&d.ground),geo:g.geo};
-  return d&&d.ground?{ground:d.ground}:null;
+  const g=IHR[m.home]||{};
+  const ground=(d&&d.ground)||g.ground, geo=okGeo(d&&d.geo)||okGeo(g.geo);
+  return ground||geo?{ground,geo}:null;
 }
 function navUrl(m,d){
   const g=groundOf(m,d);
