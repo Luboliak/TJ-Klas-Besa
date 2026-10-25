@@ -109,5 +109,9 @@ jobs:
           git add cloudflare/adresa.txt
           git diff --cached --quiet || git commit -m "Adresa Cloudflare workera"
           for i in 1 2 3; do git pull -q --rebase origin main && git push -q && break; sleep 5; done || true
-          echo "::notice::Worker beží na $URL" 
+          echo "::notice::Worker beží na $URL"
+          echo "::notice::Kontrola: $(curl -sS "$URL/" | head -c 200)"
+          echo "::notice::Dochádzka test: $(curl -sS -X POST "$URL/dochadzka" -H 'Content-Type: application/json' -d '{"id":"test-nasadenie","meno":"Test","o":""}' | head -c 200)"
+          Z=$(jq -r '[.ligy[] | select(.home) | .matches[] | select(.hs != null and .url != null) | .url][0]' data/ligy.json)
+          echo "::notice::Live test: $(curl -sS "$URL/?zapas=$Z" | jq -c '{home,away,score,closed,refs: (.refs|length), geo}' 2>&1 | head -c 300)" 
           echo "### Worker beží na $URL" >> "$GITHUB_STEP_SUMMARY"
