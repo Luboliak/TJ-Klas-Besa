@@ -107,5 +107,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
           git add cloudflare/adresa.txt
-          git diff --cached --quiet || (git commit -m "Adresa Cloudflare workera" && git push) || true
+          git diff --cached --quiet || git commit -m "Adresa Cloudflare workera"
+          for i in 1 2 3; do git pull -q --rebase origin main && git push -q && break; sleep 5; done || true
+          echo "::notice::Worker beží na $URL" 
           echo "### Worker beží na $URL" >> "$GITHUB_STEP_SUMMARY"
