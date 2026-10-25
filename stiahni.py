@@ -251,6 +251,17 @@ def rsc_text(html):
     return ''.join(out)
 
 
+def ground_geo(g):
+    """GPS ihriska ako [šírka, dĺžka]. Na Slovensku je zemepisná šírka vždy väčšie číslo."""
+    try:
+        c = [float(x) for x in ((g or {}).get('geo') or {}).get('coordinates')[:2]]
+    except Exception:
+        return None
+    if not all(c) or len(c) != 2:
+        return None
+    return [round(max(c), 6), round(min(c), 6)]
+
+
 def compact_match(m):
     teams = m.get('teams') or []
     side = {t.get('_id'): ('home' if (t.get('additionalProperties') or {}).get('homeaway') == 'home' else 'away') for t in teams}
@@ -275,6 +286,7 @@ def compact_match(m):
     return {'id': m.get('_id'), 'status': m.get('__issfMatchStatus'), 'closed': bool(m.get('closed')),
             'start': m.get('startDate'), 'round': (m.get('round') or {}).get('name'),
             'comp': (m.get('competition') or {}).get('name'), 'ground': (m.get('sportGround') or {}).get('name'),
+            'geo': ground_geo(m.get('sportGround')),
             'home': names.get('home'), 'away': names.get('away'), 'score': m.get('score'),
             'phases': m.get('scoreByPhases'), 'timer': m.get('timer'),
             'refs': [{'role': (x.get('type') or {}).get('label'), 'name': (x.get('user') or {}).get('name')} for x in m.get('managers') or []],
@@ -342,7 +354,35 @@ def update_details(res):
             if old.get('closed') and old.get('score'):
                 m['hs'], m['as'] = old['score'][0], old['score'][1]
             m['det'] = True
+    grounds(res, olds, one)
     print(f'Detaily zápasov: stiahnutých {len(todo)}')
+
+
+def grounds(res, olds, fetch):
+    """data/ihriska.json: domáce ihrisko každého tímu (názov + GPS) pre navigáciu a počasie.
+    Chýbajúce ihriská doplní z jedného domáceho zápasu tímu, najviac 30 za beh."""
+    p = ROOT / 'data' / 'ihriska.json'
+    try:
+        ih = json.loads(p.read_text(encoding='utf-8'))
+    except Exception:
+        ih = {}
+    for det in olds.values():
+        if det and det.get('home') and det.get('geo'):
+            ih[det['home']] = {'ground': det.get('ground'), 'geo': det['geo']}
+    missing = {}
+    for lg in res:
+        for m in sorted(lg.get('matches', []), key=lambda x: x.get('date') or '', reverse=True):
+            h = m.get('home')
+            if h and h != BYE and h not in ih and h not in missing and m.get('url') and m.get('hs') is not None:
+                missing[h] = m
+    todo = list(missing.values())[:30]
+    if todo:
+        with ThreadPoolExecutor(6) as ex:
+            for mid, det in ex.map(fetch, todo):
+                if det and det.get('home'):
+                    ih[det['home']] = {'ground': det.get('ground'), 'geo': det.get('geo')}
+        print(f'Ihriská: doplnených {len(todo)} tímov')
+    p.write_text(json.dumps(ih, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
 
 
 def main():

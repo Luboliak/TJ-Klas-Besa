@@ -30,6 +30,12 @@ function readJson(t, i) {
   throw new Error('neukončený JSON');
 }
 
+function geo(g) {
+  const c = (((g || {}).geo || {}).coordinates || []).slice(0, 2).map(Number);
+  if (c.length !== 2 || !c[0] || !c[1]) return null;
+  return [Math.max(c[0], c[1]), Math.min(c[0], c[1])];
+}
+
 function compact(m) {
   const teams = m.teams || [];
   const side = {}, names = {};
@@ -48,7 +54,7 @@ function compact(m) {
   });
   return {
     id: m._id, status: m.__issfMatchStatus, closed: !!m.closed, start: m.startDate, round: (m.round || {}).name,
-    comp: (m.competition || {}).name, ground: (m.sportGround || {}).name, home: names.home, away: names.away,
+    comp: (m.competition || {}).name, ground: (m.sportGround || {}).name, geo: geo(m.sportGround), home: names.home, away: names.away,
     score: m.score, phases: m.scoreByPhases, timer: m.timer || null,
     refs: (m.managers || []).map(x => ({ role: (x.type || {}).label, name: (x.user || {}).name })),
     events, lineups, at: new Date().toISOString(), live: true,
