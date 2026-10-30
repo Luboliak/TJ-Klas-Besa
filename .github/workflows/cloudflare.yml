@@ -103,6 +103,17 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ steps.cf.outputs.acc }}
         run: CLOUDFLARE_API_TOKEN="$CF_TOKEN" npx --yes wrangler@4 deploy
 
+      - name: Záložný správcovský PIN chatu
+        working-directory: cloudflare
+        env:
+          ADMIN_PIN: ${{ secrets.CHAT_ADMIN_PIN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.cf.outputs.acc }}
+        run: |
+          if [ -n "$ADMIN_PIN" ]; then
+            printf '%s' "$ADMIN_PIN" | CLOUDFLARE_API_TOKEN="$CF_TOKEN" npx --yes wrangler@4 secret put ADMIN_PIN
+            echo "::notice::Záložný správcovský PIN nastavený"
+          fi
+
       - name: Overiť a uložiť adresu
         run: |
           URL="https://tjklas.${{ steps.cf.outputs.sub }}.workers.dev"

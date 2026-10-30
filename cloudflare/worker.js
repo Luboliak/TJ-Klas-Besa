@@ -145,7 +145,9 @@ export class ChatRoom {
     const now = Date.now();
     this.ctx.storage.sql.exec('DELETE FROM fails WHERE t < ?', now - 10 * 60000);
     if (this.rows('SELECT COUNT(*) AS n FROM fails')[0].n >= 15) return 'locked';
-    const ok = (await sha(this.cfg.salt + String(pin || ''))) === (admin ? this.cfg.admin : this.cfg.pin);
+    // záložný správcovský PIN z Cloudflare (GitHub secret CHAT_ADMIN_PIN), keď sa pôvodný zabudne
+    const envAdmin = admin && this.env.ADMIN_PIN && String(pin || '') === String(this.env.ADMIN_PIN);
+    const ok = envAdmin || (await sha(this.cfg.salt + String(pin || ''))) === (admin ? this.cfg.admin : this.cfg.pin);
     if (!ok) this.ctx.storage.sql.exec('INSERT INTO fails (t) VALUES (?)', now);
     return ok;
   }
