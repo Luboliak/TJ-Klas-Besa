@@ -3,4 +3,5 @@ Fotky priamo v tomto priečinku sa ukážu v albume "Fotky".
 Nový album: v tomto priečinku daj Add file > Create new file a ako názov napíš
 napríklad "2026-10-25 Nový Tekov/info.txt", ulož a potom do toho priečinka nahraj fotky.
 Albumy, ktoré začínajú dátumom, sa zoradia od najnovšieho.
+Popis albumu: do priečinka albumu pridaj súbor popis.txt s textom.
 Náhľady sa vyrobia samy asi do 3 minút.

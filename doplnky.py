@@ -240,7 +240,13 @@ def gallery():
     for old in dst.iterdir():
         if old.name not in keep:
             old.unlink()
-    out = [{'name': a, 'photos': sorted(ph, key=lambda x: x['name'])} for a, ph in albums.items()]
+    def popis(album):
+        f = (src / album / 'popis.txt') if album != 'Fotky' else (src / 'popis.txt')
+        try:
+            return f.read_text(encoding='utf-8').strip()
+        except Exception:
+            return ''
+    out = [{'name': a, 'popis': popis(a), 'photos': sorted(ph, key=lambda x: x['name'])} for a, ph in albums.items()]
     out.sort(key=lambda a: (a['name'] != 'Fotky', a['name']), reverse=True)
     out.sort(key=lambda a: bool(re.match(r'\d{4}', a['name'])), reverse=True)
     jsave(DATA / 'foto.json', {'albums': out})
