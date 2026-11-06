@@ -198,6 +198,51 @@ def stats():
     print(f'Štatistiky: {played} zápasov, {len(out)} hráčov')
 
 
+# ---------------------------------------------------------------- súpisky pre simulátor zápasu
+
+def supisky():
+    """data/supisky.json: pre každý tím posledná známa zostava a góly hráčov zo stiahnutých zápisov."""
+    teams = {}
+    files = []
+    for f in (DATA / 'zapasy').glob('*.json'):
+        d = jload(f, None)
+        if d and d.get('closed') and d.get('lineups'):
+            files.append(d)
+    files.sort(key=lambda d: d.get('start') or '')
+    for d in files:
+        for side in ('home', 'away'):
+            name, lu = d.get(side), d['lineups'].get(side)
+            if not name or not lu or not lu.get('players'):
+                continue
+            t = teams.setdefault(name, {'last': None, 'goly': {}, 'zapasy': 0})
+            t['zapasy'] += 1
+            t['last'] = [{'n': p.get('name'), 'nr': p.get('nr'), 'gk': bool(p.get('gk')), 'sub': bool(p.get('sub'))}
+                         for p in lu['players'] if p.get('name')]
+            for e in d.get('events', []):
+                if e.get('t') == 'goal' and e.get('side') == side and e.get('k') != 'dropped' and e.get('p'):
+                    t['goly'][e['p']] = t['goly'].get(e['p'], 0) + 1
+    jsave(DATA / 'supisky.json', teams)
+    print(f'Súpisky: {len(teams)} tímov')
+
+
+# ---------------------------------------------------------------- tipovačka
+
+_TIP = None
+
+
+def tip_board():
+    global _TIP
+    if _TIP is None:
+        _TIP = {}
+        url = setting('PROXY_URL').rstrip('/')
+        if url:
+            try:
+                _TIP = requests.get(url + '/tip/board', timeout=20).json()
+            except Exception as e:
+                print(f'Tipovačka: CHYBA {e}')
+    return _TIP
+
+
 # ---------------------------------------------------------------- galéria
 
 IMG = ('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')
@@ -455,6 +500,27 @@ def notify():
             c = pol['top'][0][1]
             add(f"mvp:{pol['id']}", '🏆 Hráč zápasu', f"{pol.get('title') or 'Beša'}: {', '.join(pol['winners'])} ({c} {'hlas' if c == 1 else 'hlasy' if c < 5 else 'hlasov'})", 'trophy', 4)
 
+    # tipovačka: pripomienka deň pred kolom a priebežné poradie po odohranom kole
+    ligy = jload(DATA / 'ligy.json', {}).get('ligy', [])
+    homel = next((l for l in ligy if l.get('home')), None)
+    if homel:
+        rounds = {}
+        for m in homel.get('matches', []):
+            if m.get('round') is not None and BYE not in (m.get('home'), m.get('away')):
+                rounds.setdefault(m['round'], []).append(m)
+        for r, ms in sorted(rounds.items()):
+            dates = sorted(pdate(m.get('date')) for m in ms if pdate(m.get('date')))
+            if not dates:
+                continue
+            if dates[0] - TODAY == datetime.timedelta(days=1) and NOW.hour >= 17 and all(m.get('hs') is None for m in ms):
+                add(f'tip-pripomienka:{r}', '🎲 Tipovačka', f'Zajtra začína {r}. kolo. Natipuj výsledky v appke v časti Hry.', 'game_die', 3)
+            if all(m.get('hs') is not None for m in ms) and 0 <= (TODAY - dates[-1]).days <= 3:
+                b = tip_board().get('board') or []
+                kolo = sorted(b, key=lambda p: -(p.get('kola') or {}).get(str(r), 0))
+                if b and b[0].get('tipy'):
+                    best = kolo[0]
+                    add(f'tip-kolo:{r}', '🎲 Tipovačka', f"Po {r}. kole vedie {b[0]['meno']} ({b[0]['b']} b). Najlepší v kole: {best['meno']} ({(best.get('kola') or {}).get(str(r), 0)} b).", 'game_die', 3)
+
     lines = tren_lines()
     for l in lines:
         if l in st.get('tren', []):
@@ -488,7 +554,7 @@ def notify():
 
 
 if __name__ == '__main__':
-    for fn in (stats, gallery, calendar, notify):
+    for fn in (stats, supisky, gallery, calendar, notify):
         try:
             fn()
         except Exception as e:

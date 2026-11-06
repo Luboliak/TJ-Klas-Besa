@@ -274,12 +274,42 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
 .mvr.win{font-weight:700}
 .apopis{white-space:pre-wrap;margin:8px 2px 12px}
 .alb .ap1{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:2px 0}
+.ibtn.on{background:var(--inv);color:var(--inv-ink);border-color:var(--inv)}
+.tipl{display:flex;flex-direction:column;gap:6px}
+.tipr{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;text-align:left;width:100%}
+.tipr.us{border-left:4px solid var(--ink)}
+.tipr .tipt{flex:1;min-width:0}
+.tipr .tipt div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tipr .tipt small{display:block;font-size:11px;margin-top:2px}
+.tipin{display:flex;align-items:center;gap:4px}
+.tipin input{width:44px;text-align:center;font-family:var(--cond);font-size:20px;padding:6px 2px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:inherit}
+.tipv{min-width:52px;text-align:center;font-family:var(--cond);font-size:20px;background:none;border:0;color:inherit;padding:0}
+.tipv small{display:block;font-family:Roboto,sans-serif;font-size:11px;color:var(--mute)}
+.tipv.lk{border:1px dashed var(--line);border-radius:6px;padding:4px}
+.lt.sez td,.lt.sez th{white-space:nowrap;padding-left:4px;padding-right:4px}
+.lt.sez td.tm,.lt.sez th.l{white-space:normal}
+.pbar{display:flex;gap:1px;margin-top:3px;height:5px}
+.pbar i{flex:1;background:var(--ink);border-radius:1px}
+.lt.sez tr.us .pbar i{background:var(--inv-ink)}
+.simsel{margin-bottom:0}
+.simsb{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:14px 0 2px}
+.simsb .tn{font-family:var(--cond);font-size:17px;line-height:1.15}
+.simsb .tn.h{text-align:right}
+.simsb .big{font-family:var(--cond);font-size:40px;font-weight:700;min-width:84px;text-align:center}
+.simmin{text-align:center;color:var(--mute);font-family:var(--cond);margin-bottom:8px}
+.simfeed{max-height:52vh;overflow:auto;border-top:1px solid var(--line)}
+.sev{display:flex;gap:10px;padding:7px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.sev .sm{min-width:38px;color:var(--mute);font-family:var(--cond)}
+.sev.goal{font-weight:700}
+.sev.info,.sev.end{color:var(--mute);font-style:italic}
+.sev.away{flex-direction:row}
 </style>
 </head>
 <body>
 <header>
   <img id="logo" src="logo.png" alt="Logo TJ Klas Beša">
   <div class="hname"><b>TJ Klas Beša</b><span id="hsub">VII. liga ObFZ Levice</span></div>
+  <button class="ibtn" id="bHry" title="Hry" aria-label="Hry"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/></svg></button>
   <button class="ibtn" id="bTheme" title="Svetlý / tmavý režim" aria-label="Režim zobrazenia"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
   <button class="ibtn" id="bRefresh" title="Obnoviť" aria-label="Obnoviť"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
 </header>
@@ -445,9 +475,11 @@ function render(){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   const v=$('#view');
   const draft=$('#chText'), dv=draft?draft.value:null, df=draft&&document.activeElement===draft;
-  v.innerHTML=(tab==='chat'?'':hint())+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():tab==='chat'?vChat():tab==='ved'&&APP?vVedenie():vKlub())
+  v.innerHTML=(tab==='chat'?'':hint())+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():tab==='chat'?vChat():tab==='ved'&&APP?vVedenie():tab==='hry'?vHry():vKlub())
     +(['tab','zap','live'].includes(tab)?'<p class="src">Zdroj údajov: <a href="https://sportnet.sme.sk/futbalnet/" target="_blank" rel="noopener">Sportnet / Futbalnet</a> (SFZ). Neoficiálna klubová appka TJ Klas Beša.</p>':'');
   navBadge(); fillWx(v); fillRsvp(v); fillMvp(v);
+  if(tab==='hry') hryAfterRender(v);
+  const bh=$('#bHry'); if(bh) bh.classList.toggle('on', tab==='hry');
   if(tab==='chat'){ const t=$('#chText'); if(t){ if(dv!=null) t.value=dv; if(df) t.focus();
     t.oninput=()=>{ t.style.height=''; t.style.height=Math.min(t.scrollHeight,140)+'px'; };
     t.onkeydown=e=>{ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){ e.preventDefault(); chatSend(); } }; }
@@ -1315,6 +1347,267 @@ document.addEventListener('keydown',e=>{
   else if(tab==='ved'&&vsub!=='nast'&&(e.key==='ArrowLeft'||e.key==='ArrowRight')) shiftMonth(e.key==='ArrowRight'?1:-1);
 });
 
+/* ===== HRY (for fun): tipovačka, simulácia sezóny, simulátor zápasu ===== */
+let hsub='tip'; try{ hsub=localStorage.getItem('hsub')||'tip'; }catch(e){}
+const realM=m=>m.home!==BYE&&m.away!==BYE;
+function kickTs(m){ return m.date&&m.time?new Date(m.date+'T'+m.time).getTime():null; }
+function hryLeague(){ return LIGY.find(l=>l.id===(HRY_L||cur))||home(); }
+let HRY_L=null;
+
+/* --- model sily tímov (Poissonovo rozdelenie gólov) --- */
+function teamModel(l){
+  const ms=(l.matches||[]).filter(m=>realM(m)&&m.hs!=null);
+  const now=Date.now(), w=m=>{ const d=(now-new Date((m.date||'2000-01-01')+'T12:00'))/864e5; return Math.exp(-Math.max(0,d)/240); };
+  let sw=0,sh=0,sa=0; ms.forEach(m=>{ const x=w(m); sw+=x; sh+=m.hs*x; sa+=m.as*x; });
+  const avgH=sw?sh/sw:1.6, avgA=sw?sa/sw:1.2, avg=(avgH+avgA)/2||1.4, K=5;
+  const T={}; (l.teams||[]).forEach(t=>T[t.name]={gf:0,ga:0,n:0});
+  ms.forEach(m=>{ const x=w(m);
+    [[m.home,m.hs,m.as],[m.away,m.as,m.hs]].forEach(([n,f,a])=>{ const t=T[n]||(T[n]={gf:0,ga:0,n:0}); t.gf+=f*x; t.ga+=a*x; t.n+=x; }); });
+  const att={}, def={};
+  Object.entries(T).forEach(([n,t])=>{ att[n]=(t.gf+K*avg)/(t.n+K)/avg; def[n]=(t.ga+K*avg)/(t.n+K)/avg; });
+  const exp=(h,a)=>[Math.max(.15,avgH*(att[h]||1)*(def[a]||1)), Math.max(.1,avgA*(att[a]||1)*(def[h]||1))];
+  return {exp};
+}
+function pois(l){ const L=Math.exp(-l); let k=0,p=1; do{ k++; p*=Math.random(); }while(p>L&&k<25); return k-1; }
+function pmf(l,k){ let p=Math.exp(-l); for(let i=1;i<=k;i++) p*=l/i; return p; }
+function outcome(md,h,a){
+  const [lh,la]=md.exp(h,a); let ph=0,pd=0,pa=0;
+  for(let i=0;i<=10;i++) for(let j=0;j<=10;j++){ const p=pmf(lh,i)*pmf(la,j); if(i>j) ph+=p; else if(i===j) pd+=p; else pa+=p; }
+  const s=ph+pd+pa; return [ph/s,pd/s,pa/s];
+}
+const pct=x=>x>=.995?'>99 %':x<.005&&x>0?'<1 %':Math.round(x*100)+' %';
+
+/* --- TIPOVAČKA --- */
+let TIP={mine:null, board:null, edit:{}, loading:false};
+async function tipLoad(force){
+  if(!PROXY||TIP.loading) return; TIP.loading=true;
+  try{
+    const [b,m]=await Promise.all([
+      fetch(PROXY+'/tip/board',{cache:'no-store'}).then(r=>r.json()).catch(()=>null),
+      CHPIN&&JA?chatApi('/tip/mine?pin='+encodeURIComponent(CHPIN)+'&meno='+encodeURIComponent(JA)).catch(e=>{ if(e.status===403){ CHPIN=''; lsSet('chatPin',''); } return null; }):null
+    ]);
+    if(b) TIP.board=b.board||[]; if(m) TIP.mine=m.tips||{};
+  }finally{ TIP.loading=false; }
+  if(tab==='hry'&&hsub==='tip') render();
+}
+function tipRounds(){
+  const l=home(), R={};
+  (l.matches||[]).filter(realM).forEach(m=>{ if(m.round!=null) (R[m.round]=R[m.round]||[]).push(m); });
+  return Object.entries(R).map(([r,ms])=>({r:+r, ms:ms.sort(byDate)})).sort((a,b)=>a.r-b.r);
+}
+function tipPts(t,m){ if(!t||m.hs==null) return null; if(t[0]===m.hs&&t[1]===m.as) return 3; return Math.sign(t[0]-t[1])===Math.sign(m.hs-m.as)?1:0; }
+function vTip(){
+  if(!PROXY) return '<div class="empty">Tipovačka ešte nie je zapnutá.</div>';
+  const intro='<p class="note" style="margin-top:0">Tipuj výsledky zápasov VII. ligy. Presný výsledok = 3 body, správny víťaz alebo remíza = 1 bod. Tipy sa dajú meniť do výkopu, potom uvidíš aj tipy ostatných.</p>';
+  if(!CHPIN) return intro+`<p>Tipovať môžu len členovia klubu. Zadaj klubový PIN, ten istý ako do chatu.</p>
+    <div class="acts"><input type="text" id="tipPin" inputmode="numeric" autocomplete="off" placeholder="PIN" style="flex:1"><button class="btn pri" data-tippin="1">Pokračovať</button></div>`;
+  if(!JA) return intro+'<div class="empty">Najprv si vyber, kto si.<br><br><button class="btn pri" data-ja="1">Vybrať meno</button></div>';
+  if(TIP.mine===null||TIP.board===null){ tipLoad(); return intro+'<p class="note">Načítavam…</p>'; }
+  const rounds=tipRounds(), now=Date.now();
+  const open=rounds.find(x=>x.ms.some(m=>m.hs==null&&kickTs(m)>now));
+  const done=[...rounds].reverse().find(x=>x.ms.every(m=>m.hs!=null)&&x.ms.some(m=>TIP.mine[m.id]));
+  const md=teamModel(home());
+  let h=intro;
+  if(open){
+    const fd=open.ms.map(m=>m.date).filter(Boolean).sort()[0];
+    h+=`<h2>${open.r}. kolo${fd?' <small class="mute">od '+dLabel(fd)+'</small>':''}</h2><div class="tipl">`;
+    open.ms.forEach(m=>{
+      const lock=!(kickTs(m)>now)||m.hs!=null, t=TIP.edit[m.id]||TIP.mine[m.id]||['',''], pr=outcome(md,m.home,m.away);
+      h+=`<div class="tipr${m.home===US||m.away===US?' us':''}"><div class="tipt"><div>${esc(m.home)}</div><div>${esc(m.away)}</div><small class="mute">${dLabel(m.date)} ${esc(m.time||'')} · šanca ${Math.round(pr[0]*100)}/${Math.round(pr[1]*100)}/${Math.round(pr[2]*100)}</small></div>`+
+        (lock?`<button class="tipv lk" data-tipm="${esc(m.id)}">${TIP.mine[m.id]?TIP.mine[m.id].join(':'):'–'}<small>tipy</small></button>`
+             :`<div class="tipin"><input type="number" min="0" max="20" inputmode="numeric" data-tip="${esc(m.id)}" data-s="0" value="${t[0]}" aria-label="Góly ${esc(m.home)}"><span>:</span><input type="number" min="0" max="20" inputmode="numeric" data-tip="${esc(m.id)}" data-s="1" value="${t[1]}" aria-label="Góly ${esc(m.away)}"></div>`)+'</div>';
+    });
+    h+=`</div><div class="acts" style="margin-top:10px"><button class="btn pri grow" data-tipsave="1">Uložiť tipy</button></div>
+      <p class="note">„Šanca" je odhad v %: domáci / remíza / hostia z doterajších výsledkov, len pre zaujímavosť.</p>`;
+  } else h+='<div class="empty">Ďalšie kolo ešte nie je v rozpise.</div>';
+  const B=TIP.board||[];
+  h+='<h2>Poradie</h2>';
+  if(!B.some(p=>p.tipy)) h+='<p class="note">Poradie sa ukáže po prvom odohranom zápase, na ktorý niekto tipoval.</p>';
+  else h+='<table class="lt tipb"><thead><tr><th></th><th class="l">Tipér</th><th title="Presné výsledky">Presné</th><th>B</th></tr></thead><tbody>'+
+    B.filter(p=>p.tipy).map((p,i)=>`<tr class="${p.meno===JA?'us':''}"><td class="pos">${i+1}</td><td class="tm">${esc(p.meno)}</td><td>${p.presne}</td><td class="pts">${p.b}</td></tr>`).join('')+'</tbody></table>';
+  if(done){
+    let sum=0; const rows=done.ms.map(m=>{ const t=TIP.mine[m.id], b=tipPts(t,m); if(b) sum+=b;
+      return `<button class="tipr past" data-tipm="${esc(m.id)}"><div class="tipt"><div>${esc(m.home)} <b>${m.hs}</b></div><div>${esc(m.away)} <b>${m.as}</b></div></div><div class="tipv">${t?t.join(':'):'–'}<small>${b==null?'bez tipu':b+' b'}</small></div></button>`; }).join('');
+    h+=`<h2>Tvoje tipy: ${done.r}. kolo <small class="mute">${sum} b</small></h2><div class="tipl">${rows}</div><p class="note">Ťukni na zápas, uvidíš tipy ostatných.</p>`;
+  }
+  return h;
+}
+function tipInput(el){ const id=el.dataset.tip; const cur=TIP.edit[id]||(TIP.mine[id]?[...TIP.mine[id]]:['','']); cur[+el.dataset.s]=el.value; TIP.edit[id]=cur; }
+async function tipSave(){
+  const tips={}; Object.entries(TIP.edit).forEach(([id,v])=>{ const a=String(v[0]).trim(), b=String(v[1]).trim();
+    if(a===''&&b==='') tips[id]=null; else if(a!==''&&b!=='') tips[id]=[+a,+b]; });
+  if(!Object.keys(tips).length){ toast('Nie je čo uložiť. Vyplň oba počty gólov.'); return; }
+  try{ const r=await chatApi('/tip/save',{pin:CHPIN,meno:JA,tips});
+    Object.entries(r.saved||{}).forEach(([id,v])=>{ if(v) TIP.mine[id]=v; else delete TIP.mine[id]; delete TIP.edit[id]; });
+    toast((r.late&&r.late.length)?'Uložené, ale niektoré zápasy už začali':'Tipy uložené'); render();
+  }catch(e){ toast(e.status===403?'PIN už neplatí':e.message); }
+}
+async function tipMatch(id){
+  const m=findMatch(id); if(!m) return;
+  openSheet(`<h3><span>${esc(m.home)} – ${esc(m.away)}</span>${closeBtnH}</h3><p class="note">Načítavam…</p>`);
+  try{ const r=await chatApi('/tip/match?pin='+encodeURIComponent(CHPIN)+'&mid='+encodeURIComponent(id));
+    let h=`<h3><span>${esc(m.home)} – ${esc(m.away)}${m.hs!=null?' '+m.hs+':'+m.as:''}</span>${closeBtnH}</h3>`;
+    if(r.hidden) h+=`<p>Tipy ostatných uvidíš po výkope. Zatiaľ tipovalo ${r.n}.</p>`;
+    else if(!r.tips.length) h+='<div class="empty">Na tento zápas nikto netipoval.</div>';
+    else h+=r.tips.map(t=>`<div class="mvr${t.meno===JA?' win':''}"><span>${esc(t.meno)}</span><span>${t.h}:${t.a}${t.b!=null?` <small class="mute">${t.b} b</small>`:''}</span></div>`).join('');
+    openSheet(h);
+  }catch(e){ openSheet(`<h3><span>Tipy</span>${closeBtnH}</h3><p>${esc(e.message)}</p>`); }
+}
+const closeBtnH='<button class="ibtn" data-close="1" aria-label="Zavrieť"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+
+/* --- SIMULÁCIA SEZÓNY --- */
+let SEZ={key:'', res:null, busy:false};
+function remaining(l){
+  const teams=(l.teams||[]).map(t=>t.name), have=new Set(), rem=[];
+  (l.matches||[]).filter(realM).forEach(m=>{ have.add(m.home+'|'+m.away); if(m.hs==null) rem.push([m.home,m.away]); });
+  teams.forEach(a=>teams.forEach(b=>{ if(a!==b&&!have.has(a+'|'+b)) rem.push([a,b]); }));
+  return rem.filter(([a,b])=>teams.includes(a)&&teams.includes(b));
+}
+function simSeason(l,N){
+  const md=teamModel(l), rem=remaining(l), names=(l.teams||[]).map(t=>t.name), n=names.length;
+  const base={}; (l.teams||[]).forEach(t=>{ const g=(t.g||'0:0').split(':').map(Number); base[t.name]={b:+t.b||0,gf:g[0]||0,ga:g[1]||0}; });
+  const ex=rem.map(([h,a])=>md.exp(h,a));
+  const pos={}, pts={}; names.forEach(x=>{ pos[x]=new Array(n).fill(0); pts[x]=0; });
+  for(let it=0;it<N;it++){
+    const s={}; names.forEach(x=>s[x]={b:base[x].b,gd:base[x].gf-base[x].ga,gf:base[x].gf,r:Math.random()});
+    rem.forEach(([h,a],i)=>{ const gh=pois(ex[i][0]), ga=pois(ex[i][1]);
+      s[h].gf+=gh; s[a].gf+=ga; s[h].gd+=gh-ga; s[a].gd+=ga-gh;
+      if(gh>ga) s[h].b+=3; else if(gh<ga) s[a].b+=3; else { s[h].b++; s[a].b++; } });
+    names.slice().sort((x,y)=>s[y].b-s[x].b||s[y].gd-s[x].gd||s[y].gf-s[x].gf||s[y].r-s[x].r).forEach((x,i)=>{ pos[x][i]++; pts[x]+=s[x].b; });
+  }
+  return {n, rem:rem.length, N, rows:names.map(x=>({name:x, pts:pts[x]/N, pos:pos[x].map(c=>c/N), cur:base[x].b}))
+    .sort((a,b)=>b.pts-a.pts)};
+}
+function vSezona(){
+  const l=hryLeague(); if(!(l.teams||[]).length) return hryPick()+'<div class="empty">Pre túto ligu nie sú údaje.</div>';
+  const key=l.id+'|'+(l.at||'');
+  if(SEZ.key!==key&&!SEZ.busy){ SEZ.busy=true; setTimeout(()=>{ SEZ.res=simSeason(l,5000); SEZ.key=key; SEZ.busy=false; if(tab==='hry'&&hsub==='sez') render(); },30); }
+  if(SEZ.key!==key) return hryPick()+'<p class="note">Hrám zvyšok sezóny 5 000-krát…</p>';
+  const R=SEZ.res, n=R.n;
+  let h=hryPick()+`<p class="note" style="margin-top:0">Zvyšných ${R.rem} zápasov sme odohrali ${R.N.toLocaleString('sk-SK')}-krát podľa doterajších výsledkov. Čisto pre zábavu, futbal sa hrá na ihrisku.</p>`;
+  h+='<table class="lt sez"><thead><tr><th class="l">Klub</th><th title="Body teraz">Teraz</th><th title="Priemerný počet bodov na konci">Ø B</th><th title="Šanca na 1. miesto">1.</th><th title="Šanca skončiť v prvej trojke">Top 3</th><th title="Šanca skončiť posledný">Posl.</th></tr></thead><tbody>';
+  R.rows.forEach(r=>{ const top3=r.pos.slice(0,3).reduce((a,b)=>a+b,0);
+    h+=`<tr class="${r.name===US?'us':''}"><td class="tm">${esc(r.name)}<div class="pbar" aria-hidden="true">${r.pos.map(p=>`<i style="opacity:${Math.min(1,.08+p*2.2).toFixed(2)}"></i>`).join('')}</div></td><td>${r.cur}</td><td class="pts">${Math.round(r.pts)}</td><td>${pct(r.pos[0]).replace(' ','')}</td><td>${pct(top3).replace(' ','')}</td><td>${pct(r.pos[n-1]).replace(' ','')}</td></tr>`; });
+  h+='</tbody></table><p class="note">Pásik pod klubom: kde všade môže skončiť, od 1. miesta vľavo po posledné vpravo. Čím tmavší dielik, tým pravdepodobnejšie.</p>';
+  const us=R.rows.find(r=>r.name===US);
+  if(us){ const best=us.pos.indexOf(Math.max(...us.pos));
+    h+=`<div class="tiles"><div><small>Beša na 1. mieste</small><b>${pct(us.pos[0])}</b></div><div><small>Najčastejšie miesto</small><b>${best+1}.</b></div><div><small>Ø body na konci</small><b>${Math.round(us.pts)}</b></div></div>`; }
+  return h;
+}
+function hryPick(){
+  const L=LIGY.filter(l=>(l.teams||[]).length);
+  return `<select class="lgsel" id="hryL" aria-label="Liga">${L.map(l=>`<option value="${esc(l.id)}" ${l.id===hryLeague().id?'selected':''}>${esc(l.name)}</option>`).join('')}</select>`;
+}
+
+/* --- SIMULÁTOR ZÁPASU --- */
+let SUP=null, SIM={h:null,a:null,run:null,timer:null,many:null};
+async function supLoad(){ if(SUP) return; SUP=await getJson(BASE+'data/supisky.json')||{}; if(tab==='hry'&&hsub==='zap') render(); }
+function roster(team){
+  const s=SUP&&SUP[team];
+  if(!s||!s.last||!s.last.length) return null;
+  const st=s.last.filter(p=>!p.sub), sb=s.last.filter(p=>p.sub);
+  return {start:st.length>=7?st:s.last.slice(0,11), subs:sb, goly:s.goly||{}};
+}
+const rnd1=a=>a[Math.floor(Math.random()*a.length)];
+function wpick(items,w){ const s=w.reduce((a,b)=>a+b,0); let r=Math.random()*s; for(let i=0;i<items.length;i++){ r-=w[i]; if(r<=0) return items[i]; } return items[items.length-1]; }
+const SKRAT=n=>n.replace(/^((TJ|ŠK|FK|SC|OFK|MFK|FC|OŠK|AFC|TJD)\s+)+/,'').replace(/^(Družstevník|Lokomotíva|Klas|Meteor|Slovan|Sokol|Tatran|Iskra|Družstevník)\s+/,'').trim()||n;
+function simMatch(l,H,A){
+  const md=teamModel(l), [lh,la]=md.exp(H,A), RH=roster(H), RA=roster(A), stop=[1+Math.floor(Math.random()*3), 2+Math.floor(Math.random()*4)];
+  const sides={home:{t:H,r:RH,on:RH?RH.start.map(p=>p.n):[],subs:RH?RH.subs.map(p=>p.n):[],yel:{}}, away:{t:A,r:RA,on:RA?RA.start.map(p=>p.n):[],subs:RA?RA.subs.map(p=>p.n):[],yel:{}}};
+  const ev=[], sc=[0,0], shots=[0,0];
+  const nm=(sd)=>{ const s=sides[sd]; return s.on.length?s.on:null; };
+  const who=(sd,kind)=>{ const s=sides[sd], on=nm(sd); if(!on) return null;
+    const gk=new Set((s.r?s.r.start.concat(s.r.subs):[]).filter(p=>p.gk).map(p=>p.n));
+    if(kind==='goal') return wpick(on,on.map(n=>gk.has(n)?.02:1+2*((s.r.goly||{})[n]||0)));
+    return wpick(on,on.map(n=>gk.has(n)?.15:1)); };
+  const T={home:H,away:A};
+  const line=(min,sd,type,text)=>ev.push({min,sd,type,text});
+  line(0,null,'info',rnd1([`Rozhodca píska začiatok zápasu ${H} – ${A}.`,`Ide sa na to! ${SKRAT(H)} rozohráva.`,`Výkop! Diváci sú pripravení.`]));
+  const mins=[]; for(let m=1;m<=45+stop[0];m++) mins.push([m,m<=45?String(m):'45+'+(m-45)]); mins.push(null);
+  for(let m=46;m<=90+stop[1];m++) mins.push([m,m<=90?String(m):'90+'+(m-90)]);
+  for(const mm of mins){
+    if(!mm){ line('45',null,'info',`Polčas ${sc[0]}:${sc[1]}.`); continue; }
+    const [min,disp]=mm;
+    ['home','away'].forEach((sd,i)=>{
+      const lam=(i?la:lh)*(sides[sd].on.length&&sides[sd].on.length<(sides[sd].r?sides[sd].r.start.length:11)?.85:1);
+      if(Math.random()<lam/90){
+        sc[i]++; shots[i]++; const p=who(sd,'goal');
+        line(disp,sd,'goal',p?rnd1([`GÓÓÓL! ${p} posiela loptu do siete.`,`${p} skóruje! Brankár bez šance.`,`Gól! ${p} to zakončil z voleja.`,`${p} si počkal na odrazenú loptu a je to gól!`,`Hlavička ${p}… a je to tam!`]):`Gól! ${T[sd]} skóruje.`);
+      } else if(Math.random()<lam*2.6/90){
+        shots[i]++; const p=who(sd,'shot');
+        line(disp,sd,'chance',p?rnd1([`${p} strieľa vedľa.`,`Veľká šanca pre ${p}, brankár chytá!`,`${p} trafil žrď!`,`Strela ${p} letí ponad bránu.`,`${p} sa dostal k zakončeniu, obrana odvracia.`]):`Šanca pre ${SKRAT(T[sd])}.`);
+      }
+      if(Math.random()<1.9/90){ const p=who(sd,'card'); if(p){ const s=sides[sd]; s.yel[p]=(s.yel[p]||0)+1;
+        if(s.yel[p]===2){ s.on=s.on.filter(x=>x!==p); line(disp,sd,'red',`Druhá žltá a červená pre ${p}! ${SKRAT(T[sd])} dohráva v oslabení.`); }
+        else line(disp,sd,'yellow',`Žltá karta pre ${p}.`); } }
+      if(min>=58&&min<=85&&sides[sd].subs.length&&Math.random()<.11){ const s=sides[sd], out=who(sd,'sub'), inn=s.subs.shift();
+        if(out&&inn){ s.on=s.on.map(x=>x===out?inn:x); line(disp,sd,'sub',`Striedanie: ${inn} za ${out}.`); } }
+    });
+  }
+  line('90',null,'end',`Koniec zápasu! ${H} ${sc[0]}:${sc[1]} ${A}.`);
+  return {ev,sc,shots,H,A,lh,la,names:!!(RH||RA)};
+}
+function simMany(l,H,A,N){
+  const md=teamModel(l), [lh,la]=md.exp(H,A); let w=0,d=0,x=0; const sc={};
+  for(let i=0;i<N;i++){ const a=pois(lh), b=pois(la); if(a>b) w++; else if(a===b) d++; else x++; const k=a+':'+b; sc[k]=(sc[k]||0)+1; }
+  return {w:w/N,d:d/N,x:x/N,top:Object.entries(sc).sort((p,q)=>q[1]-p[1]).slice(0,5).map(([k,c])=>[k,c/N]),N};
+}
+function vZapas(){
+  const l=hryLeague(), teams=(l.teams||[]).map(t=>t.name);
+  if(!teams.length) return hryPick()+'<div class="empty">Pre túto ligu nie sú údaje.</div>';
+  supLoad();
+  if(!teams.includes(SIM.h)||!teams.includes(SIM.a)||SIM.h===SIM.a){
+    const nx=l.home?ours().find(m=>m.hs==null&&realM(m)):null;
+    SIM.h=nx?nx.home:teams[0]; SIM.a=nx?nx.away:teams[1]; SIM.run=null; SIM.many=null;
+  }
+  const opt=sel=>teams.map(t=>`<option ${t===sel?'selected':''}>${esc(t)}</option>`).join('');
+  let h=hryPick()+`<div class="row2 simsel"><label class="f"><span>Domáci</span><select id="simH">${opt(SIM.h)}</select></label><label class="f"><span>Hostia</span><select id="simA">${opt(SIM.a)}</select></label></div>
+    <div class="acts"><button class="btn pri grow" data-simgo="1">${SIM.run&&SIM.timer?'Beží…':'Odohrať zápas'}</button>${SIM.run&&SIM.timer?'<button class="btn" data-simskip="1">Na koniec</button>':''}<button class="btn" data-simmany="1">1000×</button></div>`;
+  if(SIM.many){ const M=SIM.many;
+    h+=`<div class="tiles"><div><small>Výhra ${esc(SKRAT(SIM.h))}</small><b>${pct(M.w)}</b></div><div><small>Remíza</small><b>${pct(M.d)}</b></div><div><small>Výhra ${esc(SKRAT(SIM.a))}</small><b>${pct(M.x)}</b></div></div>
+      <p class="note">Najčastejšie výsledky z ${M.N}: ${M.top.map(([k,p])=>`<b>${k}</b> ${pct(p)}`).join(', ')}</p>`; }
+  if(SIM.run){ const R=SIM.run, shown=R.ev.slice(0,SIM.step), last=shown[shown.length-1]||{min:0};
+    let s=[0,0]; shown.forEach(e=>{ if(e.type==='goal') s[e.sd==='home'?0:1]++; });
+    h+=`<div class="simsb"><div class="tn h">${esc(R.H)}</div><div class="big">${s[0]}:${s[1]}</div><div class="tn">${esc(R.A)}</div></div>
+      <div class="simmin">${SIM.step>=R.ev.length?'Koniec':last.min+"'"}</div>
+      <div class="simfeed">${shown.slice().reverse().map(e=>`<div class="sev ${e.type} ${e.sd||''}"><span class="sm">${e.type==='info'||e.type==='end'?'':e.min+"'"}</span><span>${e.type==='goal'?'⚽ ':e.type==='yellow'?'🟨 ':e.type==='red'?'🟥 ':e.type==='sub'?'🔁 ':''}${esc(e.text)}</span></div>`).join('')}</div>`;
+    if(SIM.step>=R.ev.length) h+=`<p class="note">Strely ${R.shots[0]}:${R.shots[1]}. Simulácia je len pre zábavu, mená sú z posledných zostáv na Sportnete.</p>`;
+  } else h+=`<p class="note">Zápas sa odohrá podľa doterajších výsledkov oboch tímov, s hráčmi z ich poslednej zostavy. Výsledok je zakaždým iný. Len pre zábavu.</p>`;
+  return h;
+}
+function simStart(){
+  const l=hryLeague(); if(SIM.h===SIM.a){ toast('Vyber dva rôzne tímy'); return; }
+  clearInterval(SIM.timer); SIM.run=simMatch(l,SIM.h,SIM.a); SIM.step=1;
+  SIM.timer=setInterval(()=>{ SIM.step++; if(SIM.step>=SIM.run.ev.length){ clearInterval(SIM.timer); SIM.timer=null; }
+    if(tab==='hry'&&hsub==='zap') render(); else { clearInterval(SIM.timer); SIM.timer=null; SIM.step=SIM.run.ev.length; } }, 650);
+  render();
+}
+
+function vHry(){
+  const segs=[['tip','Tipovačka'],['sez','Sezóna'],['zap','Simulátor']];
+  let h=`<div class="seg">${segs.map(([k,n])=>`<button data-hs="${k}" class="${hsub===k?'on':''}">${n}</button>`).join('')}</div>`;
+  return h+(hsub==='tip'?vTip():hsub==='sez'?vSezona():vZapas());
+}
+function hryAfterRender(v){
+  const s=$('#hryL'); if(s) s.onchange=()=>{ HRY_L=s.value; SIM.run=null; SIM.many=null; clearInterval(SIM.timer); SIM.timer=null; render(); };
+  const sh=$('#simH'), sa=$('#simA');
+  if(sh) sh.onchange=()=>{ SIM.h=sh.value; SIM.run=null; SIM.many=null; render(); };
+  if(sa) sa.onchange=()=>{ SIM.a=sa.value; SIM.run=null; SIM.many=null; render(); };
+  v.querySelectorAll('[data-tip]').forEach(i=>i.oninput=()=>tipInput(i));
+}
+function hryClick(b){
+  const d=b.dataset;
+  if(d.hs){ hsub=d.hs; try{ localStorage.setItem('hsub',hsub); }catch(e){} render(); return true; }
+  if(d.tipsave){ tipSave(); return true; }
+  if(d.tipm){ tipMatch(d.tipm); return true; }
+  if(d.tippin){ const p=(($('#tipPin')||{}).value||'').trim(); if(!p) return true;
+    chatApi('/chat/history?pin='+encodeURIComponent(p)).then(()=>{ CHPIN=p; lsSet('chatPin',p); TIP.mine=null; render(); }).catch(e=>toast(e.status===429?e.message:'Zlý PIN')); return true; }
+  if(d.simgo){ simStart(); return true; }
+  if(d.simskip){ clearInterval(SIM.timer); SIM.timer=null; SIM.step=SIM.run.ev.length; render(); return true; }
+  if(d.simmany){ SIM.many=simMany(hryLeague(),SIM.h,SIM.a,1000); render(); return true; }
+  return false;
+}
+
 /* ===== KLUB ===== */
 let KLUB=null, FOTO=null, KTXT=null, ksub='akt', statSort='g', fAlbum=null;
 try{ ksub=localStorage.getItem('ksub')||'akt'; }catch(e){}
@@ -1453,6 +1746,8 @@ document.addEventListener('click',e=>{
   if(b.dataset.close){ closeSheet(); return; }
   if(Object.keys(b.dataset).some(k=>k.startsWith('ch'))){ chatClick(b); return; }
   if(APP && vedClick(b)) return;
+  if(hryClick(b)) return;
+  if(b.id==='bHry'){ tab='hry'; render(); scrollTo(0,0); return; }
   if(b.id==='bTheme'){ toggleTheme(); return; }
   if(b.dataset.t){ tab=b.dataset.t; render(); scrollTo(0, tab==='chat'?document.body.scrollHeight:0); if(tab==='chat'&&CH.state==='ok'&&!CH.ws) chatConnect(); }
   else if(b.dataset.z){ zapMode=b.dataset.z; render(); }
