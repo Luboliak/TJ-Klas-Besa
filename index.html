@@ -1456,7 +1456,7 @@ async function tipMatch(id){
 const closeBtnH='<button class="ibtn" data-close="1" aria-label="Zavrieť"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
 
 /* --- SIMULÁCIA SEZÓNY --- */
-let SEZ={key:'', res:null, busy:false};
+let SEZ={key:'', res:null, busy:false, one:null, oneKey:'', cnt:0};
 function remaining(l){
   const teams=(l.teams||[]).map(t=>t.name), have=new Set(), rem=[];
   (l.matches||[]).filter(realM).forEach(m=>{ have.add(m.home+'|'+m.away); if(m.hs==null) rem.push([m.home,m.away]); });
@@ -1478,6 +1478,17 @@ function simSeason(l,N){
   return {n, rem:rem.length, N, rows:names.map(x=>({name:x, pts:pts[x]/N, pos:pos[x].map(c=>c/N), cur:base[x].b}))
     .sort((a,b)=>b.pts-a.pts)};
 }
+function playOnce(l){
+  const md=teamModel(l), rem=remaining(l), s={};
+  (l.teams||[]).forEach(t=>{ const g=(t.g||'0:0').split(':').map(Number); s[t.name]={name:t.name,z:+t.z||0,v:+t.v||0,r:+t.r||0,p:+t.p||0,b:+t.b||0,gf:g[0]||0,ga:g[1]||0,cur:+t.b||0,rnd:Math.random()}; });
+  const us=[];
+  rem.forEach(([h,a])=>{ const [eh,ea]=md.exp(h,a), gh=pois(eh), ga=pois(ea), H=s[h], A=s[a];
+    H.z++; A.z++; H.gf+=gh; H.ga+=ga; A.gf+=ga; A.ga+=gh;
+    if(gh>ga){ H.v++; A.p++; H.b+=3; } else if(gh<ga){ A.v++; H.p++; A.b+=3; } else { H.r++; A.r++; H.b++; A.b++; }
+    if(h===US||a===US) us.push(`${SKRAT(h)} ${gh}:${ga} ${SKRAT(a)}`); });
+  const rows=Object.values(s).sort((x,y)=>y.b-x.b||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf||y.rnd-x.rnd);
+  return {rows, us, n:++SEZ.cnt};
+}
 function vSezona(){
   const l=hryLeague(); if(!(l.teams||[]).length) return hryPick()+'<div class="empty">Pre túto ligu nie sú údaje.</div>';
   const key=l.id+'|'+(l.at||'');
@@ -1492,6 +1503,15 @@ function vSezona(){
   const us=R.rows.find(r=>r.name===US);
   if(us){ const best=us.pos.indexOf(Math.max(...us.pos));
     h+=`<div class="tiles"><div><small>Beša na 1. mieste</small><b>${pct(us.pos[0])}</b></div><div><small>Najčastejšie miesto</small><b>${best+1}.</b></div><div><small>Ø body na konci</small><b>${Math.round(us.pts)}</b></div></div>`; }
+  h+=`<button class="btn" data-sezagain style="width:100%;margin-top:10px">Prepočítať 5 000× znova</button>`;
+  h+=`<h3 style="margin:22px 0 4px">Jedna sezóna naostro</h3><p class="note" style="margin-top:0">Odohrá zvyšok sezóny len raz, ako by to mohlo naozaj dopadnúť. Každé kliknutie = iný príbeh.</p>`;
+  h+=`<button class="btn pri" data-sezone style="width:100%">${SEZ.one&&SEZ.oneKey===key?'Odohrať znova':'Odohrať sezónu'}</button>`;
+  if(SEZ.one&&SEZ.oneKey===key){ const O=SEZ.one, ui=O.rows.findIndex(r=>r.name===US);
+    if(ui>=0){ const u=O.rows[ui], d=u.b-u.cur; h+=`<p style="margin:12px 0 6px"><b>Pokus č. ${O.n}:</b> Beša skončila <b>${ui+1}.</b> s ${u.b} bodmi (+${d} do konca)${ui===0?' 🏆':''}.</p>`; }
+    h+='<table class="lt sez"><thead><tr><th>#</th><th class="l">Klub</th><th>Z</th><th>V-R-P</th><th>Skóre</th><th>B</th></tr></thead><tbody>';
+    O.rows.forEach((r,i)=>{ h+=`<tr class="${r.name===US?'us':''}"><td>${i+1}.</td><td class="tm">${esc(r.name)}</td><td>${r.z}</td><td>${r.v}-${r.r}-${r.p}</td><td>${r.gf}:${r.ga}</td><td class="pts">${r.b}</td></tr>`; });
+    h+='</tbody></table>';
+    if(O.us.length) h+=`<details style="margin-top:8px"><summary class="mute">Zápasy Beše v tomto pokuse (${O.us.length})</summary><p class="note">${O.us.map(esc).join('<br>')}</p></details>`; }
   return h;
 }
 function hryPick(){
@@ -1602,6 +1622,8 @@ function hryClick(b){
   if(d.tipm){ tipMatch(d.tipm); return true; }
   if(d.tippin){ const p=(($('#tipPin')||{}).value||'').trim(); if(!p) return true;
     chatApi('/chat/history?pin='+encodeURIComponent(p)).then(()=>{ CHPIN=p; lsSet('chatPin',p); TIP.mine=null; render(); }).catch(e=>toast(e.status===429?e.message:'Zlý PIN')); return true; }
+  if(d.sezagain!==undefined){ SEZ.key=''; render(); return true; }
+  if(d.sezone!==undefined){ const l=hryLeague(); SEZ.one=playOnce(l); SEZ.oneKey=l.id+'|'+(l.at||''); render(); return true; }
   if(d.simgo){ simStart(); return true; }
   if(d.simskip){ clearInterval(SIM.timer); SIM.timer=null; SIM.step=SIM.run.ev.length; render(); return true; }
   if(d.simmany){ SIM.many=simMany(hryLeague(),SIM.h,SIM.a,1000); render(); return true; }
