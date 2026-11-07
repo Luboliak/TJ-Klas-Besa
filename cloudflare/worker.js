@@ -133,7 +133,7 @@ function tipPoints(t, m) {
 }
 const US = 'TJ Klas Beša';
 const TIP_STRELEC = 2;   // body navyše za správne tipnutého strelca Beše
-const FAN_N = 5, FAN_MAX_TEAM = 3, KVIZ_MAX = 1000;
+const FAN_N = 5, FAN_MAX_TEAM = 3, KVIZ_MAX = 1300;
 function tipTotal(t, m, strelci) {
   const b = tipPoints(t, m);
   if (b == null) return null;

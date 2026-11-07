@@ -1,0 +1,2006 @@
+[
+{
+"t": "Prvá pomoc",
+"q": "Aké je telefónne číslo záchrannej zdravotnej služby na Slovensku?",
+"a": "155",
+"o": [
+"158",
+"150",
+"159"
+],
+"e": "Funguje aj 112, jednotné európske číslo tiesňového volania."
+},
+{
+"t": "Prvá pomoc",
+"q": "Aký je pomer stlačení hrudníka a vdychov pri resuscitácii dospelého?",
+"a": "30 : 2",
+"o": [
+"15 : 2",
+"5 : 1",
+"30 : 5"
+],
+"e": "30 stlačení, 2 vdychy. Kto nevie alebo nechce dýchať z úst do úst, stláča hrudník bez prestávky."
+},
+{
+"t": "Prvá pomoc",
+"q": "Akou rýchlosťou sa stláča hrudník pri resuscitácii?",
+"a": "100 až 120-krát za minútu",
+"o": [
+"60 až 80-krát za minútu",
+"140 až 160-krát za minútu",
+"40 až 60-krát za minútu"
+],
+"e": "Pomáha rytmus piesne „Stayin' Alive“."
+},
+{
+"t": "Prvá pomoc",
+"q": "Do akej hĺbky sa stláča hrudník dospelého pri resuscitácii?",
+"a": "5 až 6 cm",
+"o": [
+"2 až 3 cm",
+"8 až 10 cm",
+"1 cm"
+],
+"e": "Po každom stlačení nechať hrudník úplne vrátiť do pôvodnej polohy."
+},
+{
+"t": "Prvá pomoc",
+"q": "Kam sa kladú ruky pri stláčaní hrudníka?",
+"a": "Do stredu hrudníka",
+"o": [
+"Na ľavú stranu hrudníka",
+"Na brucho",
+"Pod rebrá vpravo"
+],
+"e": "Na dolnú polovicu hrudnej kosti, ruky vystreté v lakťoch."
+},
+{
+"t": "Prvá pomoc",
+"q": "Čo znamená skratka AED?",
+"a": "Automatický externý defibrilátor",
+"o": [
+"Akútna emergentná diagnostika",
+"Automatický elektrický dýchací prístroj",
+"Ambulancia expresnej dopravy"
+],
+"e": "Prístroj sám vyhodnotí srdcový rytmus a hlasom radí, čo robiť."
+},
+{
+"t": "Prvá pomoc",
+"q": "Kto smie použiť AED (defibrilátor) na verejnosti?",
+"a": "Ktokoľvek",
+"o": [
+"Len lekár",
+"Len záchranár",
+"Len hasič alebo policajt"
+],
+"e": "Prístroj dáva hlasové pokyny a výboj nepustí, ak nie je potrebný."
+},
+{
+"t": "Prvá pomoc",
+"q": "Človek nereaguje a nedýcha normálne. Čo urobíš ako prvé?",
+"a": "Zavolám 155 a začnem stláčať hrudník",
+"o": [
+"Dám mu napiť vody",
+"Počkám, či sa preberie",
+"Posadím ho"
+],
+"e": "Telefón daj na hlasitý odposluch, operátor ťa bude navádzať."
+},
+{
+"t": "Prvá pomoc",
+"q": "Ako dlho najviac zisťuješ, či postihnutý dýcha?",
+"a": "Najviac 10 sekúnd",
+"o": [
+"1 minútu",
+"30 sekúnd",
+"Netreba, rovno volám"
+],
+"e": "Záklon hlavy, pozerám na hrudník, počúvam a cítim dych na líci."
+},
+{
+"t": "Prvá pomoc",
+"q": "Hráčovi tečie krv z nosa. Ako mu pomôžeš?",
+"a": "Predkloniť hlavu a stlačiť nosné krídla",
+"o": [
+"Zakloniť hlavu dozadu",
+"Uložiť ho na chrbát",
+"Nechať ho silno vysmrkať"
+],
+"e": "Pri zaklonení krv steká do hrdla a žalúdka. Stláčať asi 10 minút, chladiť zátylok."
+},
+{
+"t": "Prvá pomoc",
+"q": "Ako zastavíš silné krvácanie z rany na nohe?",
+"a": "Priamym tlakom na ranu, tlakovým obväzom",
+"o": [
+"Umyjem ranu a nechám voľne",
+"Natriem ranu masťou",
+"Dám nohu do teplej vody"
+],
+"e": "Tlačiť priamo na ranu, končatinu zdvihnúť a volať 155."
+},
+{
+"t": "Prvá pomoc",
+"q": "Hráč si na ihrisku podvrtol členok. Čo hneď urobíš?",
+"a": "Chladiť, stiahnuť obväzom a vyložiť nohu",
+"o": [
+"Dať teplý obklad",
+"Nechať ho rozbehať",
+"Silno masírovať"
+],
+"e": "Chlad cez látku, nie ľad priamo na kožu, asi 15 až 20 minút."
+},
+{
+"t": "Prvá pomoc",
+"q": "Hráč po náraze hlavou je zmätený a zvracia. Čo urobíš?",
+"a": "Stiahneš ho zo hry a voláš 155",
+"o": [
+"Nechá sa hrať ďalej",
+"Dáš mu kávu a pokračuje",
+"Necháš ho samého vyspať sa"
+],
+"e": "Môže ísť o otras mozgu alebo krvácanie do hlavy. Hráč s podozrením na otras sa v zápase nevracia."
+},
+{
+"t": "Prvá pomoc",
+"q": "Pre koho je stabilizovaná poloha na boku?",
+"a": "Pre človeka v bezvedomí, ktorý normálne dýcha",
+"o": [
+"Pre človeka, ktorý nedýcha",
+"Pre človeka so zlomenou nohou",
+"Pre každého zraneného"
+],
+"e": "Ak nedýcha, nepatrí do stabilizovanej polohy, ale treba ho resuscitovať."
+},
+{
+"t": "Prvá pomoc",
+"q": "Ako ošetríš popáleninu?",
+"a": "Chladím vlažnou tečúcou vodou aspoň 10 minút",
+"o": [
+"Priložím ľad priamo na kožu",
+"Natriem ju maslom",
+"Prepichnem pľuzgiere"
+],
+"e": "Potom prekryť čistou, ideálne sterilnou gázou. Pri veľkej popálenine volať 155."
+},
+{
+"t": "Prvá pomoc",
+"q": "Dospelý sa dusí, nemôže kašľať ani hovoriť. Čo urobíš?",
+"a": "Údery medzi lopatky, potom stláčanie brucha",
+"o": [
+"Dám mu napiť vody",
+"Zakloním mu hlavu",
+"Uložím ho na chrbát"
+],
+"e": "Päť úderov medzi lopatky, potom päť stlačení nadbruška (Heimlichov manéver) a striedať."
+},
+{
+"t": "Prvá pomoc",
+"q": "Hráča chytil kŕč do lýtka. Čo pomôže?",
+"a": "Natiahnuť sval, pritiahnuť špičku k sebe",
+"o": [
+"Ohnúť nohu v kolene a držať",
+"Šprintovať ďalej",
+"Priložiť ľad na pol hodiny"
+],
+"e": "Pomaly natiahnuť a jemne premasírovať, potom doplniť tekutiny."
+},
+{
+"t": "Prvá pomoc",
+"q": "Ako pomôžeš človeku s úpalom v horúčave?",
+"a": "Do tieňa, chladiť a podať vodu po dúškoch",
+"o": [
+"Dať mu pivo",
+"Zabaliť ho do deky",
+"Nechať ho na slnku oddýchnuť"
+],
+"e": "Piť môže, len ak je pri vedomí. Pri zmätenosti alebo bezvedomí volať 155."
+},
+{
+"t": "Prvá pomoc",
+"q": "Čo pri zlomenine NErobíš?",
+"a": "Nenaprávaš kosť",
+"o": [
+"Znehybníš končatinu",
+"Zavoláš pomoc",
+"Prekryješ otvorenú ranu"
+],
+"e": "Končatinu znehybniť v polohe, v akej je, a nehýbať s ňou."
+},
+{
+"t": "Prvá pomoc",
+"q": "Po bodnutí osou človeku opúcha tvár a ťažko dýcha. Čo urobíš?",
+"a": "Hneď volám 155",
+"o": [
+"Priložím studený obklad a čakám",
+"Vytiahnem žihadlo a ide domov",
+"Nič, prejde to"
+],
+"e": "Môže ísť o anafylaktický šok. Ak má pri sebe adrenalínové pero, pomôž mu ho použiť."
+},
+{
+"t": "Prvá pomoc",
+"q": "Dokedy pokračuješ v resuscitácii?",
+"a": "Kým neprevezmú záchranári alebo nezačne normálne dýchať",
+"o": [
+"2 minúty",
+"Po 5 cykloch prestanem",
+"Kým nepraskne rebro"
+],
+"e": "Ak je vás viac, každé 2 minúty sa v stláčaní vystriedajte."
+},
+{
+"t": "Prvá pomoc",
+"q": "Pri stláčaní hrudníka niečo zapraská v rebrách. Čo urobíš?",
+"a": "Pokračujem ďalej",
+"o": [
+"Prestanem",
+"Stláčam už len slabo",
+"Presuniem ruky na brucho"
+],
+"e": "Zlomené rebro sa zahojí. Bez stláčania hrudníka človek zomrie."
+},
+{
+"t": "Prvá pomoc",
+"q": "Diabetik je pri vedomí, trasie sa a potí, cíti slabosť. Čo mu dáš?",
+"a": "Niečo sladké, napríklad cukor alebo sladký nápoj",
+"o": [
+"Inzulín",
+"Nič, nech si ľahne",
+"Slané tyčinky"
+],
+"e": "Pravdepodobne má nízky cukor. Ak sa nezlepší alebo stratí vedomie, volať 155."
+},
+{
+"t": "Prvá pomoc",
+"q": "Človek má epileptický záchvat. Čo urobíš?",
+"a": "Chránim mu hlavu a nič mu nedávam do úst",
+"o": [
+"Vložím mu do úst lyžicu",
+"Silou mu držím ruky a nohy",
+"Polejem ho vodou"
+],
+"e": "Odstrániť predmety v okolí. Po záchvate ho dať do stabilizovanej polohy, ak dýcha."
+},
+{
+"t": "Prvá pomoc",
+"q": "Na čo slúži výstražný trojuholník a vesta pri nehode?",
+"a": "Na zabezpečenie miesta, aby sa nezranil nikto ďalší",
+"o": [
+"Na ošetrenie zranených",
+"Na meranie vzdialenosti",
+"Na nič, je to len povinná výbava"
+],
+"e": "Najprv bezpečnosť záchrancu, potom pomoc zraneným."
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Koľko trvá riadny hrací čas futbalového zápasu dospelých?",
+"a": "90 minút",
+"o": [
+"80 minút",
+"100 minút",
+"70 minút"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Koľko hráčov jedného tímu je naraz na ihrisku?",
+"a": "11",
+"o": [
+"10",
+"12",
+"9"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Ako ďaleko od bránkovej čiary je značka pokutového kopu?",
+"a": "11 m",
+"o": [
+"9 m",
+"16 m",
+"12 m"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Ako ďaleko od lopty musí stáť múr pri priamom kope?",
+"a": "9,15 m",
+"o": [
+"7 m",
+"11 m",
+"5 m"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Aká široká je futbalová brána?",
+"a": "7,32 m",
+"o": [
+"7,00 m",
+"6,50 m",
+"8,00 m"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Aká vysoká je futbalová brána?",
+"a": "2,44 m",
+"o": [
+"2,20 m",
+"2,50 m",
+"2,64 m"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Čo nasleduje po druhej žltej karte v zápase?",
+"a": "Červená karta a vylúčenie",
+"o": [
+"Pokutový kop",
+"Desaťminútový trest",
+"Nič, len napomenutie"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Z ktorej situácie NEMÔŽE byť hráč v ofsajde?",
+"a": "Z rohového kopu",
+"o": [
+"Z priameho kopu",
+"Z nepriameho kopu",
+"Z prihrávky spoluhráča"
+],
+"e": "Ofsajd nie je ani zo vhadzovania a z kopu od brány."
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Platí gól hodený priamo zo vhadzovania do súperovej brány?",
+"a": "Nie",
+"o": [
+"Áno",
+"Áno, ak je hodený oboma rukami",
+"Áno, ale len v prvom polčase"
+],
+"e": "Nasleduje kop od brány."
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Smie brankár chytiť rukou úmyselnú prihrávku nohou od spoluhráča?",
+"a": "Nie, nasleduje nepriamy kop",
+"o": [
+"Áno, kedykoľvek",
+"Áno, ak stojí v bránkovom území",
+"Áno, ak je to prvý dotyk"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Koľko bodov sa v lige dáva za víťazstvo?",
+"a": "3",
+"o": [
+"2",
+"1",
+"4"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Čo znamená skratka VAR?",
+"a": "Videoasistent rozhodcu",
+"o": [
+"Varovanie rozhodcu",
+"Vedúci asistent rozhodcu",
+"Videoanalýza rozhodnutí"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Koľko trvá predĺženie vo vyraďovacom zápase?",
+"a": "2 × 15 minút",
+"o": [
+"2 × 10 minút",
+"1 × 20 minút",
+"2 × 45 minút"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Aký obvod má futbalová lopta veľkosti 5?",
+"a": "68 až 70 cm",
+"o": [
+"58 až 60 cm",
+"75 až 78 cm",
+"62 až 64 cm"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Kde sa konali majstrovstvá sveta vo futbale v roku 2022?",
+"a": "V Katare",
+"o": [
+"V Rusku",
+"V USA",
+"V Brazílii"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Kto vyhral majstrovstvá sveta vo futbale 2022?",
+"a": "Argentína",
+"o": [
+"Francúzsko",
+"Chorvátsko",
+"Brazília"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Kto vyhral majstrovstvá sveta vo futbale 2018?",
+"a": "Francúzsko",
+"o": [
+"Chorvátsko",
+"Nemecko",
+"Belgicko"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Koho porazilo Slovensko 3 : 2 na majstrovstvách sveta 2010?",
+"a": "Taliansko",
+"o": [
+"Paraguaj",
+"Nový Zéland",
+"Holandsko"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Ktorý slovenský futbalista dlhé roky hrával za SSC Neapol a preslávil sa čírom?",
+"a": "Marek Hamšík",
+"o": [
+"Martin Škrtel",
+"Milan Škriniar",
+"Róbert Vittek"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Za ktorý anglický klub hral dlhé roky Martin Škrtel?",
+"a": "Liverpool",
+"o": [
+"Chelsea",
+"Arsenal",
+"Manchester United"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Kto vyhral Zlatú loptu (Ballon d'Or) najviac ráz?",
+"a": "Lionel Messi",
+"o": [
+"Cristiano Ronaldo",
+"Pelé",
+"Zinedine Zidane"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "V ktorej krajine sa hrali majstrovstvá Európy EURO 2024?",
+"a": "V Nemecku",
+"o": [
+"Vo Francúzsku",
+"V Anglicku",
+"V Taliansku"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Kto vyhral EURO 2024?",
+"a": "Španielsko",
+"o": [
+"Anglicko",
+"Francúzsko",
+"Nemecko"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Ktorý brazílsky futbalista vyhral majstrovstvá sveta trikrát?",
+"a": "Pelé",
+"o": [
+"Ronaldo",
+"Ronaldinho",
+"Neymar"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Aký kop nariadi rozhodca, keď obranca zahrá rukou vo vlastnom pokutovom území?",
+"a": "Pokutový kop",
+"o": [
+"Nepriamy kop",
+"Rohový kop",
+"Rozhodcovskú loptu"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Čo je pri futbalovom zápase povinná výstroj hráča?",
+"a": "Chrániče holení",
+"o": [
+"Rukavice",
+"Čelenka",
+"Kompresné podkolienky"
+]
+},
+{
+"t": "Futbal a pravidlá",
+"q": "Ako sa volá nový štadión v Bratislave, kde hráva aj reprezentácia?",
+"a": "Tehelné pole (Národný futbalový štadión)",
+"o": [
+"Pasienky",
+"Štadión pod Dubňom",
+"City Arena"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktorý vrch je najvyšší na Slovensku?",
+"a": "Gerlachovský štít",
+"o": [
+"Lomnický štít",
+"Kriváň",
+"Rysy"
+],
+"e": "Má 2 655 m nad morom."
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktorá je najdlhšia slovenská rieka?",
+"a": "Váh",
+"o": [
+"Hron",
+"Nitra",
+"Ipeľ"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Koľko samosprávnych krajov má Slovensko?",
+"a": "8",
+"o": [
+"6",
+"9",
+"10"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "V ktorom kraji ležia Levice?",
+"a": "V Nitrianskom",
+"o": [
+"V Trnavskom",
+"V Banskobystrickom",
+"V Trenčianskom"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Čím je známa obec Podhájska?",
+"a": "Termálnym kúpaliskom",
+"o": [
+"Hradom",
+"Jaskyňou",
+"Lyžiarskym strediskom"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktorý hrad patrí k najväčším hradným komplexom v strednej Európe?",
+"a": "Spišský hrad",
+"o": [
+"Bratislavský hrad",
+"Levický hrad",
+"Oravský hrad"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Kedy vznikla samostatná Slovenská republika?",
+"a": "1. januára 1993",
+"o": [
+"1. januára 1990",
+"17. novembra 1989",
+"1. mája 2004"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "V ktorom roku Slovensko prijalo euro?",
+"a": "2009",
+"o": [
+"2004",
+"2007",
+"2011"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "V ktorom roku vstúpilo Slovensko do Európskej únie?",
+"a": "2004",
+"o": [
+"1993",
+"2000",
+"2009"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktoré je najväčšie a najhlbšie pleso vo Vysokých Tatrách?",
+"a": "Veľké Hincovo pleso",
+"o": [
+"Štrbské pleso",
+"Popradské pleso",
+"Zelené pleso"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktoré mesto je druhé najväčšie na Slovensku?",
+"a": "Košice",
+"o": [
+"Prešov",
+"Žilina",
+"Nitra"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktorá jaskyňa je známa ľadovou výzdobou a je na zozname UNESCO?",
+"a": "Dobšinská ľadová jaskyňa",
+"o": [
+"Domica",
+"Demänovská jaskyňa slobody",
+"Bystrianska jaskyňa"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktoré banícke mesto je na zozname svetového dedičstva UNESCO?",
+"a": "Banská Štiavnica",
+"o": [
+"Trnava",
+"Nitra",
+"Poprad"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ako sa volá slovenská štátna hymna?",
+"a": "Nad Tatrou sa blýska",
+"o": [
+"Kto za pravdu horí",
+"Hej, Slováci",
+"Tichá noc"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Na sútoku ktorých riek stojí hrad Devín?",
+"a": "Dunaja a Moravy",
+"o": [
+"Váhu a Nitry",
+"Hrona a Dunaja",
+"Moravy a Myjavy"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktoré mesto sa považuje za najstaršie na Slovensku?",
+"a": "Nitra",
+"o": [
+"Trnava",
+"Levoča",
+"Žilina"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "V ktorom meste je najstaršia zoologická záhrada na Slovensku?",
+"a": "V Bojniciach",
+"o": [
+"V Bratislave",
+"V Košiciach",
+"V Spišskej Novej Vsi"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktorá vodná nádrž na Slovensku zadrží najviac vody?",
+"a": "Liptovská Mara",
+"o": [
+"Oravská priehrada",
+"Zemplínska šírava",
+"Sĺňava"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "S ktorou krajinou Slovensko NEsusedí?",
+"a": "So Slovinskom",
+"o": [
+"S Rakúskom",
+"S Ukrajinou",
+"S Poľskom"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "S ktorým štátom má Slovensko najdlhšiu hranicu?",
+"a": "S Maďarskom",
+"o": [
+"S Poľskom",
+"S Českom",
+"S Rakúskom"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Kto uzákonil spisovnú slovenčinu na základe stredoslovenských nárečí?",
+"a": "Ľudovít Štúr",
+"o": [
+"Anton Bernolák",
+"Pavol Országh Hviezdoslav",
+"Andrej Hlinka"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktoré mesto je sídlom Nitrianskeho kraja?",
+"a": "Nitra",
+"o": [
+"Levice",
+"Nové Zámky",
+"Komárno"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktorá rieka tvorí veľkú časť hranice medzi Slovenskom a Maďarskom?",
+"a": "Dunaj",
+"o": [
+"Váh",
+"Morava",
+"Hron"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktoré pohorie je najvyššie na Slovensku?",
+"a": "Vysoké Tatry",
+"o": [
+"Nízke Tatry",
+"Malá Fatra",
+"Štiavnické vrchy"
+]
+},
+{
+"t": "Slovensko a okolie",
+"q": "Ktorý zámok je známy rozprávkovým vzhľadom a medzinárodným festivalom duchov a strašidiel?",
+"a": "Bojnický zámok",
+"o": [
+"Smolenický zámok",
+"Budmerický kaštieľ",
+"Zvolenský zámok"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Kde sa konali zimné olympijské hry 2026?",
+"a": "V Taliansku (Miláno a Cortina)",
+"o": [
+"Vo Francúzsku",
+"V Kanade",
+"V Nórsku"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Kde sa konali letné olympijské hry 2024?",
+"a": "V Paríži",
+"o": [
+"V Tokiu",
+"V Londýne",
+"V Los Angeles"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "V akom športe je svetovou hviezdou Petra Vlhová?",
+"a": "V alpskom lyžovaní",
+"o": [
+"V biatlone",
+"V tenise",
+"V krasokorčuľovaní"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "V akom športe trikrát za sebou vyhral majstrovstvá sveta Peter Sagan?",
+"a": "V cestnej cyklistike",
+"o": [
+"V horskej cyklistike",
+"V triatlone",
+"V biatlone"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "V akom športe sa preslávili bratia Hochschornerovci?",
+"a": "Vo vodnom slalome",
+"o": [
+"V tenise vo štvorhre",
+"V bobovaní",
+"V kanoistike na rýchlostnej trati"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "V akom športe získala Anastasia Kuzminová olympijské zlato?",
+"a": "V biatlone",
+"o": [
+"V behu na lyžiach",
+"V streľbe",
+"V rýchlokorčuľovaní"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Koľko zlatých olympijských medailí získala Anastasia Kuzminová?",
+"a": "3",
+"o": [
+"1",
+"2",
+"5"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Ktorá tenistka, bývalá svetová jednotka, sa narodila v Košiciach?",
+"a": "Martina Hingisová",
+"o": [
+"Daniela Hantuchová",
+"Dominika Cibulková",
+"Serena Williamsová"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "V ktorom roku sa slovenskí hokejisti stali majstrami sveta?",
+"a": "2002",
+"o": [
+"1998",
+"2000",
+"2012"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Akú medailu získali slovenskí hokejisti na olympiáde v Pekingu 2022?",
+"a": "Bronzovú",
+"o": [
+"Zlatú",
+"Striebornú",
+"Žiadnu"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Ktorý slovenský hokejista ako kapitán Bostonu zdvihol v roku 2011 Stanleyho pohár?",
+"a": "Zdeno Chára",
+"o": [
+"Marián Hossa",
+"Peter Šťastný",
+"Pavol Demitra"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Koľko hráčov jedného tímu je v hokeji naraz na ľade (aj s brankárom)?",
+"a": "6",
+"o": [
+"5",
+"7",
+"11"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Koľko trvá jedna tretina v hokeji?",
+"a": "20 minút",
+"o": [
+"15 minút",
+"25 minút",
+"30 minút"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "V akej výške visí basketbalový kôš?",
+"a": "3,05 m",
+"o": [
+"2,80 m",
+"3,50 m",
+"2,44 m"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Ktorý tenisový grandslamový turnaj sa hrá na tráve?",
+"a": "Wimbledon",
+"o": [
+"Roland Garros",
+"US Open",
+"Australian Open"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Aká dlhá je maratónska trať?",
+"a": "42,195 km",
+"o": [
+"40 km",
+"21,1 km",
+"50 km"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Koľko kruhov je na olympijskej vlajke?",
+"a": "5",
+"o": [
+"4",
+"6",
+"7"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Kto získal najviac olympijských medailí v histórii?",
+"a": "Michael Phelps",
+"o": [
+"Usain Bolt",
+"Carl Lewis",
+"Larisa Latyninová"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Aký je svetový rekord Usaina Bolta v behu na 100 m?",
+"a": "9,58 s",
+"o": [
+"9,69 s",
+"9,72 s",
+"9,44 s"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Koľko hráčov jedného tímu je vo volejbale na ihrisku?",
+"a": "6",
+"o": [
+"5",
+"7",
+"8"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Aký dres nosí líder Tour de France?",
+"a": "Žltý",
+"o": [
+"Zelený",
+"Bodkovaný",
+"Ružový"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Koľkokrát vyhral Peter Sagan zelený dres na Tour de France?",
+"a": "7-krát",
+"o": [
+"3-krát",
+"5-krát",
+"9-krát"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Koľko titulov majstra sveta formuly 1 získal Michael Schumacher?",
+"a": "7",
+"o": [
+"5",
+"6",
+"4"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Čo znamená v golfe „birdie“?",
+"a": "Jamka o jeden úder pod par",
+"o": [
+"Jamka o jeden úder nad par",
+"Jamka na jeden úder",
+"Lopta v jazierku"
+]
+},
+{
+"t": "Šport všeobecne",
+"q": "Ako často sa konajú letné olympijské hry?",
+"a": "Každé 4 roky",
+"o": [
+"Každé 2 roky",
+"Každé 3 roky",
+"Každých 5 rokov"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorý oceán je najväčší?",
+"a": "Tichý",
+"o": [
+"Atlantický",
+"Indický",
+"Severný ľadový"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorá hora je najvyššia na svete?",
+"a": "Mount Everest",
+"o": [
+"K2",
+"Mont Blanc",
+"Kilimandžáro"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorá planéta je najbližšie k Slnku?",
+"a": "Merkúr",
+"o": [
+"Venuša",
+"Mars",
+"Zem"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorá planéta slnečnej sústavy je najväčšia?",
+"a": "Jupiter",
+"o": [
+"Saturn",
+"Neptún",
+"Zem"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Aká je chemická značka zlata?",
+"a": "Au",
+"o": [
+"Ag",
+"Zn",
+"Go"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Pri akej teplote vrie voda pri hladine mora?",
+"a": "100 °C",
+"o": [
+"90 °C",
+"80 °C",
+"120 °C"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Koľko kostí má dospelý človek?",
+"a": "206",
+"o": [
+"150",
+"300",
+"186"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorý orgán ľudského tela je najväčší?",
+"a": "Koža",
+"o": [
+"Pečeň",
+"Pľúca",
+"Mozog"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Kto namaľoval Monu Lisu?",
+"a": "Leonardo da Vinci",
+"o": [
+"Michelangelo",
+"Pablo Picasso",
+"Vincent van Gogh"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "V ktorom roku sa skončila druhá svetová vojna v Európe?",
+"a": "1945",
+"o": [
+"1944",
+"1939",
+"1948"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "V ktorom roku padol Berlínsky múr?",
+"a": "1989",
+"o": [
+"1991",
+"1985",
+"1968"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorý dátum si pripomíname ako začiatok Nežnej revolúcie?",
+"a": "17. november 1989",
+"o": [
+"1. január 1993",
+"21. august 1968",
+"28. október 1918"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Kto ako prvý človek vstúpil na Mesiac?",
+"a": "Neil Armstrong",
+"o": [
+"Jurij Gagarin",
+"Buzz Aldrin",
+"John Glenn"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Aké je hlavné mesto Austrálie?",
+"a": "Canberra",
+"o": [
+"Sydney",
+"Melbourne",
+"Perth"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Aké je hlavné mesto Kanady?",
+"a": "Ottawa",
+"o": [
+"Toronto",
+"Montreal",
+"Vancouver"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Približne akou rýchlosťou sa šíri svetlo?",
+"a": "300 000 km/s",
+"o": [
+"30 000 km/s",
+"3 000 km/s",
+"1 000 000 km/s"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Koľko dutín (predsiení a komôr) má ľudské srdce?",
+"a": "4",
+"o": [
+"2",
+"3",
+"6"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Aký plyn uvoľňujú rastliny pri fotosyntéze?",
+"a": "Kyslík",
+"o": [
+"Oxid uhličitý",
+"Dusík",
+"Vodík"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Kto objavil penicilín?",
+"a": "Alexander Fleming",
+"o": [
+"Louis Pasteur",
+"Marie Curie-Skłodowská",
+"Robert Koch"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorý štát je najmenší na svete?",
+"a": "Vatikán",
+"o": [
+"Monako",
+"San Maríno",
+"Lichtenštajnsko"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorý kov je pri izbovej teplote tekutý?",
+"a": "Ortuť",
+"o": [
+"Olovo",
+"Hliník",
+"Cín"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Kto napísal Hamleta?",
+"a": "William Shakespeare",
+"o": [
+"Charles Dickens",
+"Johann Wolfgang Goethe",
+"Miguel de Cervantes"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Koľko hodín má týždeň?",
+"a": "168",
+"o": [
+"144",
+"160",
+"186"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorá púšť je najväčšou horúcou púšťou sveta?",
+"a": "Sahara",
+"o": [
+"Gobi",
+"Kalahari",
+"Atacama"
+]
+},
+{
+"t": "Všeobecný prehľad",
+"q": "Ktorá krajina má najviac obyvateľov na svete?",
+"a": "India",
+"o": [
+"Čína",
+"USA",
+"Indonézia"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Koľko tekutín by mal dospelý vypiť cez bežný deň?",
+"a": "Približne 2 litre",
+"o": [
+"Pol litra",
+"5 litrov",
+"8 litrov"
+],
+"e": "Pri tréningu a v horúčave aj viac."
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Na čo hlavne slúži rozcvička pred tréningom?",
+"a": "Zahreje telo a znižuje riziko zranenia",
+"o": [
+"Spáli najviac tukov",
+"Nahradí strečing po tréningu",
+"Na nič, je to zvyk"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Kedy je najvhodnejší pomalý (statický) strečing?",
+"a": "Po tréningu",
+"o": [
+"Tesne pred šprintom",
+"Počas zápasu",
+"Pred zdvíhaním činiek namiesto rozcvičky"
+],
+"e": "Pred výkonom je lepšie dynamické rozcvičenie v pohybe."
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Koľko hodín spánku odporúčajú lekári dospelému?",
+"a": "7 až 9 hodín",
+"o": [
+"4 až 5 hodín",
+"10 až 12 hodín",
+"Stačí 6 hodín každému"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Ktorá živina je hlavným zdrojom energie pri behu a futbale?",
+"a": "Sacharidy",
+"o": [
+"Bielkoviny",
+"Vitamíny",
+"Minerály"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Na čo telo potrebuje najmä bielkoviny?",
+"a": "Na obnovu a rast svalov",
+"o": [
+"Ako hlavné palivo pri šprinte",
+"Na lepší zrak",
+"Na zníženie smädu"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Ako piť pri zápase v horúčave?",
+"a": "Priebežne po dúškoch: pred, počas aj po zápase",
+"o": [
+"Až po zápase, naraz veľa",
+"Vôbec, ťažko sa beží",
+"Len sladené nápoje"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Ako pôsobí alkohol po tréningu alebo zápase?",
+"a": "Odvodňuje a spomaľuje regeneráciu",
+"o": [
+"Urýchľuje regeneráciu svalov",
+"Dopĺňa tekutiny ako voda",
+"Nemá žiadny vplyv"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Čo je svalovica?",
+"a": "Bolesť svalov 1 až 3 dni po nezvyklej námahe",
+"o": [
+"Kŕč počas zápasu",
+"Natrhnutý sval",
+"Zápal šľachy"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Vďaka čomu si telo vytvára vitamín D?",
+"a": "Vďaka slnečnému žiareniu",
+"o": [
+"Vďaka spánku",
+"Vďaka pitiu vody",
+"Vďaka behu"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Aká je bežná telesná teplota zdravého človeka?",
+"a": "Okolo 36 až 37 °C",
+"o": [
+"Okolo 34 °C",
+"Okolo 38 °C",
+"Okolo 39 °C"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Aký je bežný pokojový tep dospelého?",
+"a": "60 až 100 úderov za minútu",
+"o": [
+"30 až 50 úderov za minútu",
+"120 až 150 úderov za minútu",
+"150 až 180 úderov za minútu"
+],
+"e": "Trénovaní športovci mávajú aj menej ako 60."
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Aký krvný tlak sa považuje za optimálny?",
+"a": "Okolo 120/80",
+"o": [
+"Okolo 160/100",
+"Okolo 90/40",
+"Okolo 180/110"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Ktorého minerálu je v banáne veľa?",
+"a": "Draslíka",
+"o": [
+"Železa",
+"Jódu",
+"Fluóru"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Čo je typickým znakom nedostatku tekutín?",
+"a": "Smäd a tmavožltý moč",
+"o": [
+"Svetlý moč",
+"Chuť na slané",
+"Studené ruky"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Koľko minút stredne náročného pohybu týždenne odporúča WHO dospelým aspoň?",
+"a": "150 minút",
+"o": [
+"30 minút",
+"60 minút",
+"600 minút"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Čo najviac zhoršuje kondíciu a výkon pľúc?",
+"a": "Fajčenie",
+"o": [
+"Pitie vody",
+"Strečing",
+"Spánok"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Čo udáva číslo SPF na opaľovacom kréme?",
+"a": "Ochranný faktor proti UV žiareniu",
+"o": [
+"Obsah vitamínov",
+"Vodeodolnosť v minútach",
+"Vôňu krému"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Kde nájdeš najviac vlákniny?",
+"a": "V zelenine, strukovinách a celozrnnom pečive",
+"o": [
+"V bielom rožku",
+"V mäse",
+"V syre"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Koľko čajových lyžičiek cukru je zhruba v pol litri sladenej koly?",
+"a": "12 až 14",
+"o": [
+"2 až 3",
+"5 až 6",
+"25 až 30"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Ako dlho by mala trvať bežná rozcvička pred tréningom?",
+"a": "Asi 10 až 15 minút",
+"o": [
+"1 minútu",
+"Hodinu",
+"Netreba ju"
+]
+},
+{
+"t": "Zdravie a životospráva",
+"q": "Čo je lepšie zjesť asi 2 až 3 hodiny pred zápasom?",
+"a": "Ľahké jedlo bohaté na sacharidy, napríklad cestoviny",
+"o": [
+"Veľkú mastnú pizzu",
+"Nič, ísť nalačno",
+"Len energetický nápoj"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Akou najvyššou rýchlosťou sa smie jazdiť v obci?",
+"a": "50 km/h",
+"o": [
+"60 km/h",
+"40 km/h",
+"70 km/h"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Akou najvyššou rýchlosťou smie ísť osobné auto mimo obce (nie po diaľnici)?",
+"a": "90 km/h",
+"o": [
+"80 km/h",
+"100 km/h",
+"110 km/h"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Aká je najvyššia povolená rýchlosť na slovenskej diaľnici?",
+"a": "130 km/h",
+"o": [
+"120 km/h",
+"140 km/h",
+"150 km/h"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Koľko alkoholu smie mať vodič na Slovensku v krvi?",
+"a": "Žiadny (0 promile)",
+"o": [
+"0,3 promile",
+"0,5 promile",
+"0,8 promile"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Aký tvar má dopravná značka STOP?",
+"a": "Osemuholník",
+"o": [
+"Trojuholník",
+"Kruh",
+"Štvorec"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Ako ďaleko za autom postavíš výstražný trojuholník mimo diaľnice?",
+"a": "Najmenej 50 m",
+"o": [
+"5 m",
+"20 m",
+"200 m"
+],
+"e": "Na diaľnici a rýchlostnej ceste najmenej 100 m."
+},
+{
+"t": "Auto a doprava",
+"q": "Kedy musíš na Slovensku svietiť počas jazdy?",
+"a": "Vždy, aj cez deň",
+"o": [
+"Len v noci",
+"Len v zime",
+"Len mimo obce"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Kedy sú na Slovensku povinné zimné pneumatiky?",
+"a": "Keď je na ceste súvislý sneh, ľad alebo námraza",
+"o": [
+"Od 1. novembra do 31. marca vždy",
+"Len na diaľnici",
+"Nikdy nie sú povinné"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Akú hĺbku dezénu musia mať zimné pneumatiky osobného auta najmenej?",
+"a": "3 mm",
+"o": [
+"1,6 mm",
+"5 mm",
+"8 mm"
+],
+"e": "Letné pneumatiky musia mať najmenej 1,6 mm."
+},
+{
+"t": "Auto a doprava",
+"q": "Čo musí byť povinne vo výbave osobného auta?",
+"a": "Lekárnička, výstražný trojuholník a reflexná vesta",
+"o": [
+"Hasiaci prístroj",
+"Snehové reťaze",
+"Ťažné lano a štartovacie káble"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Kto má prednosť na neoznačenej križovatke?",
+"a": "Vozidlo prichádzajúce sprava",
+"o": [
+"Vozidlo prichádzajúce zľava",
+"Väčšie vozidlo",
+"Rýchlejšie vozidlo"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Na kruhovom objazde je pri vjazde značka Daj prednosť v jazde. Kto má prednosť?",
+"a": "Vozidlá idúce po kruhovom objazde",
+"o": [
+"Vozidlá, ktoré vchádzajú",
+"Vozidlá sprava",
+"Ten, kto skôr zatrúbi"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Čo vo všeobecnosti znamená dopravná značka s modrým kruhovým podkladom?",
+"a": "Príkaz",
+"o": [
+"Zákaz",
+"Výstrahu",
+"Informáciu o službách"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Čo vo všeobecnosti znamená trojuholníková značka s červeným okrajom?",
+"a": "Výstrahu pred nebezpečenstvom",
+"o": [
+"Príkaz",
+"Zákaz zastavenia",
+"Koniec obce"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Ako sa dnes na Slovensku kupuje diaľničná známka?",
+"a": "Elektronicky, je viazaná na evidenčné číslo",
+"o": [
+"Ako nálepka na sklo",
+"Len na hranici",
+"Platí sa mýtom pri každom zjazde"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Smie vodič počas jazdy telefonovať s mobilom v ruke?",
+"a": "Nie, len cez handsfree",
+"o": [
+"Áno, v obci",
+"Áno, ak ide pomaly",
+"Áno, na diaľnici"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Čo znamená červená kontrolka v tvare olejničky?",
+"a": "Nízky tlak oleja, treba hneď zastaviť",
+"o": [
+"Treba umyť auto",
+"Dochádza palivo",
+"Je čas na servis o mesiac"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Prečo sa brzdová kvapalina pravidelne vymieňa?",
+"a": "Pohlcuje vlhkosť a brzdy sa môžu prehriať",
+"o": [
+"Mení farbu",
+"Vyparí sa",
+"Kvôli vôni"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Kedy ide nové osobné auto prvýkrát na technickú kontrolu?",
+"a": "Po 4 rokoch",
+"o": [
+"Po 1 roku",
+"Po 2 rokoch",
+"Po 10 rokoch"
+],
+"e": "Potom chodí každé 2 roky."
+},
+{
+"t": "Auto a doprava",
+"q": "Musia sa pripútať aj spolucestujúci na zadných sedadlách?",
+"a": "Áno",
+"o": [
+"Nie",
+"Len na diaľnici",
+"Len deti"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Čo znamená skratka ABS?",
+"a": "Protiblokovací systém bŕzd",
+"o": [
+"Automatická brzda svetiel",
+"Asistent bezpečného státia",
+"Airbagový bezpečnostný systém"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Ako ďaleko pred priechodom pre chodcov vodič nesmie zastaviť?",
+"a": "5 m",
+"o": [
+"1 m",
+"15 m",
+"30 m"
+]
+},
+{
+"t": "Auto a doprava",
+"q": "Čo znamená na semafore samotné prerušované žlté svetlo?",
+"a": "Pozor, riadiš sa dopravnými značkami",
+"o": [
+"Stoj",
+"Voľno pre všetkých bez ohľadu na značky",
+"Semafor je pokazený, zastav"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Kto naspieval album Thriller?",
+"a": "Michael Jackson",
+"o": [
+"Prince",
+"Elvis Presley",
+"Stevie Wonder"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Freddie Mercury bol spevákom ktorej skupiny?",
+"a": "Queen",
+"o": [
+"The Rolling Stones",
+"Pink Floyd",
+"AC/DC"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Ktorá skupina naspievala pieseň Voda, čo ma drží nad vodou?",
+"a": "Elán",
+"o": [
+"Team",
+"IMT Smile",
+"Tublatanka"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Ktorý film zo Slovenska získal v roku 1966 Oscara za najlepší cudzojazyčný film?",
+"a": "Obchod na korze",
+"o": [
+"Perinbaba",
+"Pacho, hybský zbojník",
+"Jánošík"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Aké služobné číslo má James Bond?",
+"a": "007",
+"o": [
+"001",
+"700",
+"070"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Kto napísal knihy o Harrym Potterovi?",
+"a": "J. K. Rowlingová",
+"o": [
+"J. R. R. Tolkien",
+"Stephen King",
+"Roald Dahl"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Z ktorého mesta pochádzala skupina The Beatles?",
+"a": "Z Liverpoolu",
+"o": [
+"Z Londýna",
+"Z Manchestru",
+"Z Birminghamu"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Kto režíroval film Titanic z roku 1997?",
+"a": "James Cameron",
+"o": [
+"Steven Spielberg",
+"Ridley Scott",
+"Christopher Nolan"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Ako sa volá hlavný hrdina rozprávky Leví kráľ?",
+"a": "Simba",
+"o": [
+"Mufasa",
+"Nala",
+"Scar"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Kto nakrútil rozprávku Perinbaba?",
+"a": "Juraj Jakubisko",
+"o": [
+"Martin Hollý",
+"Juraj Herz",
+"Miloš Forman"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Kto napísal Pána prsteňov?",
+"a": "J. R. R. Tolkien",
+"o": [
+"C. S. Lewis",
+"J. K. Rowlingová",
+"George R. R. Martin"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Koľko hlavných postáv má seriál Priatelia?",
+"a": "6",
+"o": [
+"4",
+"5",
+"8"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Z ktorej krajiny pochádza skupina ABBA?",
+"a": "Zo Švédska",
+"o": [
+"Z Nórska",
+"Z Dánska",
+"Z Fínska"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "S ktorou piesňou vyhrala ABBA Eurovíziu v roku 1974?",
+"a": "Waterloo",
+"o": [
+"Mamma Mia",
+"Dancing Queen",
+"SOS"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Koho volajú „kráľ rokenrolu“?",
+"a": "Elvisa Presleyho",
+"o": [
+"Michaela Jacksona",
+"Johnnyho Casha",
+"Chucka Berryho"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Koľko strún má klasická gitara?",
+"a": "6",
+"o": [
+"4",
+"5",
+"7"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Kto je otcom Luka Skywalkera v Hviezdnych vojnách?",
+"a": "Darth Vader",
+"o": [
+"Obi-Wan Kenobi",
+"Yoda",
+"Han Solo"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "V ktorom meste sa narodil Wolfgang Amadeus Mozart?",
+"a": "V Salzburgu",
+"o": [
+"Vo Viedni",
+"V Prahe",
+"V Bratislave"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Ako sa volá chlapec, ktorého rodina zabudne doma vo filme Sám doma?",
+"a": "Kevin",
+"o": [
+"Tommy",
+"Billy",
+"Danny"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Koľko liniek má notová osnova?",
+"a": "5",
+"o": [
+"4",
+"6",
+"7"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "V ktorom meste žijú Simpsonovci?",
+"a": "V Springfielde",
+"o": [
+"V Shelbyville",
+"V Quahogu",
+"V South Parku"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Kto hral boxera Rockyho Balbou?",
+"a": "Sylvester Stallone",
+"o": [
+"Arnold Schwarzenegger",
+"Bruce Willis",
+"Jean-Claude Van Damme"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Odkiaľ pochádza vianočná rozprávka Mrázik?",
+"a": "Zo Sovietskeho zväzu",
+"o": [
+"Z Československa",
+"Z Poľska",
+"Z Nemecka"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Ktorý herec je známy nemými filmami a postavou tuláka s paličkou?",
+"a": "Charlie Chaplin",
+"o": [
+"Buster Keaton",
+"Stan Laurel",
+"Harold Lloyd"
+]
+},
+{
+"t": "Zábava a hudba",
+"q": "Ktoré nástroje patria do sekcie bicích?",
+"a": "Bubny a činely",
+"o": [
+"Husle a violončelo",
+"Trúbka a pozauna",
+"Flauta a klarinet"
+]
+}
+]

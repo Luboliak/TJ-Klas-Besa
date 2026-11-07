@@ -294,7 +294,9 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
 .kvh{display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px}
 .kvt{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
 .kvt i{display:block;height:100%;background:var(--ink);transition:width .2s linear}
-.kvq{font-size:19px;font-weight:600;margin:18px 0 14px;line-height:1.35}
+.kvtema{margin:14px 0 0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.kvq{font-size:19px;font-weight:600;margin:4px 0 14px;line-height:1.35}
+.kve{margin:10px 0 0;padding:10px 12px;background:var(--panel);border-left:3px solid #1e7e34;border-radius:6px;font-size:14px}
 .kvo{display:grid;gap:8px}
 .kvo button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;text-align:left;font-size:16px;color:inherit}
 .kvo button.ok{background:#1e7e34;border-color:#1e7e34;color:#fff}
@@ -1679,7 +1681,9 @@ function besaScorers(){
 }
 
 /* --- KVÍZ --- */
-const KV_N=6, KV_T=20;
+const KV_LIGA=3, KV_VSEOB=5, KV_N=KV_LIGA+KV_VSEOB, KV_T=20;
+let OTAZKY=null; // banka všeobecných otázok (otazky.json)
+async function otLoad(){ if(OTAZKY||otLoad.on) return; otLoad.on=true; OTAZKY=await getJson(BASE+'otazky.json')||[]; otLoad.on=false; hr('kviz'); }
 let KV={st:'start', qs:null, i:0, score:0, ok:0, t0:0, timer:null, picked:null, ranked:false, day:'', board:null, res:null};
 function kvShuffle(a,r){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(r()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function kvNear(c,min,max,r,spread){ spread=spread||2; const s=new Set(); let k=0; while(s.size<3&&k++<200){ const x=c+(Math.floor(r()*(spread*2+1))-spread); if(x!==c&&x>=min&&x<=max) s.add(x); } return [...s]; }
@@ -1712,12 +1716,24 @@ function kvQuestions(seed){
       if(w.length<2||w[0].d===w[1].d) return null; return {q:'Proti komu vyhrala Beša v tejto sezóne najvyšším rozdielom?', a:w[0].o, o:kvShuffle(names.filter(n=>n!==w[0].o&&n!==US),r).slice(0,3)}; },
   ];
   const out=[], seen=new Set(); let k=0;
-  while(out.length<KV_N&&k++<300){
+  while(out.length<KV_LIGA&&k++<300){
     const gi=Math.floor(r()*G.length); let q=null; try{ q=G[gi](); }catch(e){}
     if(!q||q.o.length<3||seen.has(q.q)||out.filter(x=>x.g===gi).length>=2) continue;
-    seen.add(q.q); q.g=gi; q.opts=kvShuffle([q.a,...q.o.slice(0,3)],r); out.push(q);
+    seen.add(q.q); q.g=gi; q.t='Naša liga'; q.opts=kvShuffle([q.a,...q.o.slice(0,3)],r); out.push(q);
   }
-  return out;
+  // všeobecné otázky: v dennom kvíze idú po poradí zamiešanej banky, takže sa dlho neopakujú
+  const B=OTAZKY||[]; let gen=[];
+  if(B.length){
+    // poradie: témy sa striedajú dokola, každá téma zamiešaná, aby v jeden deň neboli dve otázky z rovnakej témy
+    const rs=rngSeed('otazky-v1'), T={}; B.forEach((x,i)=>(T[x.t]||(T[x.t]=[])).push(i));
+    const L=kvShuffle(Object.keys(T).sort(),rs).map(t=>kvShuffle(T[t],rs)), order=[];
+    for(let i=0;order.length<B.length;i++) L.forEach(l=>{ if(i<l.length) order.push(l[i]); });
+    const m=/^kviz-(\d{4}-\d{2}-\d{2})$/.exec(seed);
+    if(m){ const day=Math.floor(Date.parse(m[1])/86400000); for(let i=0;i<KV_VSEOB;i++) gen.push(B[order[(day*KV_VSEOB+i)%B.length]]); }
+    else gen=kvShuffle(B,r).slice(0,KV_VSEOB);
+  }
+  gen.forEach(x=>out.push({q:x.q, a:x.a, o:x.o, t:x.t, e:x.e||'', opts:kvShuffle([x.a,...x.o.slice(0,3)],r)}));
+  return kvShuffle(out,r);
 }
 function kvStart(ranked){
   KV.day=skToday(); KV.ranked=ranked; KV.res=null;
@@ -1738,7 +1754,7 @@ function kvAnswer(i){
   KV.picked=i; if(ok){ KV.ok++; KV.score+=100+Math.round(left*2.5); }
   hr('kviz');
   setTimeout(()=>{ KV.i++; KV.picked=null;
-    if(KV.i>=KV.qs.length){ clearInterval(KV.timer); KV.st='end'; kvFinish(); } else { KV.t0=Date.now(); hr('kviz'); } }, ok?900:1800);
+    if(KV.i>=KV.qs.length){ clearInterval(KV.timer); KV.st='end'; kvFinish(); } else { KV.t0=Date.now(); hr('kviz'); } }, q.e?(ok?2600:3600):(ok?900:1800));
 }
 async function kvFinish(){
   if(KV.ranked){ lsSet('kviz_'+KV.day,String(KV.score));
@@ -1748,15 +1764,16 @@ async function kvFinish(){
 }
 async function kvBoard(){ if(!PROXY||KV.bl) return; KV.bl=true; try{ KV.board=await fetch(PROXY+'/hra/board?hra=kviz',{cache:'no-store'}).then(r=>r.json()); }catch(e){ KV.board={}; } KV.bl=false; hr('kviz'); }
 function vKviz(){
-  if(!SUP){ supLoad(); return '<p class="note">Načítavam…</p>'; }
+  if(!SUP) supLoad(); if(!OTAZKY) otLoad();
+  if(!SUP||!OTAZKY) return '<p class="note">Načítavam…</p>';
   if(KV.st==='q'){
     const q=KV.qs[KV.i], left=Math.max(0,KV_T-(Date.now()-KV.t0)/1000);
-    let h=`<div class="kvh"><span>Otázka ${KV.i+1}/${KV.qs.length}</span><span>${KV.score} b</span></div><div class="kvt"><i id="kvbar" style="width:${left/KV_T*100}%"></i></div><p class="kvq">${esc(q.q)}</p><div class="kvo">`;
+    let h=`<div class="kvh"><span>Otázka ${KV.i+1}/${KV.qs.length}</span><span>${KV.score} b</span></div><div class="kvt"><i id="kvbar" style="width:${left/KV_T*100}%"></i></div><p class="kvtema">${esc(q.t||'')}</p><p class="kvq">${esc(q.q)}</p><div class="kvo">`;
     q.opts.forEach((o,i)=>{ let c=''; if(KV.picked!=null){ if(o===q.a) c='ok'; else if(i===KV.picked) c='bad'; }
       h+=`<button data-kva="${i}" class="${c}"${KV.picked!=null?' disabled':''}>${esc(o)}</button>`; });
-    return h+`</div><p class="note" style="text-align:center">${KV.picked===-1?'Čas vypršal':KV.picked!=null?'&nbsp;':`<span id="kvsec">${Math.ceil(left)}</span> s`}</p>`;
+    return h+`</div>${KV.picked!=null&&q.e?`<p class="kve">${esc(q.e)}</p>`:''}<p class="note" style="text-align:center">${KV.picked===-1?'Čas vypršal':KV.picked!=null?'&nbsp;':`<span id="kvsec">${Math.ceil(left)}</span> s`}</p>`;
   }
-  let h='<p class="note" style="margin-top:0">Každý deň nový kvíz o našej lige: 6 otázok, na každú 20 sekúnd. Správna odpoveď = 100 bodov, čím rýchlejšie, tým väčší bonus. Do poradia sa ráta len prvý pokus dňa.</p>';
+  let h='<p class="note" style="margin-top:0">Každý deň nový kvíz: 3 otázky o našej lige a 5 všeobecných (prvá pomoc, futbal, Slovensko, šport, prehľad, zdravie, auto a doprava, zábava). Na každú je 20 sekúnd. Správna odpoveď = 100 bodov, čím rýchlejšie, tým väčší bonus. Do poradia sa ráta len prvý pokus dňa.</p>';
   if(KV.st==='end'){
     const st=!KV.ranked?'cvičný':KV.res?(KV.res.prvy?'zapísané':'už bolo'):'nezapísané';
     h+=`<div class="tiles"><div><small>Správne</small><b>${KV.ok}/${KV.qs.length}</b></div><div><small>Body</small><b>${KV.score}</b></div><div><small>Poradie</small><b style="font-size:17px">${st}</b></div></div>`;
