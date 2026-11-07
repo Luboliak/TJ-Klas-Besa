@@ -1869,40 +1869,53 @@ const PK_GK=[
   {meno:'Žltý', popis:'pevnejší', dres:'#ffe600', tien:'#d4bf00', h:.78, w:.27, rx:.20, ry:.32, hlava:.085, slabe:'hore'},
   {meno:'Fialový', popis:'vysoký a tenký', dres:'#8e3bd6', tien:'#6a22a8', h:.90, w:.19, rx:.19, ry:.40, hlava:.075, slabe:'dole'},
 ];
-let PK={st:'aim', goals:0, kick:0, k0:0, aim:null, pow:0, powT:0, t0:0, shot:null, best:+lsGet('pkBest')||0, hist:[], board:null, raf:0, saved:false};
-function pkGeo(W,H){ return {gx0:W*.13, gx1:W*.87, gyT:H*.17, gyB:H*.44, bx:W*.5, by:H*.72, br:W*.03}; }
+let PK={st:'aim', mode:lsGet('pkMode')==='pv'?'pv':'pk', goals:0, kick:0, k0:0, aim:null, pow:0, powT:0, t0:0, shot:null, best:+lsGet('pkBest')||0, bestPv:+lsGet('pvBest')||0, hist:[], board:null, boardM:'', raf:0, saved:false, fk:null};
+const PV_N=10; // priame kopy: 10 pokusov
+function pkFkNew(){
+  // priamy kop: lopta z rôznych miest pred šestnástkou, múr kryje bližšiu žrď, brankár stojí na vzdialenejšej strane
+  const bx=.3+Math.random()*.4, left=bx<.5, w=.38+Math.random()*.08, o=Math.random()*.06;
+  PK.fk=left?{bx,left,uLo:o,uHi:o+w,uK:.7}:{bx,left,uLo:1-o-w,uHi:1-o,uK:.3};
+}
+if(PK.mode==='pv') pkFkNew();
+function pkGeo(W,H){ const pv=PK.mode==='pv'&&PK.fk; return {gx0:W*.13, gx1:W*.87, gyT:H*.17, gyB:H*.44, bx:W*(pv?PK.fk.bx:.5), by:H*(pv?.79:.72), br:W*(pv?.026:.03), pv:!!pv}; }
 function pkGauss(){ let u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 function pkKeeper(){ return PK_GK[(PK.kick+PK.k0)%2]; }
-function pkReset(){ Object.assign(PK,{st:'aim', goals:0, kick:0, k0:Math.random()<.5?0:1, aim:null, shot:null, hist:[], saved:false}); }
+function pkReset(){ Object.assign(PK,{st:'aim', goals:0, kick:0, k0:Math.random()<.5?0:1, aim:null, shot:null, hist:[], saved:false}); if(PK.mode==='pv') pkFkNew(); }
 function pkShoot(){
   const g=pkKeeper(), p=PK.pow, lvl=PK.goals;
-  const sig=.035+Math.abs(p-.72)*.3;
-  const bu=PK.aim.u+pkGauss()*sig, bv=Math.max(.04,PK.aim.v+pkGauss()*sig*.8+Math.max(0,p-.88)*2.6);
-  const zones=[[.2,.2],[.2,.62],[.5,.32],[.8,.2],[.8,.62]];
+  const sig=(.035+Math.abs(p-.72)*.3)*(PK.mode==='pv'?1.6:1); // z diaľky je strela menej presná
+  const bu=PK.aim.u+pkGauss()*sig; let bv=Math.max(.04,PK.aim.v+pkGauss()*sig*.8+Math.max(0,p-.88)*2.6);
+  // múr: nízka alebo slabá strela za múr sa zastaví, prisilná cez múr nestihne klesnúť
+  const behind=PK.mode==='pv'&&PK.fk&&bu>=PK.fk.uLo&&bu<=PK.fk.uHi;
+  if(behind&&p>.84) bv+=.25;
+  const blocked=behind&&bv<=1&&(bv<.55||p<.45);
+  const pv=PK.mode==='pv'&&PK.fk, uK=pv?PK.fk.uK:.5, cl=u=>Math.max(.12,Math.min(.88,u));
+  const zones=pv?[[cl(uK-.4),.25],[cl(uK-.4),.7],[uK,.32],[cl(uK+.3),.2],[cl(uK+.3),.62]]:[[.2,.2],[.2,.62],[.5,.32],[.8,.2],[.8,.62]];
   let zi; const smart=Math.min(.55,.1+lvl*.035);
   if(PK.hist.length>=2&&Math.random()<smart){
     const L=PK.hist.filter(x=>x.u<.4).length, R=PK.hist.filter(x=>x.u>.6).length, hi=PK.hist.filter(x=>x.v>.5).length*2>PK.hist.length;
     const C=PK.hist.filter(x=>x.u>=.35&&x.u<=.65).length;
     zi=C*2>=PK.hist.length?2:L>R?(hi?1:0):R>L?(hi?4:3):2;
   } else { const w=[1,1,1.3,1,1], s=Math.random()*5.3; let a=0; zi=4; for(let i=0;i<5;i++){ a+=w[i]; if(s<a){ zi=i; break; } } }
-  const z=zones[zi], mult=Math.min(1.3,1+lvl*.02)*(p<.4?1.35:1);
+  const z=zones[zi], mult=(pv?1.15:Math.min(1.3,1+lvl*.02))*(p<.4?1.35:1);
   let rx=g.rx*mult, ry=g.ry*mult; if(zi===2){ rx=.16*mult; ry=.55*mult; }
   const corner=Math.abs(bu-.5)>.28;
   if(corner&&g.slabe==='hore'&&bv>.6) ry*=.8;
   if(corner&&g.slabe==='dole'&&bv<.3) rx*=.8;
   const off=bu<0||bu>1||bv>1, post=off&&((bu>-.035&&bu<0)||(bu>1&&bu<1.035)||(bv>1&&bv<1.05&&bu>-.035&&bu<1.035));
-  const dx=(bu-z[0])/rx, dy=(bv-z[1])/ry, save=!off&&dx*dx+dy*dy<=1;
+  const dx=(bu-z[0])/rx, dy=(bv-z[1])/ry, save=!off&&!blocked&&dx*dx+dy*dy<=1;
   PK.hist.push({u:PK.aim.u,v:PK.aim.v}); if(PK.hist.length>8) PK.hist.shift();
-  PK.shot={bu,bv,zi,z,save,off,post,fly:430+(1-p)*320, res:off?(post?'Žrď!':'Vedľa!'):save?'Chytil!':'GÓÓÓL!'};
+  PK.shot={bu,bv,zi,z,uK,save:save||blocked,blocked,behind,off,post,fly:(pv?560:430)+(1-p)*320, res:blocked?'Do múru!':off?(post?'Žrď!':'Vedľa!'):save?'Chytil!':'GÓÓÓL!'};
   PK.st='fly'; PK.t0=performance.now();
 }
 async function pkOver(){
-  PK.st='over'; PK.saved=false;
-  if(PK.goals>PK.best){ PK.best=PK.goals; lsSet('pkBest',String(PK.best)); }
-  if(PROXY&&CHPIN&&JA&&PK.goals>0){ try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra:'pk',score:PK.goals}); PK.saved=true; PK.board=null; }catch(e){} }
+  PK.st='over'; PK.saved=false; const pv=PK.mode==='pv';
+  if(pv){ PK.rek=PK.goals>PK.bestPv; if(PK.rek){ PK.bestPv=PK.goals; lsSet('pvBest',String(PK.goals)); } }
+  else { PK.rek=PK.goals>PK.best; if(PK.rek){ PK.best=PK.goals; lsSet('pkBest',String(PK.best)); } }
+  if(PROXY&&CHPIN&&JA&&PK.goals>0){ try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra:PK.mode,score:PK.goals}); PK.saved=true; PK.board=null; }catch(e){} }
   hr('pk');
 }
-async function pkBoard(){ if(!PROXY||PK.bl) return; PK.bl=true; try{ PK.board=await fetch(PROXY+'/hra/board?hra=pk',{cache:'no-store'}).then(r=>r.json()); }catch(e){ PK.board={}; } PK.bl=false; hr('pk'); }
+async function pkBoard(){ if(!PROXY||PK.bl) return; PK.bl=true; const m=PK.mode; try{ PK.board=await fetch(PROXY+'/hra/board?hra='+m,{cache:'no-store'}).then(r=>r.json()); }catch(e){ PK.board={}; } PK.boardM=m; PK.bl=false; hr('pk'); }
 function pkTap(e){
   const cv=e.currentTarget, r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, W=r.width, H=r.height, G=pkGeo(W,H);
   e.preventDefault();
@@ -1980,6 +1993,20 @@ function pkDrawShooter(c,x,foot,h,phase,kick){
   c.fillStyle='#2b1d14'; c.beginPath(); c.arc(0,-.94*h,w*.26,Math.PI*.9,Math.PI*2.1); c.fill();
   c.restore();
 }
+function pkDrawWallMan(c,x,foot,h,w,i){
+  // hráč súpera v múre: červený dres, ruky dole pred telom
+  c.save(); c.translate(x,foot);
+  c.fillStyle='#e9c9a6'; c.fillRect(-w*.3,-h*.42,w*.22,h*.22); c.fillRect(w*.08,-h*.42,w*.22,h*.22);
+  c.fillStyle='#1d3fbf'; c.fillRect(-w*.32,-h*.22,w*.26,h*.2); c.fillRect(w*.06,-h*.22,w*.26,h*.2); // štulpne
+  c.fillStyle='#111'; c.fillRect(-w*.34,-h*.03,w*.3,h*.03); c.fillRect(w*.04,-h*.03,w*.3,h*.03);
+  c.fillStyle='#fff'; rr(c,-w*.42,-h*.52,w*.84,h*.13,4); c.fill(); // biele trenírky
+  c.fillStyle='#c81d25'; rr(c,-w*.45,-h*.86,w*.9,h*.38,w*.15); c.fill(); // červený dres
+  c.fillStyle='#e9c9a6'; c.fillRect(-w*.44,-h*.78,w*.14,h*.26); c.fillRect(w*.3,-h*.78,w*.14,h*.26);
+  c.fillStyle='#c81d25'; c.beginPath(); c.ellipse(0,-h*.53,w*.28,h*.06,0,0,7); c.fill(); // ruky pred telom
+  c.fillStyle='#e9c9a6'; c.beginPath(); c.arc(0,-h*.92,w*.22,0,7); c.fill();
+  c.fillStyle=['#2b1d14','#111','#6b4a2b','#2b1d14'][i%4]; c.beginPath(); c.arc(0,-h*.94,w*.23,Math.PI*.9,Math.PI*2.1); c.fill();
+  c.restore();
+}
 function pkDraw(cv,ts){
   const d=window.devicePixelRatio||1, W=cv.width/d, H=cv.height/d, c=cv.getContext('2d'), G=pkGeo(W,H), gw=G.gx1-G.gx0, gh=G.gyB-G.gyT;
   c.setTransform(d,0,0,d,0,0);
@@ -1995,8 +2022,9 @@ function pkDraw(cv,ts){
   c.strokeStyle='rgba(255,255,255,.85)'; c.lineWidth=2;
   c.beginPath(); c.moveTo(0,G.gyB); c.lineTo(W,G.gyB); c.stroke();
   c.beginPath(); c.moveTo(G.gx0-W*.07,G.gyB); c.lineTo(G.gx0-W*.12,G.gyB+H*.08); c.lineTo(G.gx1+W*.12,G.gyB+H*.08); c.lineTo(G.gx1+W*.07,G.gyB); c.stroke();
-  c.beginPath(); c.moveTo(-W*.05,G.gyB+H*.40); c.lineTo(W*1.05,G.gyB+H*.40); c.stroke();
-  c.fillStyle='#fff'; c.beginPath(); c.ellipse(G.bx,G.by+G.br*.6,4,2.2,0,0,7); c.fill();
+  c.beginPath(); c.moveTo(-W*.05,G.gyB+H*(G.pv?.28:.40)); c.lineTo(W*1.05,G.gyB+H*(G.pv?.28:.40)); c.stroke();
+  if(G.pv){ c.beginPath(); c.arc(W*.5,G.gyB+H*.28,W*.16,.15*Math.PI,.85*Math.PI); c.stroke(); }
+  else { c.fillStyle='#fff'; c.beginPath(); c.ellipse(G.bx,G.by+G.br*.6,4,2.2,0,0,7); c.fill(); }
   // sieť
   const S=PK.shot, t=PK.st==='fly'||PK.st==='res'?ts-PK.t0:0, kickAt=550, fl=S?S.fly:500, tb=(t-kickAt)/fl;
   const bx0=G.gx0+gw*.04, bx1=G.gx1-gw*.04, byT=G.gyT+gh*.12;
@@ -2007,10 +2035,10 @@ function pkDraw(cv,ts){
   for(let i=0;i<=24;i++){ const x=bx0+(bx1-bx0)*i/24; c.beginPath(); for(let j=0;j<=10;j++){ const [px,py]=np(x,byT+(G.gyB-byT)*j/10); j?c.lineTo(px,py):c.moveTo(px,py); } c.stroke(); }
   for(let j=0;j<=10;j++){ const y=byT+(G.gyB-byT)*j/10; c.beginPath(); for(let i=0;i<=24;i++){ const [px,py]=np(bx0+(bx1-bx0)*i/24,y); i?c.lineTo(px,py):c.moveTo(px,py); } c.stroke(); }
   // brankár
-  const g=pkKeeper(); let kx=G.gx0+gw*.5+Math.sin(ts/380)*gw*.02, ang=0, lift=0, arms=.15;
+  const g=pkKeeper(), uK=G.pv?PK.fk.uK:.5; let kx=G.gx0+gw*uK+Math.sin(ts/380)*gw*.02, ang=0, lift=0, arms=.15;
   if(S&&(PK.st==='fly'||PK.st==='res')){
-    const kd=ease((t-kickAt-60)/(fl*.9)), dir=S.z[0]<.4?-1:S.z[0]>.6?1:0, high=S.z[1]>.5;
-    kx=G.gx0+gw*(.5+(S.z[0]-.5)*kd*(dir?.4:.9));
+    const kd=ease((t-kickAt-60)/(fl*.9)), dir=S.z[0]<uK-.1?-1:S.z[0]>uK+.1?1:0, high=S.z[1]>.5;
+    kx=G.gx0+gw*(uK+(S.z[0]-uK)*kd*(dir?.4:.9));
     if(dir){ ang=dir*kd*(high?1.15:1.4); lift=kd*gh*(high?.38:.08); } else { lift=kd*gh*(high?.25:0); }
     arms=.15+kd*.85;
   }
@@ -2018,13 +2046,24 @@ function pkDraw(cv,ts){
   // žrde a brvno
   c.strokeStyle='#fff'; c.lineWidth=Math.max(4,W*.013); c.lineCap='round';
   c.beginPath(); c.moveTo(G.gx0,G.gyB); c.lineTo(G.gx0,G.gyT); c.lineTo(G.gx1,G.gyT); c.lineTo(G.gx1,G.gyB); c.stroke(); c.lineCap='butt';
+  // múr pri priamom kope
+  const wy=G.gyB+H*.13;
+  const drawWall=()=>{ if(!G.pv) return; const F=PK.fk, x0=G.bx+(G.gx0+F.uLo*gw-G.bx)*.82, x1=G.bx+(G.gx0+F.uHi*gw-G.bx)*.82, n=4, pw=(x1-x0)/n;
+    const jump=S&&t>kickAt-80?Math.sin(Math.min(1,(t-kickAt+80)/450)*Math.PI)*H*.05:0;
+    for(let i=0;i<n;i++) pkDrawWallMan(c,x0+pw*(i+.5),wy-jump*(i%2?.85:1),H*.27,pw*.92,i); };
   // lopta
   let bxx=G.bx, byy=G.by, brr=G.br;
   if(S&&tb>0){
-    const ex=G.gx0+S.bu*gw, ey=G.gyB-S.bv*gh, k=Math.min(1,tb), e=k;
-    bxx=G.bx+(ex-G.bx)*e; byy=G.by+(ey-G.by)*e-Math.sin(Math.PI*k)*H*.04; brr=G.br*(1-.55*k);
+    let ex=G.gx0+S.bu*gw, ey=G.gyB-S.bv*gh; const k=Math.min(1,tb);
+    if(S.blocked){ ex=G.bx+(ex-G.bx)*.6; ey=wy-H*.16; }
+    if(G.pv&&!S.blocked){ // falš: lopta obieha múr
+      const cx=(G.bx+ex)/2+(S.behind?(PK.fk.left?1:-1)*gw*.16:0), cy=Math.min(G.by,ey)-H*.16, q=1-k;
+      bxx=q*q*G.bx+2*q*k*cx+k*k*ex; byy=q*q*G.by+2*q*k*cy+k*k*ey;
+    } else { bxx=G.bx+(ex-G.bx)*k; byy=G.by+(ey-G.by)*k-Math.sin(Math.PI*k)*H*.04; }
+    brr=G.br*(1-(S.blocked?.3:.55)*k);
     if(tb>1){ const a=Math.min(1,(tb-1)*1.4);
-      if(S.save){ const sx=S.bu<.5?-1:1; bxx=ex+sx*gw*.25*a; byy=ey+a*H*.22; brr=G.br*(.45+.45*a); }
+      if(S.blocked){ bxx=ex+(S.bu<.5?-1:1)*W*.08*a; byy=ey+a*H*.3-Math.sin(a*Math.PI)*H*.06; brr=G.br*(.7+.3*a); }
+      else if(S.save){ const sx=S.bu<.5?-1:1; bxx=ex+sx*gw*.25*a; byy=ey+a*H*.22; brr=G.br*(.45+.45*a); }
       else if(S.post){ bxx=ex+(S.bu<.5?-1:1)*gw*.15*a; byy=ey+a*H*.18; brr=G.br*(.45+.3*a); }
       else if(S.off){ bxx=ex+(ex-G.bx)*a*.3; byy=ey-(S.bv>1?a*gh*.4:0); brr=G.br*.45*(1-.3*a); }
       else { byy=Math.min(G.gyB-G.br*.4,ey+a*a*gh*.8); brr=G.br*.42; } }
@@ -2034,9 +2073,10 @@ function pkDraw(cv,ts){
     for(let i=0;i<5;i++){ const a=i*1.2566+(S?tb*6:0); c.beginPath(); c.arc(bxx+Math.cos(a)*brr*.55,byy+Math.sin(a)*brr*.55,brr*.22,0,7); c.fill(); }
     c.beginPath(); c.arc(bxx,byy,brr*.25,0,7); c.fill(); };
   if(!inFront) drawBall();
+  drawWall();
   // strelec
   const ru=PK.st==='fly'||PK.st==='res'?Math.min(1,t/kickAt):0, kick=PK.st==='fly'||PK.st==='res'?Math.min(1,Math.max(0,(t-kickAt+120)/200)):0;
-  pkDrawShooter(c, W*(.28+.13*ru), H*(1.03-.2*ru), H*.27*(1-.12*ru), ru, kick);
+  pkDrawShooter(c, G.bx-W*(.22-.13*ru), G.by+H*(.31-.2*ru), H*.27*(1-.12*ru), ru, kick);
   if(inFront) drawBall();
   // mierenie a sila
   if(PK.st==='aim'){ const a=.5+.5*Math.sin(ts/250); c.fillStyle=`rgba(0,0,0,.45)`; rr(c,W*.18,G.gyB+H*.12,W*.64,H*.07,10); c.fill();
@@ -2053,9 +2093,9 @@ function pkDraw(cv,ts){
     c.fillStyle='#fff'; c.font=`600 ${Math.round(W*.04)}px Roboto,sans-serif`; c.textAlign='center'; c.fillText('Ťukni znova: sila v zelenom',W*.45,G.gyB+H*.165);
   }
   // HUD
-  c.fillStyle='rgba(0,0,0,.55)'; rr(c,8,8,W*.36,H*.085,8); c.fill();
-  c.fillStyle='#fff'; c.textAlign='left'; c.font=`bold ${Math.round(W*.05)}px Roboto,sans-serif`; c.fillText('Góly: '+PK.goals,16,8+H*.042);
-  c.font=`${Math.round(W*.033)}px Roboto,sans-serif`; c.fillStyle='#ccc'; c.fillText('Rekord: '+PK.best,16,8+H*.075);
+  c.fillStyle='rgba(0,0,0,.55)'; rr(c,8,8,W*(G.pv?.42:.36),H*.085,8); c.fill();
+  c.fillStyle='#fff'; c.textAlign='left'; c.font=`bold ${Math.round(W*.05)}px Roboto,sans-serif`; c.fillText('Góly: '+PK.goals+(G.pv?' / '+PV_N:''),16,8+H*.042);
+  c.font=`${Math.round(W*.033)}px Roboto,sans-serif`; c.fillStyle='#ccc'; c.fillText(G.pv?`Kop ${Math.min(PK.kick+1,PV_N)} z ${PV_N} · rekord ${PK.bestPv}`:'Rekord: '+PK.best,16,8+H*.075);
   const lab=`V bráne: ${g.meno}`; c.font=`600 ${Math.round(W*.036)}px Roboto,sans-serif`; const lw=c.measureText(lab).width+W*.09;
   c.fillStyle='rgba(0,0,0,.55)'; rr(c,W-8-lw,8,lw,H*.06,8); c.fill(); c.fillStyle=g.dres; c.beginPath(); c.arc(W-8-lw+W*.04,8+H*.03,W*.016,0,7); c.fill();
   c.fillStyle='#fff'; c.textAlign='right'; c.fillText(lab,W-16,8+H*.04);
@@ -2065,22 +2105,27 @@ function pkDraw(cv,ts){
     c.save(); c.globalAlpha=a; c.textAlign='center'; c.font=`900 ${Math.round(W*(goal?.13:.11))}px Roboto,sans-serif`;
     c.lineWidth=6; c.strokeStyle='rgba(0,0,0,.7)'; c.strokeText(S.res,W*.5,H*.62); c.fillStyle=goal?'#ffe600':'#ff6b6b'; c.fillText(S.res,W*.5,H*.62); c.restore();
     if(PK.st==='fly'){ PK.st='res'; if(goal&&navigator.vibrate) try{ navigator.vibrate(60); }catch(e){} }
-    if(t>kickAt+fl+1300&&PK.st==='res'){ if(goal){ PK.goals++; PK.kick++; PK.st='aim'; PK.aim=null; PK.shot=null; } else pkOver(); }
+    if(t>kickAt+fl+1300&&PK.st==='res'){
+      if(G.pv){ if(goal) PK.goals++; PK.kick++; if(PK.kick>=PV_N) pkOver(); else { PK.st='aim'; PK.aim=null; PK.shot=null; pkFkNew(); } }
+      else if(goal){ PK.goals++; PK.kick++; PK.st='aim'; PK.aim=null; PK.shot=null; } else pkOver(); }
   }
   if(PK.st==='over'){
     c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(0,0,W,H); c.textAlign='center'; c.fillStyle='#fff';
-    c.font=`900 ${Math.round(W*.09)}px Roboto,sans-serif`; c.fillText('Koniec série',W*.5,H*.38);
-    c.font=`600 ${Math.round(W*.06)}px Roboto,sans-serif`; c.fillText(golov(PK.goals)+(PK.goals&&PK.goals>=PK.best?' · nový rekord!':''),W*.5,H*.47);
+    c.font=`900 ${Math.round(W*.09)}px Roboto,sans-serif`; c.fillText(G.pv?'Koniec':'Koniec série',W*.5,H*.38);
+    c.font=`600 ${Math.round(W*.06)}px Roboto,sans-serif`; c.fillText((G.pv?`${PK.goals} z ${PV_N}`:golov(PK.goals))+(PK.goals&&PK.rek?' · nový rekord!':''),W*.5,H*.47);
     c.font=`${Math.round(W*.042)}px Roboto,sans-serif`; c.fillStyle='#ddd'; c.fillText('Ťukni a hraj znova',W*.5,H*.57);
   }
 }
 function vPK(){
-  let h=`<p class="note" style="margin-top:0">Kopeš penalty, kým nepremeníš. V bráne sa striedajú naši dvaja brankári: <b>žltý</b> je pevnejší, v strede ho ťažko prekonáš, ale horné rohy mu robia problém. <b>Fialový</b> je vysoký a tenký, hore dočiahne, no k zemi sa dostane pomalšie. Ťukni do brány, kam mieriš, a potom ťukni znova, aby si zastavil silu v zelenom.</p>`;
+  const pv=PK.mode==='pv';
+  let h=`<div class="seg" style="margin-bottom:10px"><button data-pkm="pk" class="${pv?'':'on'}">Penalty</button><button data-pkm="pv" class="${pv?'on':''}">Priame kopy</button></div>`;
+  if(pv) h+=`<p class="note" style="margin-top:0">${PV_N} priamych kopov z rôznych miest pred šestnástkou. Múr kryje bližšiu žrď, brankár čaká na druhej strane. Ponad múr prejde len vysoká strela so silou v zelenom: slabá skončí v múre, prisilná nestihne klesnúť a letí ponad bránku.</p>`;
+  else h+=`<p class="note" style="margin-top:0">Kopeš penalty, kým nepremeníš. V bráne sa striedajú naši dvaja brankári: <b>žltý</b> je pevnejší, v strede ho ťažko prekonáš, ale horné rohy mu robia problém. <b>Fialový</b> je vysoký a tenký, hore dočiahne, no k zemi sa dostane pomalšie. Ťukni do brány, kam mieriš, a potom ťukni znova, aby si zastavil silu v zelenom.</p>`;
   h+='<div class="pkw"><canvas id="pkc" aria-label="Pokutové kopy, hra"></canvas></div>';
   if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
   else if(PK.st==='over'&&PK.saved) h+='<p class="note">Séria zapísaná do poradia.</p>';
-  if(PROXY){ if(!PK.board) pkBoard(); const B=(PK.board||{}).best||[];
-    h+='<h2>Najdlhšie série</h2>'+(B.length?boardTable(B.map(x=>[x.meno,x.score]),'Góly'):'<p class="note">Zatiaľ nikto. Buď prvý.</p>'); }
+  if(PROXY){ if(!PK.board||PK.boardM!==PK.mode) pkBoard(); const B=PK.boardM===PK.mode?(PK.board||{}).best||[]:[];
+    h+=`<h2>${pv?'Najviac gólov z '+PV_N:'Najdlhšie série'}</h2>`+(B.length?boardTable(B.map(x=>[x.meno,x.score]),'Góly'):'<p class="note">Zatiaľ nikto. Buď prvý.</p>'); }
   return h;
 }
 
@@ -2362,6 +2407,7 @@ function hryClick(b){
   if(d.fkolo){ fanKolo(d.fkolo); return true; }
   if(koClick(d)) return true;
   if(d.pkgo){ pkReset(); render(); return true; }
+  if(d.pkm){ if(PK.st==='fly'||PK.st==='res') return true; PK.mode=d.pkm; lsSet('pkMode',d.pkm); pkReset(); render(); return true; }
   if(d.simgo){ simStart(); return true; }
   if(d.simskip){ clearInterval(SIM.timer); SIM.timer=null; SIM.step=SIM.run.ev.length; render(); return true; }
   if(d.simmany){ SIM.many=simMany(hryLeague(),SIM.h,SIM.a,1000); render(); return true; }
