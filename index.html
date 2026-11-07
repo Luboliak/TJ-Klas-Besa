@@ -276,9 +276,19 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
 .alb .ap1{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:2px 0}
 .ibtn.on{background:var(--inv);color:var(--inv-ink);border-color:var(--inv)}
 .tipl{display:flex;flex-direction:column;gap:6px}
-.seg.hseg{display:grid;grid-template-columns:repeat(3,1fr)}
-.seg.hseg button{border-bottom:1px solid var(--line)}
-.seg.hseg button:nth-child(n+4){border-bottom:0}
+.seg.hseg{display:grid;grid-template-columns:repeat(4,1fr)}
+.seg.hseg button{border-bottom:1px solid var(--line);padding-left:2px;padding-right:2px;font-size:14px}
+.seg.hseg button:nth-child(n+5){border-bottom:0}
+.kohud{display:flex;justify-content:space-between;gap:8px;font-size:14px;min-height:20px;margin-bottom:6px;color:var(--mute)}
+.kohud b{color:var(--ink)}
+.kozad{background:var(--panel);border:1px solid var(--line);border-left:3px solid #ff6a00;border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.kovz{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0 6px}
+.kovz button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 4px;color:inherit;font-size:13px}
+.kovz button small{display:block;color:var(--mute);font-size:11px}
+.kovz button.on{background:var(--inv);color:var(--inv-ink);border-color:var(--inv)}
+.kovz button.on small{color:inherit;opacity:.7}
+.kohint{background:none;border:0;color:var(--mute);font-size:14px;padding:6px 0;margin-bottom:6px}
+#koc{border-radius:10px;touch-action:none;display:block}
 .tips{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute);margin:-2px 0 4px 14px}
 .tips select{flex:1;min-width:0;background:var(--bg);color:inherit;border:1px solid var(--line);border-radius:6px;padding:6px}
 .kvh{display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px}
@@ -2072,11 +2082,247 @@ function vPK(){
   return h;
 }
 
+/* --- KOSENIE IHRISKA --- */
+// svetlý pás vznikne jazdou hore alebo doprava, tmavý jazdou dole alebo doľava (tráva sa ohne)
+const KO_GW=36, KO_GH=54;
+const KO_VZORY=[
+  {id:'pasy', n:'Pásy pozdĺž', f:(u,v)=>Math.floor(u*8)%2===0},
+  {id:'priecne', n:'Pásy priečne', f:(u,v)=>Math.floor(v*10)%2===0},
+  {id:'sach', n:'Šachovnica', f:(u,v)=>(Math.floor(u*6)+Math.floor(v*8))%2===0},
+  {id:'diag', n:'Diagonála', f:(u,v)=>Math.floor((u+v*1.5)*4)%2===0},
+  {id:'koso', n:'Kosoštvorce', f:(u,v)=>(Math.floor((u+v*.67)*4)+Math.floor((u-v*.67)*4+8))%2===0},
+  {id:'volne', n:'Voľné kosenie', f:null},
+];
+const KO_TRENER=[
+  'V nedeľu prídu hostia, chcem to mať ako vo Wembley.',
+  'Nech sa súperom zatočí hlava, keď vybehnú na rozcvičku.',
+  'Nepýtaj sa prečo. Proste to tak chcem.',
+  'Sponzor príde na zápas, nech je na čo pozerať.',
+  'Hlavne nech je to do tréningu hotové, o piatej sme na ihrisku.',
+  'Fotograf príde fotiť, tak nech to z hora vyzerá dobre.',
+];
+let KO={st:'menu', vz:'pasy', cells:null, x:0, y:0, a:-Math.PI/2, v:0, tx:null, ty:null, t0:0, tEnd:0, last:0, raf:0, grass:null, dirty:true, hint:true, zad:null, parts:[], best:{}};
+try{ KO.best=JSON.parse(lsGet('kosBest')||'{}')||{}; }catch(e){ KO.best={}; }
+const koVz=()=>KO_VZORY.find(x=>x.id===KO.vz)||KO_VZORY[0];
+function koStart(){
+  KO.cells=new Uint8Array(KO_GW*KO_GH); KO.x=KO_GW*.5; KO.y=KO_GH+.5; KO.a=-Math.PI/2; KO.v=0; KO.tx=KO.ty=null;
+  KO.st='play'; KO.t0=performance.now(); KO.tEnd=0; KO.dirty=true; KO.parts=[]; render();
+}
+function koStats(){
+  const C=KO.cells, f=koVz().f; let cut=0, ok=0;
+  for(let j=0;j<KO_GH;j++) for(let i=0;i<KO_GW;i++){ const s=C[j*KO_GW+i]; if(!s) continue; cut++; if(!f||((s===1)===f((i+.5)/KO_GW,(j+.5)/KO_GH))) ok++; }
+  const n=KO_GW*KO_GH; return {cov:cut/n, zhoda:cut?ok/cut:0, sk:f?(cut/n)*(cut?ok/cut:0):cut/n};
+}
+function koFinish(){
+  KO.st='done'; KO.tEnd=performance.now(); const S=koStats(), t=Math.round((KO.tEnd-KO.t0)/1000);
+  KO.res={...S,t};
+  const b=KO.best[KO.vz]; if(!b||S.sk>b.sk+.001||(Math.abs(S.sk-b.sk)<.001&&t<b.t)){ KO.best[KO.vz]={sk:S.sk,t}; KO.res.rek=true; lsSet('kosBest',JSON.stringify(KO.best)); }
+  render();
+}
+function koGeo(W,H){ const m=W*.06; return {px:m, py:m*1.2, pw:W-2*m, ph:H-2*m*1.2}; }
+function koTap(e){
+  const cv=e.currentTarget, r=cv.getBoundingClientRect(), G=koGeo(r.width,r.height);
+  if(KO.st!=='play') return;
+  e.preventDefault(); try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  const set=ev=>{ KO.tx=(ev.clientX-r.left-G.px)/G.pw*KO_GW; KO.ty=(ev.clientY-r.top-G.py)/G.ph*KO_GH; };
+  set(e); cv.onpointermove=set;
+  cv.onpointerup=cv.onpointercancel=()=>{ KO.tx=KO.ty=null; cv.onpointermove=null; };
+}
+function koAttach(){
+  const cv=$('#koc'); if(!cv) return;
+  const W=Math.min(cv.parentElement.clientWidth,480), H=Math.round(W*1.5), d=window.devicePixelRatio||1;
+  cv.width=Math.round(W*d); cv.height=Math.round(H*d); cv.style.width=W+'px'; cv.style.height=H+'px';
+  cv.onpointerdown=koTap; KO.dirty=true;
+  if(!KO.raf) KO.raf=requestAnimationFrame(koLoop);
+}
+function koLoop(ts){
+  KO.raf=0; const cv=$('#koc'); if(!cv||tab!=='hry'||hsub!=='kos') return;
+  const dt=Math.min(.05,KO.last?(ts-KO.last)/1000:0); KO.last=ts;
+  if(KO.st==='play') koStep(dt,ts);
+  koDraw(cv,ts); KO.raf=requestAnimationFrame(koLoop);
+}
+function koStep(dt,ts){
+  // kosačka ide za prstom, zatáča obmedzene ako skutočný traktorík
+  if(KO.tx!=null){
+    const dx=KO.tx-KO.x, dy=KO.ty-KO.y, dist=Math.hypot(dx,dy);
+    if(dist>.6){ const want=Math.atan2(dy,dx); let da=want-KO.a; while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
+      const turn=3.2*dt; KO.a+=Math.max(-turn,Math.min(turn,da)); KO.v=Math.min(10,KO.v+18*dt)*(Math.abs(da)>2.2?.97:1); }
+    else KO.v=Math.max(0,KO.v-30*dt);
+  } else KO.v=Math.max(0,KO.v-25*dt);
+  const nx=KO.x+Math.cos(KO.a)*KO.v*dt, ny=KO.y+Math.sin(KO.a)*KO.v*dt;
+  KO.x=Math.max(-1.5,Math.min(KO_GW+1.5,nx)); KO.y=Math.max(-1.5,Math.min(KO_GH+1.5,ny));
+  if(KO.v<.5) return;
+  const hx=Math.cos(KO.a), hy=Math.sin(KO.a), sh=(hx-hy)>0?1:2, px=-hy, py=hx, R=1.35;
+  for(let s=-R;s<=R;s+=.5){ const cx=KO.x+px*s+hx*.3, cy=KO.y+py*s+hy*.3, i=Math.floor(cx), j=Math.floor(cy);
+    if(i<0||j<0||i>=KO_GW||j>=KO_GH) continue; const k=j*KO_GW+i; if(KO.cells[k]!==sh){ KO.cells[k]=sh; KO.dirty=true; } }
+  if(Math.random()<.6) KO.parts.push({x:KO.x-hx*1.2+(Math.random()-.5)*2, y:KO.y-hy*1.2+(Math.random()-.5)*2, vx:-hx*2+(Math.random()-.5)*3, vy:-hy*2+(Math.random()-.5)*3, l:1});
+  if(KO.parts.length>80) KO.parts.splice(0,KO.parts.length-80);
+}
+function koGrass(W,H){
+  // trávnik kreslíme do skrytého plátna a prekresľujeme len pri zmene
+  const d=window.devicePixelRatio||1;
+  if(!KO.grass||KO.grass.width!==Math.round(W*d)){ KO.grass=document.createElement('canvas'); KO.grass.width=Math.round(W*d); KO.grass.height=Math.round(H*d); KO.dirty=true; }
+  if(!KO.dirty) return KO.grass;
+  const c=KO.grass.getContext('2d'), G=koGeo(W,H), cw=G.pw/KO_GW, ch=G.ph/KO_GH, f=koVz().f, C=KO.cells;
+  c.setTransform(d,0,0,d,0,0);
+  c.fillStyle='#24511f'; c.fillRect(0,0,W,H);
+  for(let j=0;j<KO_GH;j++) for(let i=0;i<KO_GW;i++){
+    const s=C?C[j*KO_GW+i]:0, n=((i*73+j*151)%7)/7;
+    if(!s){ const t=KO.hint&&f?f((i+.5)/KO_GW,(j+.5)/KO_GH):null; c.fillStyle=t==null?`hsl(112,44%,${28+n*5}%)`:t?`hsl(110,40%,${33+n*4}%)`:`hsl(114,46%,${25+n*4}%)`; }
+    else c.fillStyle=s===1?`hsl(100,52%,${57+n*3}%)`:`hsl(108,50%,${39+n*3}%)`;
+    c.fillRect(G.px+i*cw,G.py+j*ch,cw+.6,ch+.6);
+    if(!s&&n>.55){ c.fillStyle='rgba(20,60,15,.35)'; c.fillRect(G.px+i*cw+cw*.3,G.py+j*ch+ch*.2,1,ch*.6); }
+  }
+  // čiary ihriska
+  const L=(x,y)=>[G.px+x*G.pw,G.py+y*G.ph];
+  c.strokeStyle='rgba(255,255,255,.9)'; c.lineWidth=Math.max(2,W*.006);
+  c.strokeRect(G.px,G.py,G.pw,G.ph);
+  c.beginPath(); c.moveTo(...L(0,.5)); c.lineTo(...L(1,.5)); c.stroke();
+  c.beginPath(); c.arc(...L(.5,.5),G.pw*.14,0,7); c.stroke();
+  c.fillStyle='#fff'; c.beginPath(); c.arc(...L(.5,.5),2.5,0,7); c.fill();
+  [[0,1],[1,-1]].forEach(([y0,s])=>{
+    c.strokeRect(G.px+G.pw*.2,G.py+G.ph*y0-(s<0?G.ph*.16:0),G.pw*.6,G.ph*.16);
+    c.strokeRect(G.px+G.pw*.36,G.py+G.ph*y0-(s<0?G.ph*.055:0),G.pw*.28,G.ph*.055);
+    c.beginPath(); c.arc(...L(.5,y0+s*.11),2.5,0,7); c.fill();
+    c.beginPath(); c.arc(...L(.5,y0+s*.11),G.pw*.14,s>0?.2*Math.PI:1.2*Math.PI,s>0?.8*Math.PI:1.8*Math.PI); c.stroke();
+    c.fillStyle='rgba(255,255,255,.9)'; c.fillRect(G.px+G.pw*.42,G.py+G.ph*y0+(s>0?-G.ph*.018:0),G.pw*.16,G.ph*.018); c.fillStyle='#fff';
+  });
+  KO.dirty=false; return KO.grass;
+}
+function koDrawTop(c,x,y,a,s,ts){
+  // kosačka zhora: oranžová kapota, čierne sedadlo, kosič s blond ofinou dopredu
+  c.save(); c.translate(x,y); c.rotate(a+Math.PI/2);
+  const vib=KO.v>.5?Math.sin(ts/25)*.4:0; c.translate(vib,0);
+  c.fillStyle='rgba(0,0,0,.25)'; rr(c,-s*.62,-s*.95,s*1.3,s*1.95,s*.2); c.fill();
+  c.fillStyle='#8a8f96'; rr(c,-s*.72,-s*.25,s*1.44,s*.6,s*.25); c.fill(); // žací mechanizmus
+  c.fillStyle='#ff6a00'; c.fillRect(-s*.72,-s*.04,s*1.44,s*.12);
+  c.fillStyle='#151515'; [[-.5,.5],[.5,.5]].forEach(([wx,wy])=>{ rr(c,wx*s-s*.17,wy*s-s*.05,s*.34,s*.5,s*.08); c.fill(); });
+  [[-.42,-.62],[.42,-.62]].forEach(([wx,wy])=>{ rr(c,wx*s-s*.1,wy*s-s*.15,s*.2,s*.3,s*.06); c.fill(); });
+  c.fillStyle='#ff6a00'; rr(c,-s*.36,-s*.92,s*.72,s*1.2,s*.22); c.fill(); // kapota
+  c.fillStyle='#d65800'; rr(c,-s*.36,-s*.1,s*.72,s*.5,s*.12); c.fill();
+  c.fillStyle='#fff8d0'; c.beginPath(); c.arc(-s*.2,-s*.86,s*.06,0,7); c.arc(s*.2,-s*.86,s*.06,0,7); c.fill();
+  c.fillStyle='#e8e8e8'; c.fillRect(-s*.28,-s*.6,s*.56,s*.05);
+  c.fillStyle='#111'; rr(c,-s*.3,s*.18,s*.6,s*.42,s*.12); c.fill(); // sedadlo
+  c.strokeStyle='#111'; c.lineWidth=s*.06; c.beginPath(); c.arc(0,-s*.18,s*.16,0,7); c.stroke(); // volant
+  // kosič zhora
+  c.fillStyle='#fff'; rr(c,-s*.3,s*.08,s*.6,s*.34,s*.14); c.fill();
+  c.fillStyle='#111'; for(let i=-2;i<=2;i+=2) c.fillRect(i*s*.06-s*.03,s*.08,s*.06,s*.34);
+  c.fillStyle='#e9c09a'; c.fillRect(-s*.28,-s*.1,s*.07,s*.22); c.fillRect(s*.21,-s*.1,s*.07,s*.22);
+  c.fillStyle='#2a1c12'; c.beginPath(); c.arc(0,s*.13,s*.18,0,7); c.fill(); // okrúhla hlava, tmavé vlasy
+  c.fillStyle='#ff6a00'; c.fillRect(-s*.22,s*.08,s*.07,s*.12); c.fillRect(s*.15,s*.08,s*.07,s*.12); // chrániče sluchu
+  c.fillStyle='#f3d36b'; c.beginPath(); c.moveTo(-s*.1,s*.0); c.lineTo(-s*.06,-s*.13); c.lineTo(-s*.01,s*.0); c.lineTo(s*.03,-s*.15); c.lineTo(s*.07,s*.0); c.lineTo(s*.11,-s*.11); c.lineTo(s*.12,s*.02); c.closePath(); c.fill(); // blond ofina dopredu
+  c.restore();
+}
+function koDrawHero(c,x,y,s,ts){
+  // kosič spredu na kosačke: menší, okrúhla hlava, tmavé vlasy, blond nagelovaná ofina do špičky
+  c.save(); c.translate(x,y);
+  const bob=Math.sin(ts/180)*s*.01;
+  c.fillStyle='rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(0,s*.62,s*.75,s*.08,0,0,7); c.fill();
+  c.fillStyle='#151515'; rr(c,-s*.78,s*.05,s*.26,s*.56,s*.1); c.fill(); rr(c,s*.52,s*.05,s*.26,s*.56,s*.1); c.fill(); // zadné kolesá
+  c.fillStyle='#ff6a00'; rr(c,-s*.6,-s*.05,s*1.2,s*.3,s*.08); c.fill(); // zadný blatník
+  c.translate(0,bob);
+  // kosič
+  c.fillStyle='#1d1d1d'; rr(c,-s*.2,-s*.02,s*.4,s*.22,s*.06); c.fill(); // nohavice
+  c.save(); rr(c,-s*.22,-s*.36,s*.44,s*.36,s*.12); c.clip(); c.fillStyle='#fff'; c.fillRect(-s*.3,-s*.4,s*.6,s*.45); c.fillStyle='#111'; for(let i=-3;i<=3;i+=2) c.fillRect(i*s*.06-s*.03,-s*.4,s*.06,s*.45); c.restore();
+  c.fillStyle='#e9c09a'; c.save(); c.translate(-s*.2,-s*.3); c.rotate(.5); rr(c,-s*.05,0,s*.1,s*.27,s*.05); c.fill(); c.restore();
+  c.save(); c.translate(s*.2,-s*.3); c.rotate(-.5); rr(c,-s*.05,0,s*.1,s*.27,s*.05); c.fill(); c.restore();
+  c.fillStyle='#e9c09a'; c.fillRect(-s*.05,-s*.42,s*.1,s*.07);
+  const hy=-s*.55, hr=s*.17;
+  c.beginPath(); c.arc(0,hy,hr,0,7); c.fill(); // okrúhla hlava
+  c.beginPath(); c.arc(-hr,hy+s*.01,s*.035,0,7); c.arc(hr,hy+s*.01,s*.035,0,7); c.fill();
+  c.strokeStyle='#ff6a00'; c.lineWidth=s*.025; c.beginPath(); c.arc(0,hy-s*.02,hr*1.12,Math.PI*1.08,Math.PI*1.92); c.stroke();
+  c.fillStyle='#2a1c12'; c.beginPath(); c.arc(0,hy-s*.02,hr*1.03,Math.PI*1.02,Math.PI*1.98); c.fill(); // tmavé vlasy
+  c.beginPath(); c.ellipse(0,hy-hr*.55,hr*.95,hr*.35,0,Math.PI,0); c.fill();
+  c.fillRect(-hr*1.02,hy-s*.03,s*.05,s*.07); c.fillRect(hr*1.02-s*.05,hy-s*.03,s*.05,s*.07);
+  c.save(); c.translate(s*.01,0); c.scale(.72,1);
+  c.fillStyle='#f3d36b'; c.strokeStyle='#c9a640'; c.lineWidth=1; c.beginPath(); // blond nagelovaná ofina do špičky
+  c.moveTo(-s*.1,hy-hr*.5); c.quadraticCurveTo(-s*.08,hy-hr*1.1,-s*.05,hy-hr*1.35); c.lineTo(-s*.025,hy-hr*1.0); c.lineTo(s*.01,hy-hr*1.85); c.lineTo(s*.03,hy-hr*1.05); c.lineTo(s*.06,hy-hr*1.4); c.quadraticCurveTo(s*.09,hy-hr*1.0,s*.1,hy-hr*.5); c.quadraticCurveTo(0,hy-hr*.38,-s*.1,hy-hr*.5); c.closePath(); c.fill(); c.stroke(); c.restore();
+  c.fillStyle='#ff6a00'; rr(c,-hr-s*.05,hy-s*.05,s*.07,s*.12,s*.03); c.fill(); rr(c,hr-s*.02,hy-s*.05,s*.07,s*.12,s*.03); c.fill(); // chrániče sluchu
+  c.fillStyle='#222'; c.beginPath(); c.arc(-s*.06,hy+s*.0,s*.02,0,7); c.arc(s*.06,hy+s*.0,s*.02,0,7); c.fill();
+  c.strokeStyle='#7a3b2a'; c.lineWidth=s*.015; c.beginPath(); c.arc(0,hy+s*.05,s*.06,.15*Math.PI,.85*Math.PI); c.stroke();
+  c.translate(0,-bob);
+  // kosačka spredu
+  c.strokeStyle='#111'; c.lineWidth=s*.035; c.beginPath(); c.moveTo(0,-s*.02); c.lineTo(0,-s*.14); c.stroke();
+  c.beginPath(); c.ellipse(0,-s*.16,s*.15,s*.04,0,0,7); c.stroke();
+  c.fillStyle='#ff6a00'; rr(c,-s*.36,-s*.02,s*.72,s*.42,s*.14); c.fill(); // kapota
+  c.fillStyle='#d65800'; rr(c,-s*.36,s*.24,s*.72,s*.16,s*.06); c.fill();
+  c.fillStyle='#2b2b2b'; rr(c,-s*.2,s*.08,s*.4,s*.16,s*.04); c.fill(); // maska
+  c.strokeStyle='#555'; c.lineWidth=1; for(let i=1;i<4;i++){ c.beginPath(); c.moveTo(-s*.2,s*.08+i*s*.04); c.lineTo(s*.2,s*.08+i*s*.04); c.stroke(); }
+  c.fillStyle='#fff8d0'; c.beginPath(); c.arc(-s*.27,s*.12,s*.045,0,7); c.arc(s*.27,s*.12,s*.045,0,7); c.fill();
+  c.fillStyle='#e8e8e8'; c.fillRect(-s*.36,s*.02,s*.72,s*.03);
+  c.fillStyle='#8a8f96'; rr(c,-s*.62,s*.44,s*1.24,s*.12,s*.05); c.fill(); c.fillStyle='#ff6a00'; c.fillRect(-s*.62,s*.47,s*1.24,s*.025); // žací mechanizmus
+  c.fillStyle='#151515'; rr(c,-s*.44,s*.34,s*.14,s*.26,s*.05); c.fill(); rr(c,s*.3,s*.34,s*.14,s*.26,s*.05); c.fill(); // predné kolesá
+  c.restore();
+}
+function koDraw(cv,ts){
+  const d=window.devicePixelRatio||1, W=cv.width/d, H=cv.height/d, c=cv.getContext('2d'), G=koGeo(W,H), cw=G.pw/KO_GW;
+  c.setTransform(1,0,0,1,0,0); c.drawImage(koGrass(W,H),0,0); c.setTransform(d,0,0,d,0,0);
+  if(KO.st==='menu'){
+    c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H);
+    koDrawHero(c,W*.5,H*.47,W*.62,ts);
+    c.fillStyle='#fff'; c.textAlign='center'; c.font=`800 ${Math.round(W*.075)}px Roboto,sans-serif`; c.fillText('Kosenie ihriska',W*.5,H*.08);
+    c.font=`${Math.round(W*.04)}px Roboto,sans-serif`; c.fillStyle='#ddd'; c.fillText('Vyber vzor pod ihriskom a ťukni Kosiť',W*.5,H*.8);
+    return;
+  }
+  // úlomky trávy
+  c.fillStyle='rgba(170,230,120,.8)';
+  KO.parts.forEach(p=>{ p.x+=p.vx*.016; p.y+=p.vy*.016; p.l-=.03; if(p.l>0){ c.globalAlpha=p.l; c.fillRect(G.px+p.x*cw,G.py+p.y*(G.ph/KO_GH),2,2); } }); c.globalAlpha=1;
+  KO.parts=KO.parts.filter(p=>p.l>0);
+  koDrawTop(c,G.px+KO.x*cw,G.py+KO.y*(G.ph/KO_GH),KO.a,cw*2.4,ts);
+  if(KO.st==='play'&&KO.tx!=null){ c.strokeStyle='rgba(255,255,255,.5)'; c.lineWidth=2; c.beginPath(); c.arc(G.px+KO.tx*cw,G.py+KO.ty*(G.ph/KO_GH),10,0,7); c.stroke(); }
+  // HUD
+  if(KO.st==='play'&&(!KO.hud||ts-KO.hud>300)){ KO.hud=ts; const S=koStats(), el=$('#kohud'), t=Math.floor((ts-KO.t0)/1000);
+    if(el) el.innerHTML=`<span>Pokosené <b>${Math.round(S.cov*100)} %</b></span>${koVz().f?`<span>Podľa vzoru <b>${Math.round(S.zhoda*100)} %</b></span>`:''}<span><b>${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}</b></span>`;
+    if(S.cov>=.985) koFinish(); }
+  if(KO.st==='play'&&ts-KO.t0<3500){ c.fillStyle=`rgba(0,0,0,${.55*Math.min(1,(3500-(ts-KO.t0))/600)})`; rr(c,W*.1,H*.44,W*.8,H*.1,12); c.fill();
+    c.fillStyle='#fff'; c.textAlign='center'; c.font=`600 ${Math.round(W*.042)}px Roboto,sans-serif`; c.fillText('Drž prst na ihrisku,',W*.5,H*.485); c.fillText('kosačka pôjde za ním',W*.5,H*.525); }
+}
+function koSave(){
+  const cv=$('#koc'); if(!cv) return;
+  cv.toBlob(async b=>{ if(!b) return; const f=new File([b],'kosenie-'+KO.vz+'.png',{type:'image/png'});
+    try{ if(navigator.canShare&&navigator.canShare({files:[f]})){ await navigator.share({files:[f],title:'Kosenie ihriska'}); return; } }catch(e){ if(e.name==='AbortError') return; }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); },'image/png');
+}
+function vKos(){
+  const vz=koVz();
+  let h='';
+  if(KO.st==='menu'){
+    h+=`<p class="note" style="margin-top:0">Pokos ihrisko podľa vzoru. Svetlý pás urobíš jazdou hore alebo doprava, tmavý jazdou dole alebo doľava, presne ako na skutočnom trávniku. Vo voľnom kosení si nakreslíš, čo chceš.</p>`;
+    if(KO.zad) h+=`<div class="kozad"><b>Tréner:</b> „${esc(KO.zad.t)}“<br><small class="mute">Zadanie: ${esc(KO_VZORY.find(x=>x.id===KO.zad.vz).n)}</small></div>`;
+  }
+  h+=`<div class="kohud" id="kohud">${KO.st==='play'?'<span>Pokosené <b>0 %</b></span>':''}</div><div class="pkw"><canvas id="koc" aria-label="Kosenie ihriska, hra"></canvas></div>`;
+  if(KO.st==='menu'){
+    h+=`<div class="kovz">${KO_VZORY.map(x=>`<button data-kovz="${x.id}" class="${x.id===KO.vz?'on':''}">${esc(x.n)}${KO.best[x.id]?`<small>${Math.round(KO.best[x.id].sk*100)} %</small>`:''}</button>`).join('')}</div>
+      <button class="kohint" data-kohint="1">${KO.hint?'☑':'☐'} Ukázať vzor v tráve</button>
+      <div class="acts"><button class="btn" data-kozad="1">Zadanie od trénera</button><button class="btn pri grow" data-kogo="1">Kosiť</button></div>`;
+  } else if(KO.st==='play'){
+    h+=`<div class="acts" style="margin-top:8px"><button class="btn" data-koend="0">Späť</button><button class="btn pri grow" data-koend="1">Hotovo</button></div>`;
+  } else {
+    const R=KO.res, z=Math.round(R.zhoda*100), p=Math.round(R.cov*100), sk=R.sk;
+    const hod=!vz.f?(p>=95?'Pokosené do posledného steblíčka.':p>=70?'Slušné, zvyšok dokosíš po tréningu.':'Tréner sa pýta, či kosačka nemá poruchu.')
+      :sk>=.9?'Tréner: „Toto si odfotím na Facebook.“':sk>=.75?'Tréner: „Dobré. V nedeľu to bude vyzerať ako v lige majstrov.“':sk>=.5?'Tréner: „No… z diaľky to ujde.“':'Tréner: „Čo to má byť, mapa obce?“';
+    h+=`<div class="tiles"><div><small>Pokosené</small><b>${p} %</b></div>${vz.f?`<div><small>Podľa vzoru</small><b>${z} %</b></div>`:''}<div><small>Čas</small><b>${Math.floor(R.t/60)}:${String(R.t%60).padStart(2,'0')}</b></div></div>
+      <p style="margin:10px 0">${esc(hod)}${R.rek&&R.sk>=.3?' <b>Nový rekord!</b>':''}</p>
+      <div class="acts"><button class="btn" data-kosave="1">Uložiť obrázok</button><button class="btn pri grow" data-komenu="1">Kosiť znova</button></div>`;
+  }
+  return h;
+}
+function koClick(d){
+  if(d.kovz){ KO.vz=d.kovz; KO.dirty=true; render(); return true; }
+  if(d.kohint){ KO.hint=!KO.hint; KO.dirty=true; render(); return true; }
+  if(d.kozad){ const v=KO_VZORY.filter(x=>x.f); const z=v[Math.floor(Math.random()*v.length)]; KO.zad={vz:z.id,t:KO_TRENER[Math.floor(Math.random()*KO_TRENER.length)]}; KO.vz=z.id; KO.dirty=true; render(); return true; }
+  if(d.kogo){ koStart(); return true; }
+  if(d.koend!==undefined){ if(d.koend==='1') koFinish(); else { KO.st='menu'; KO.dirty=true; render(); } return true; }
+  if(d.komenu){ KO.st='menu'; KO.cells=null; KO.dirty=true; render(); return true; }
+  if(d.kosave){ koSave(); return true; }
+  return false;
+}
+
 function vHry(){
-  const segs=[['tip','Tipovačka'],['fan','Fantasy'],['kviz','Kvíz'],['pk','Penalty'],['sez','Sezóna'],['zap','Simulátor']];
+  const segs=[['tip','Tipovačka'],['fan','Fantasy'],['kviz','Kvíz'],['pk','Penalty'],['sez','Sezóna'],['zap','Simulátor'],['kos','Kosenie']];
   if(!segs.some(x=>x[0]===hsub)) hsub='tip';
   let h=`<div class="seg hseg">${segs.map(([k,n])=>`<button data-hs="${k}" class="${hsub===k?'on':''}">${n}</button>`).join('')}</div>`;
-  return h+(hsub==='tip'?vTip():hsub==='fan'?vFan():hsub==='kviz'?vKviz():hsub==='pk'?vPK():hsub==='sez'?vSezona():vZapas());
+  return h+(hsub==='tip'?vTip():hsub==='fan'?vFan():hsub==='kviz'?vKviz():hsub==='pk'?vPK():hsub==='sez'?vSezona():hsub==='kos'?vKos():vZapas());
 }
 function hryAfterRender(v){
   const s=$('#hryL'); if(s) s.onchange=()=>{ HRY_L=s.value; SIM.run=null; SIM.many=null; clearInterval(SIM.timer); SIM.timer=null; render(); };
@@ -2085,6 +2331,7 @@ function hryAfterRender(v){
   if(sa) sa.onchange=()=>{ SIM.a=sa.value; SIM.run=null; SIM.many=null; render(); };
   v.querySelectorAll('[data-tip]').forEach(i=>{ i.oninput=()=>tipInput(i); i.onchange=()=>tipInput(i); });
   if(hsub==='pk') pkAttach();
+  if(hsub==='kos') koAttach();
 }
 function hryClick(b){
   const d=b.dataset;
@@ -2103,6 +2350,7 @@ function hryClick(b){
   if(d.fcap){ FAN.edit.cap=d.fcap; render(); return true; }
   if(d.fsave){ fanSave(); return true; }
   if(d.fkolo){ fanKolo(d.fkolo); return true; }
+  if(koClick(d)) return true;
   if(d.pkgo){ pkReset(); render(); return true; }
   if(d.simgo){ simStart(); return true; }
   if(d.simskip){ clearInterval(SIM.timer); SIM.timer=null; SIM.step=SIM.run.ev.length; render(); return true; }
