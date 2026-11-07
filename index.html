@@ -484,7 +484,7 @@ async function loadAll(manual){
   if(!LIGY.find(l=>l.id===cur)) cur=(LIGY.find(l=>l.home)||LIGY[0]||{}).id;
   $('#bRefresh').classList.remove('spin');
   if(manual) toast(lg.status==='fulfilled'?'Aktualizované':'Bez internetu, zobrazujem uložené údaje');
-  head(); render(); loadKlub();
+  head(); if(!hraBezi()) render(); loadKlub();
 }
 
 const home=()=>LIGY.find(l=>l.home)||{teams:[],matches:[]};
@@ -707,8 +707,10 @@ async function pollLive(){
   LIGY.forEach(l=>(l.matches||[]).forEach(m=>{ if(m.url && nearNow(m) && !(LIVE[m.id]&&LIVE[m.id].closed)) want.set(m.id,m); }));
   if(!want.size) return;
   await Promise.all([...want.values()].map(m=>getDetail(m,true)));
-  render();
+  if(!hraBezi()) render();
 }
+// počas rozohranej hry neprekresľujeme stránku na pozadí (stratil by sa dotyk)
+function hraBezi(){ return tab==='hry'&&((hsub==='kos'&&KO.st==='play')||(hsub==='pk'&&PK.st!=='aim'&&PK.st!=='over')||(hsub==='kviz'&&KV.st==='q')); }
 
 function vMatches(){
   const l=L(), isHome=!!l.home, mode=isHome?zapMode:'liga';
@@ -2145,49 +2147,57 @@ function koStep(dt,ts){
   // kosačka ide za prstom, zatáča obmedzene ako skutočný traktorík
   if(KO.tx!=null){
     const dx=KO.tx-KO.x, dy=KO.ty-KO.y, dist=Math.hypot(dx,dy);
-    if(dist>.6){ const want=Math.atan2(dy,dx); let da=want-KO.a; while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
+    if(dist>1.2){ const want=Math.atan2(dy,dx); let da=want-KO.a; while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
       const turn=3.2*dt; KO.a+=Math.max(-turn,Math.min(turn,da)); KO.v=Math.min(10,KO.v+18*dt)*(Math.abs(da)>2.2?.97:1); }
-    else KO.v=Math.max(0,KO.v-30*dt);
+    else KO.v=Math.min(10,KO.v+18*dt); // prst pod kosačkou: ide ďalej rovno
   } else KO.v=Math.max(0,KO.v-25*dt);
   const nx=KO.x+Math.cos(KO.a)*KO.v*dt, ny=KO.y+Math.sin(KO.a)*KO.v*dt;
-  KO.x=Math.max(-1.5,Math.min(KO_GW+1.5,nx)); KO.y=Math.max(-1.5,Math.min(KO_GH+1.5,ny));
+  const cx=Math.max(-1.5,Math.min(KO_GW+1.5,nx)), cy=Math.max(-1.5,Math.min(KO_GH+1.5,ny)); if(cx!==nx||cy!==ny) KO.v=Math.min(KO.v,2); KO.x=cx; KO.y=cy;
   if(KO.v<.5) return;
   const hx=Math.cos(KO.a), hy=Math.sin(KO.a), sh=(hx-hy)>0?1:2, px=-hy, py=hx, R=1.35;
   for(let s=-R;s<=R;s+=.5){ const cx=KO.x+px*s+hx*.3, cy=KO.y+py*s+hy*.3, i=Math.floor(cx), j=Math.floor(cy);
-    if(i<0||j<0||i>=KO_GW||j>=KO_GH) continue; const k=j*KO_GW+i; if(KO.cells[k]!==sh){ KO.cells[k]=sh; KO.dirty=true; } }
+    if(i<0||j<0||i>=KO_GW||j>=KO_GH) continue; const k=j*KO_GW+i; if(KO.cells[k]!==sh){ KO.cells[k]=sh; (KO.chg||(KO.chg=[])).push(k); } }
   if(Math.random()<.6) KO.parts.push({x:KO.x-hx*1.2+(Math.random()-.5)*2, y:KO.y-hy*1.2+(Math.random()-.5)*2, vx:-hx*2+(Math.random()-.5)*3, vy:-hy*2+(Math.random()-.5)*3, l:1});
   if(KO.parts.length>80) KO.parts.splice(0,KO.parts.length-80);
 }
+function koCell(c,G,cw,ch,i,j,f){
+  const s=KO.cells?KO.cells[j*KO_GW+i]:0, n=((i*73+j*151)%7)/7;
+  if(!s){ const t=KO.hint&&f?f((i+.5)/KO_GW,(j+.5)/KO_GH):null; c.fillStyle=t==null?`hsl(112,44%,${28+n*5}%)`:t?`hsl(110,40%,${33+n*4}%)`:`hsl(114,46%,${25+n*4}%)`; }
+  else c.fillStyle=s===1?`hsl(100,52%,${57+n*3}%)`:`hsl(108,50%,${39+n*3}%)`;
+  c.fillRect(G.px+i*cw,G.py+j*ch,cw+.6,ch+.6);
+  if(!s&&n>.55){ c.fillStyle='rgba(20,60,15,.35)'; c.fillRect(G.px+i*cw+cw*.3,G.py+j*ch+ch*.2,1,ch*.6); }
+}
 function koGrass(W,H){
-  // trávnik kreslíme do skrytého plátna a prekresľujeme len pri zmene
-  const d=window.devicePixelRatio||1;
-  if(!KO.grass||KO.grass.width!==Math.round(W*d)){ KO.grass=document.createElement('canvas'); KO.grass.width=Math.round(W*d); KO.grass.height=Math.round(H*d); KO.dirty=true; }
-  if(!KO.dirty) return KO.grass;
-  const c=KO.grass.getContext('2d'), G=koGeo(W,H), cw=G.pw/KO_GW, ch=G.ph/KO_GH, f=koVz().f, C=KO.cells;
-  c.setTransform(d,0,0,d,0,0);
-  c.fillStyle='#24511f'; c.fillRect(0,0,W,H);
-  for(let j=0;j<KO_GH;j++) for(let i=0;i<KO_GW;i++){
-    const s=C?C[j*KO_GW+i]:0, n=((i*73+j*151)%7)/7;
-    if(!s){ const t=KO.hint&&f?f((i+.5)/KO_GW,(j+.5)/KO_GH):null; c.fillStyle=t==null?`hsl(112,44%,${28+n*5}%)`:t?`hsl(110,40%,${33+n*4}%)`:`hsl(114,46%,${25+n*4}%)`; }
-    else c.fillStyle=s===1?`hsl(100,52%,${57+n*3}%)`:`hsl(108,50%,${39+n*3}%)`;
-    c.fillRect(G.px+i*cw,G.py+j*ch,cw+.6,ch+.6);
-    if(!s&&n>.55){ c.fillStyle='rgba(20,60,15,.35)'; c.fillRect(G.px+i*cw+cw*.3,G.py+j*ch+ch*.2,1,ch*.6); }
+  // trávnik v skrytom plátne: celý sa kreslí len pri štarte, potom iba pokosené políčka (šetrí výkon telefónu)
+  const d=window.devicePixelRatio||1, G=koGeo(W,H), cw=G.pw/KO_GW, ch=G.ph/KO_GH, f=koVz().f;
+  if(!KO.grass||KO.grass.width!==Math.round(W*d)||KO.grass.height!==Math.round(H*d)){
+    KO.grass=document.createElement('canvas'); KO.grass.width=Math.round(W*d); KO.grass.height=Math.round(H*d);
+    KO.lines=document.createElement('canvas'); KO.lines.width=KO.grass.width; KO.lines.height=KO.grass.height;
+    const c=KO.lines.getContext('2d'); c.setTransform(d,0,0,d,0,0);
+    const L=(x,y)=>[G.px+x*G.pw,G.py+y*G.ph];
+    c.strokeStyle='rgba(255,255,255,.9)'; c.fillStyle='#fff'; c.lineWidth=Math.max(2,W*.006);
+    c.strokeRect(G.px,G.py,G.pw,G.ph);
+    c.beginPath(); c.moveTo(...L(0,.5)); c.lineTo(...L(1,.5)); c.stroke();
+    c.beginPath(); c.arc(...L(.5,.5),G.pw*.14,0,7); c.stroke();
+    c.beginPath(); c.arc(...L(.5,.5),2.5,0,7); c.fill();
+    [[0,1],[1,-1]].forEach(([y0,s])=>{
+      c.strokeRect(G.px+G.pw*.2,G.py+G.ph*y0-(s<0?G.ph*.16:0),G.pw*.6,G.ph*.16);
+      c.strokeRect(G.px+G.pw*.36,G.py+G.ph*y0-(s<0?G.ph*.055:0),G.pw*.28,G.ph*.055);
+      c.beginPath(); c.arc(...L(.5,y0+s*.11),2.5,0,7); c.fill();
+      c.beginPath(); c.arc(...L(.5,y0+s*.11),G.pw*.14,s>0?.2*Math.PI:1.2*Math.PI,s>0?.8*Math.PI:1.8*Math.PI); c.stroke();
+      c.fillRect(G.px+G.pw*.42,G.py+G.ph*y0+(s>0?-G.ph*.018:0),G.pw*.16,G.ph*.018);
+    });
+    KO.dirty=true;
   }
-  // čiary ihriska
-  const L=(x,y)=>[G.px+x*G.pw,G.py+y*G.ph];
-  c.strokeStyle='rgba(255,255,255,.9)'; c.lineWidth=Math.max(2,W*.006);
-  c.strokeRect(G.px,G.py,G.pw,G.ph);
-  c.beginPath(); c.moveTo(...L(0,.5)); c.lineTo(...L(1,.5)); c.stroke();
-  c.beginPath(); c.arc(...L(.5,.5),G.pw*.14,0,7); c.stroke();
-  c.fillStyle='#fff'; c.beginPath(); c.arc(...L(.5,.5),2.5,0,7); c.fill();
-  [[0,1],[1,-1]].forEach(([y0,s])=>{
-    c.strokeRect(G.px+G.pw*.2,G.py+G.ph*y0-(s<0?G.ph*.16:0),G.pw*.6,G.ph*.16);
-    c.strokeRect(G.px+G.pw*.36,G.py+G.ph*y0-(s<0?G.ph*.055:0),G.pw*.28,G.ph*.055);
-    c.beginPath(); c.arc(...L(.5,y0+s*.11),2.5,0,7); c.fill();
-    c.beginPath(); c.arc(...L(.5,y0+s*.11),G.pw*.14,s>0?.2*Math.PI:1.2*Math.PI,s>0?.8*Math.PI:1.8*Math.PI); c.stroke();
-    c.fillStyle='rgba(255,255,255,.9)'; c.fillRect(G.px+G.pw*.42,G.py+G.ph*y0+(s>0?-G.ph*.018:0),G.pw*.16,G.ph*.018); c.fillStyle='#fff';
-  });
-  KO.dirty=false; return KO.grass;
+  const c=KO.grass.getContext('2d'); c.setTransform(d,0,0,d,0,0);
+  if(KO.dirty){
+    c.fillStyle='#24511f'; c.fillRect(0,0,W,H);
+    for(let j=0;j<KO_GH;j++) for(let i=0;i<KO_GW;i++) koCell(c,G,cw,ch,i,j,f);
+    KO.dirty=false; KO.chg=[];
+  } else if(KO.chg&&KO.chg.length){
+    KO.chg.forEach(k=>koCell(c,G,cw,ch,k%KO_GW,Math.floor(k/KO_GW),f)); KO.chg=[];
+  }
+  return KO.grass;
 }
 function koDrawTop(c,x,y,a,s,ts){
   // kosačka zhora: oranžová kapota, čierne sedadlo, kosič s blond ofinou dopredu
@@ -2256,7 +2266,7 @@ function koDrawHero(c,x,y,s,ts){
 }
 function koDraw(cv,ts){
   const d=window.devicePixelRatio||1, W=cv.width/d, H=cv.height/d, c=cv.getContext('2d'), G=koGeo(W,H), cw=G.pw/KO_GW;
-  c.setTransform(1,0,0,1,0,0); c.drawImage(koGrass(W,H),0,0); c.setTransform(d,0,0,d,0,0);
+  c.setTransform(1,0,0,1,0,0); c.drawImage(koGrass(W,H),0,0); c.drawImage(KO.lines,0,0); c.setTransform(d,0,0,d,0,0);
   if(KO.st==='menu'){
     c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H);
     koDrawHero(c,W*.5,H*.47,W*.62,ts);
