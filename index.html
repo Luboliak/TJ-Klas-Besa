@@ -294,6 +294,7 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
 .kvh{display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px}
 .kvt{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
 .kvt i{display:block;height:100%;background:var(--ink);transition:width .2s linear}
+.kvtop{display:flex;flex-direction:column;gap:4px}.kvtop div{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}.kvtop div.us{border-color:var(--ink)}.kvtop span{font-size:20px}.kvtop b{flex:1}
 .kvtema{margin:14px 0 0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
 .kvq{font-size:19px;font-weight:600;margin:4px 0 14px;line-height:1.35}
 .kve{margin:10px 0 0;padding:10px 12px;background:var(--panel);border-left:3px solid #1e7e34;border-radius:6px;font-size:14px}
@@ -1773,7 +1774,7 @@ function vKviz(){
       h+=`<button data-kva="${i}" class="${c}"${KV.picked!=null?' disabled':''}>${esc(o)}</button>`; });
     return h+`</div>${KV.picked!=null&&q.e?`<p class="kve">${esc(q.e)}</p>`:''}<p class="note" style="text-align:center">${KV.picked===-1?'Čas vypršal':KV.picked!=null?'&nbsp;':`<span id="kvsec">${Math.ceil(left)}</span> s`}</p>`;
   }
-  let h='<p class="note" style="margin-top:0">Každý deň nový kvíz: 3 otázky o našej lige a 5 všeobecných (prvá pomoc, futbal, Slovensko, šport, prehľad, zdravie, auto a doprava, zábava). Na každú je 20 sekúnd. Správna odpoveď = 100 bodov, čím rýchlejšie, tým väčší bonus. Do poradia sa ráta len prvý pokus dňa.</p>';
+  let h='<p class="note" style="margin-top:0">Každý deň nový kvíz: 3 otázky o našej lige a 5 všeobecných (prvá pomoc, futbal, Slovensko, šport, prehľad, zdravie, auto a doprava, zábava). Na každú je 20 sekúnd. Správna odpoveď = 100 bodov, čím rýchlejšie, tým väčší bonus. Do poradia sa ráta len prvý pokus dňa. Body sa sčítavajú za týždeň (pondelok – nedeľa) a najlepší traja dostanú medailu.</p>';
   if(KV.st==='end'){
     const st=!KV.ranked?'cvičný':KV.res?(KV.res.prvy?'zapísané':'už bolo'):'nezapísané';
     h+=`<div class="tiles"><div><small>Správne</small><b>${KV.ok}/${KV.qs.length}</b></div><div><small>Body</small><b>${KV.score}</b></div><div><small>Poradie</small><b style="font-size:17px">${st}</b></div></div>`;
@@ -1783,8 +1784,17 @@ function vKviz(){
   h+= done!=='' ? `<p>Dnešný kvíz máš za sebou (${esc(done)} b). Zajtra bude nový.</p><button class="btn" data-kvgo="0" style="width:100%">Cvičné kolo (nepočíta sa)</button>`
                : `<button class="btn pri" data-kvgo="1" style="width:100%">Spustiť dnešný kvíz</button>`;
   if(PROXY){ if(!KV.board) kvBoard(); const B=KV.board||{};
-    if((B.dnes||[]).length) h+='<h2>Dnes</h2>'+boardTable(B.dnes.map(x=>[x.meno,x.score]),'Body');
-    if((B.spolu||[]).length) h+='<h2>Celkovo</h2>'+boardTable(B.spolu.map(x=>[x.meno,x.score,x.dni]),'Body','Dní');
+    const dm=d=>{ const x=new Date(d+'T12:00:00'); return x.getDate()+'. '+(x.getMonth()+1)+'.'; };
+    const top3=L=>'<div class="kvtop">'+L.map((p,i)=>`<div class="${p.meno===JA?'us':''}"><span>${['🥇','🥈','🥉'][i]}</span><b>${esc(p.meno)}</b><small class="mute">${p.score} b</small></div>`).join('')+'</div>';
+    if(B.tyzdenOd){ const ne=new Date(B.tyzdenOd+'T12:00:00'); ne.setDate(ne.getDate()+6);
+      h+=`<h2>Tento týždeň <small class="mute">${dm(B.tyzdenOd)} – ${ne.getDate()}. ${ne.getMonth()+1}.</small></h2>`;
+      h+=(B.tyzden||[]).length?boardTable(B.tyzden.map(x=>[x.meno,x.score,x.dni]),'Body','Dní'):'<p class="note">Tento týždeň ešte nikto nehral.</p>';
+      h+='<p class="note">Poradie sa po nedeli vynuluje. Prví traja v týždni dostanú medailu.</p>'; }
+    if(B.minuly&&B.minuly.top.length) h+=`<h2>Minulý týždeň <small class="mute">od ${dm(B.minuly.od)}</small></h2>`+top3(B.minuly.top);
+    if((B.medaily||[]).length) h+='<h2>Medaily</h2><table class="lt tipb"><thead><tr><th></th><th class="l">Meno</th><th>🥇</th><th>🥈</th><th>🥉</th></tr></thead><tbody>'+
+      B.medaily.map((m,i)=>`<tr class="${m.meno===JA?'us':''}"><td class="pos">${i+1}</td><td class="tm">${esc(m.meno)}</td><td>${m.z}</td><td>${m.s}</td><td>${m.b}</td></tr>`).join('')+'</tbody></table>';
+    if((B.mesiac||[]).length) h+='<h2>Najlepší v mesiaci</h2>'+top3(B.mesiac);
+    if((B.spolu||[]).length) h+='<h2>Najlepší celkovo</h2>'+top3(B.spolu);
     else if(KV.board) h+='<p class="note">Poradie je zatiaľ prázdne.</p>'; }
   return h;
 }

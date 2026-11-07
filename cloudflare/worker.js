@@ -141,6 +141,11 @@ function tipTotal(t, m, strelci) {
   return b + (t.s && s && s.includes(t.s) ? TIP_STRELEC : 0);
 }
 function fanPoints(picks, cap, pts) { return picks.reduce((a, k) => a + (pts[k] || 0) * (k === cap ? 2 : 1), 0); }
+function weekStart(day) {
+  // pondelok týždňa pre dátum v tvare RRRR-MM-DD
+  const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
+  return d.toISOString().slice(0, 10);
+}
 function skDate(off) {
   const d = new Date(Date.now() + off * 86400000);
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Bratislava' }).format(d);
@@ -449,11 +454,25 @@ export class ChatRoom {
   }
   hraBoard(hra) {
     if (hra === 'kviz') {
-      const today = skDate(0);
+      // týždeň je pondelok – nedeľa; po nedeli sa poradie vynuluje a top 3 dostanú medaily
+      const today = skDate(0), wk = weekStart(today), mon = today.slice(0, 7);
+      const rows = this.rows(`SELECT meno, k, score, t FROM hry WHERE hra='kviz'`);
+      const sum = f => { const o = {}; for (const r of rows) if (f(r)) { const p = o[r.meno] || (o[r.meno] = { meno: r.meno, score: 0, dni: 0, t: 0 }); p.score += r.score; p.dni++; p.t = Math.max(p.t, r.t); } return Object.values(o).sort((x, y) => y.score - x.score || x.t - y.t); };
+      const weeks = [...new Set(rows.map(r => weekStart(r.k)))].filter(w => w < wk).sort();
+      const med = {}, hist = [];
+      for (const w of weeks) {
+        const top = sum(r => weekStart(r.k) === w).slice(0, 3);
+        top.forEach((p, i) => { const m = med[p.meno] || (med[p.meno] = { meno: p.meno, z: 0, s: 0, b: 0 }); m[['z', 's', 'b'][i]]++; });
+        hist.push({ od: w, top: top.map(p => ({ meno: p.meno, score: p.score })) });
+      }
       return {
+        den: today, tyzdenOd: wk,
         dnes: this.rows(`SELECT meno, score FROM hry WHERE hra='kviz' AND k=? ORDER BY score DESC, t LIMIT 50`, today),
-        spolu: this.rows(`SELECT meno, SUM(score) AS score, COUNT(*) AS dni FROM hry WHERE hra='kviz' GROUP BY meno ORDER BY score DESC LIMIT 50`),
-        den: today,
+        tyzden: sum(r => weekStart(r.k) === wk).slice(0, 50),
+        minuly: hist.length ? hist[hist.length - 1] : null,
+        medaily: Object.values(med).sort((x, y) => y.z - x.z || y.s - x.s || y.b - x.b || x.meno.localeCompare(y.meno, 'sk')),
+        mesiac: sum(r => r.k.slice(0, 7) === mon).slice(0, 3),
+        spolu: sum(() => true).slice(0, 3),
       };
     }
     if (hra === 'pk' || hra === 'pv') return { best: this.rows(`SELECT meno, score, t FROM hry WHERE hra=? AND k='best' ORDER BY score DESC, t LIMIT 50`, hra) };

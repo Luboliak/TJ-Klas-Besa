@@ -585,6 +585,19 @@ def notify():
                     best = kolo[0]
                     add(f'tip-kolo:{r}', '🎲 Tipovačka', f"Po {r}. kole vedie {b[0]['meno']} ({b[0]['b']} b). Najlepší v kole: {best['meno']} ({(best.get('kola') or {}).get(str(r), 0)} b).", 'game_die', 3)
 
+    # kvíz: v pondelok ráno medaily za uplynulý týždeň
+    if NOW.weekday() == 0 and NOW.hour >= 7:
+        url = setting('PROXY_URL').rstrip('/')
+        if url:
+            try:
+                kb = requests.get(url + '/hra/board?hra=kviz', timeout=20).json()
+                mn = kb.get('minuly') or {}
+                if mn.get('top') and mn.get('od') == str(TODAY - datetime.timedelta(days=7)):
+                    med = ' '.join(f"{e} {p['meno']} ({p['score']} b)" for e, p in zip(['🥇', '🥈', '🥉'], mn['top']))
+                    add(f"kviz-tyzden:{mn['od']}", '🧠 Kvíz – výsledky týždňa', med + '. Nový týždeň začína, poradie je vynulované.', 'brain', 3)
+            except Exception as e:
+                print(f'Kvíz: CHYBA {e}')
+
     lines = tren_lines()
     for l in lines:
         if l in st.get('tren', []):
