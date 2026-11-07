@@ -225,6 +225,70 @@ def supisky():
     print(f'Súpisky: {len(teams)} tímov')
 
 
+# ---------------------------------------------------------------- body do hier (tip na strelca, fantasy)
+
+# Fantasy body: základ 2 / striedajúci 1, gól +4, vlastný gól -2, výhra +2, remíza +1,
+# čisté konto brankára v základe +3, žltá -1, červená -3
+F_GOL, F_VG, F_ZAKLAD, F_STRIDA, F_VYHRA, F_REMIZA, F_CK, F_ZLTA, F_CERV = 4, -2, 2, 1, 2, 1, 3, -1, -3
+
+
+def hry_body():
+    """data/hry_body.json: strelci Beše v zápasoch (tip na strelca) a fantasy body hráčov za kolá domácej ligy."""
+    ligy = jload(DATA / 'ligy.json', {}).get('ligy', [])
+    home = next((l for l in ligy if l.get('home')), None)
+    out = {'strelci': {}, 'fantasy': {}, 'kola_hotove': []}
+    if not home:
+        jsave(DATA / 'hry_body.json', out)
+        return
+    kola = {}
+    for m in home.get('matches', []):
+        if BYE in (m.get('home'), m.get('away')) or m.get('round') is None:
+            continue
+        r = str(m['round'])
+        k = kola.setdefault(r, {'spolu': 0, 'hotove': 0})
+        k['spolu'] += 1
+        if m.get('hs') is None:
+            continue
+        d = jload(DATA / 'zapasy' / f"{m['id']}.json", None)
+        if not d or not d.get('closed') or not d.get('lineups'):
+            continue
+        k['hotove'] += 1
+        ev = d.get('events', [])
+        sc = d.get('score') or [m.get('hs'), m.get('as')]
+        for side in ('home', 'away'):
+            team = d.get(side)
+            if team == US:
+                out['strelci'][m['id']] = sorted({e['p'] for e in ev if e.get('t') == 'goal' and e.get('p')
+                                                  and e.get('side') == side and e.get('k') != 'dropped'})
+            lu = (d['lineups'].get(side) or {}).get('players') or []
+            onfield = {p['name'] for p in lu if p.get('name') and not p.get('sub')}
+            came = {e.get('r') for e in ev if e.get('t') == 'substitution' and e.get('side') == side and e.get('r')}
+            gf, ga = (sc[0], sc[1]) if side == 'home' else (sc[1], sc[0])
+            res = F_VYHRA if gf > ga else F_REMIZA if gf == ga else 0
+            pts = out['fantasy'].setdefault(r, {})
+            for p in lu:
+                n = p.get('name')
+                if not n or (n not in onfield and n not in came):
+                    continue
+                b = (F_ZAKLAD if n in onfield else F_STRIDA) + res
+                if p.get('gk') and n in onfield and ga == 0:
+                    b += F_CK
+                for e in ev:
+                    if e.get('p') != n or e.get('side') != side:
+                        continue
+                    t = e.get('t')
+                    if t == 'goal':
+                        b += F_VG if e.get('k') == 'dropped' else F_GOL
+                    elif t == 'yellow_card':
+                        b += F_ZLTA
+                    elif t in ('red_card', 'second_yellow_card'):
+                        b += F_CERV
+                pts[f'{n}|{team}'] = pts.get(f'{n}|{team}', 0) + b
+    out['kola_hotove'] = sorted((r for r, k in kola.items() if k['spolu'] and k['hotove'] >= k['spolu']), key=int)
+    jsave(DATA / 'hry_body.json', out)
+    print(f"Body do hier: {len(out['strelci'])} zápasov Beše, fantasy {len(out['fantasy'])} kôl")
+
+
 # ---------------------------------------------------------------- tipovačka
 
 _TIP = None
@@ -554,7 +618,7 @@ def notify():
 
 
 if __name__ == '__main__':
-    for fn in (stats, supisky, gallery, calendar, notify):
+    for fn in (stats, supisky, hry_body, gallery, calendar, notify):
         try:
             fn()
         except Exception as e:

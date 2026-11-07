@@ -131,6 +131,20 @@ function tipPoints(t, m) {
   if (t.h === m.hs && t.a === m.as) return 3;
   return Math.sign(t.h - t.a) === Math.sign(m.hs - m.as) ? 1 : 0;
 }
+const US = 'TJ Klas Beša';
+const TIP_STRELEC = 2;   // body navyše za správne tipnutého strelca Beše
+const FAN_N = 5, FAN_MAX_TEAM = 3, KVIZ_MAX = 1000;
+function tipTotal(t, m, strelci) {
+  const b = tipPoints(t, m);
+  if (b == null) return null;
+  const s = strelci[m.id];
+  return b + (t.s && s && s.includes(t.s) ? TIP_STRELEC : 0);
+}
+function fanPoints(picks, cap, pts) { return picks.reduce((a, k) => a + (pts[k] || 0) * (k === cap ? 2 : 1), 0); }
+function skDate(off) {
+  const d = new Date(Date.now() + off * 86400000);
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Bratislava' }).format(d);
+}
 // Hráč zápasu: hlasuje sa od konca zápasu (výkop + 100 min) do 3 dní po zápase
 const mvpWindow = start => ({ opens: start + 100 * 60000, closes: start + 105 * 60000 + 72 * 3600000 });
 
@@ -149,6 +163,9 @@ export class ChatRoom {
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS mvp_polls (id TEXT PRIMARY KEY, start INTEGER, title TEXT)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS mvp_votes (poll TEXT, voter TEXT, za TEXT, t INTEGER, PRIMARY KEY (poll, voter))`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS tips (meno TEXT, mid TEXT, h INTEGER, a INTEGER, t INTEGER, PRIMARY KEY (meno, mid))`);
+      try { ctx.storage.sql.exec(`ALTER TABLE tips ADD COLUMN s TEXT`); } catch (e) {}
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS hry (meno TEXT, hra TEXT, k TEXT, score INTEGER, t INTEGER, PRIMARY KEY (meno, hra, k))`);
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fantasy (meno TEXT, kolo TEXT, picks TEXT, cap TEXT, t INTEGER, PRIMARY KEY (meno, kolo))`);
       this.cfg = (await ctx.storage.get('cfg')) || null;
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fails (t INTEGER)`);
     });
@@ -197,6 +214,8 @@ export class ChatRoom {
 
     if (path === '/chat/status') return json({ setup: !!this.cfg });
     if (path === '/tip/board') return json(await this.tipBoard(), 200, { 'Cache-Control': 'public, max-age=120' });
+    if (path === '/fan/board') return json(await this.fanBoard(), 200, { 'Cache-Control': 'public, max-age=120' });
+    if (path === '/hra/board') return json(this.hraBoard(url.searchParams.get('hra') || ''), 200, { 'Cache-Control': 'public, max-age=60' });
     if (path === '/mvp/summary') return json({ polls: this.mvpSummary() }, 200, { 'Cache-Control': 'public, max-age=300' });
 
     if (path === '/chat/setup' && request.method === 'POST') {
@@ -230,7 +249,7 @@ export class ChatRoom {
     if (path === '/tip/mine') {
       const meno = url.searchParams.get('meno') || '';
       const tips = {};
-      for (const r of this.rows('SELECT mid, h, a FROM tips WHERE meno=?', meno)) tips[r.mid] = [r.h, r.a];
+      for (const r of this.rows('SELECT mid, h, a, s FROM tips WHERE meno=?', meno)) tips[r.mid] = r.s ? [r.h, r.a, r.s] : [r.h, r.a];
       return json({ tips }, 200, { 'Cache-Control': 'no-store' });
     }
     if (path === '/tip/match') {
@@ -239,7 +258,8 @@ export class ChatRoom {
       const m = (await this.tipMatches()).get(mid);
       if (!m) return json({ error: 'Zápas sa nenašiel' }, 404);
       if (Date.now() < kickoff(m)) return json({ hidden: true, n: this.rows('SELECT COUNT(*) AS n FROM tips WHERE mid=?', mid)[0].n });
-      const all = this.rows('SELECT meno, h, a FROM tips WHERE mid=? ORDER BY meno', mid).map(r => ({ meno: r.meno, h: r.h, a: r.a, b: tipPoints(r, m) }));
+      const st = (await this.body()).strelci || {};
+      const all = this.rows('SELECT meno, h, a, s FROM tips WHERE mid=? ORDER BY meno', mid).map(r => ({ meno: r.meno, h: r.h, a: r.a, s: r.s || '', b: tipTotal(r, m, st) }));
       return json({ tips: all }, 200, { 'Cache-Control': 'no-store' });
     }
     if (path === '/tip/save' && request.method === 'POST') {
@@ -254,10 +274,63 @@ export class ChatRoom {
         if (v === null) { this.ctx.storage.sql.exec('DELETE FROM tips WHERE meno=? AND mid=?', meno, mid); saved[mid] = null; continue; }
         const h = parseInt(v[0]), a = parseInt(v[1]);
         if (!(h >= 0 && h <= 20 && a >= 0 && a <= 20)) continue;
-        this.ctx.storage.sql.exec('INSERT OR REPLACE INTO tips (meno, mid, h, a, t) VALUES (?, ?, ?, ?, ?)', meno, mid, h, a, now);
-        saved[mid] = [h, a];
+        const us = m.home === US || m.away === US;
+        const s = us && v[2] ? String(v[2]).trim().slice(0, 60) : null;
+        this.ctx.storage.sql.exec('INSERT OR REPLACE INTO tips (meno, mid, h, a, t, s) VALUES (?, ?, ?, ?, ?, ?)', meno, mid, h, a, now, s);
+        saved[mid] = s ? [h, a, s] : [h, a];
       }
       return json({ saved, late });
+    }
+    if (path === '/fan/mine') {
+      const meno = url.searchParams.get('meno') || '', out = {};
+      for (const r of this.rows('SELECT kolo, picks, cap FROM fantasy WHERE meno=?', meno)) out[r.kolo] = { picks: JSON.parse(r.picks), cap: r.cap };
+      return json({ kola: out }, 200, { 'Cache-Control': 'no-store' });
+    }
+    if (path === '/fan/kolo') {
+      // zostavy všetkých na jedno kolo, až keď sa kolo začalo
+      const kolo = url.searchParams.get('kolo') || '';
+      const lock = await this.roundLock(kolo);
+      if (lock && Date.now() < lock) return json({ hidden: true, n: this.rows('SELECT COUNT(*) AS n FROM fantasy WHERE kolo=?', kolo)[0].n });
+      const pts = ((await this.body()).fantasy || {})[kolo] || {};
+      const all = this.rows('SELECT meno, picks, cap FROM fantasy WHERE kolo=? ORDER BY meno', kolo).map(r => {
+        const picks = JSON.parse(r.picks);
+        return { meno: r.meno, cap: r.cap, picks: picks.map(k => [k, pts[k] ?? null]), b: fanPoints(picks, r.cap, pts) };
+      });
+      return json({ zostavy: all }, 200, { 'Cache-Control': 'no-store' });
+    }
+    if (path === '/fan/save' && request.method === 'POST') {
+      const meno = String(body.meno || '').trim().replace(/\s+/g, ' ').slice(0, 60), kolo = String(body.kolo || '');
+      const picks = Array.isArray(body.picks) ? [...new Set(body.picks.map(x => String(x).slice(0, 100)))] : [];
+      if (!meno || !kolo || picks.length !== FAN_N || !picks.includes(body.cap)) return json({ error: 'Vyber ' + FAN_N + ' hráčov a kapitána' }, 400);
+      const ms = [...(await this.tipMatches()).values()], teams = new Set(ms.flatMap(m => [m.home, m.away]));
+      const per = {};
+      for (const k of picks) { const t = k.split('|')[1]; if (!teams.has(t)) return json({ error: 'Neznámy tím' }, 400); per[t] = (per[t] || 0) + 1; }
+      if (Object.values(per).some(c => c > FAN_MAX_TEAM)) return json({ error: 'Najviac ' + FAN_MAX_TEAM + ' hráči z jedného tímu' }, 400);
+      const lock = await this.roundLock(kolo);
+      if (!lock || Date.now() >= lock) return json({ error: 'Kolo sa už začalo' }, 409);
+      this.ctx.storage.sql.exec('INSERT OR REPLACE INTO fantasy (meno, kolo, picks, cap, t) VALUES (?, ?, ?, ?, ?)', meno, kolo, JSON.stringify(picks), body.cap, Date.now());
+      return json({ ok: true });
+    }
+    if (path === '/hra/save' && request.method === 'POST') {
+      const meno = String(body.meno || '').trim().replace(/\s+/g, ' ').slice(0, 60), hra = String(body.hra || ''), score = parseInt(body.score);
+      if (!meno || !(score >= 0)) return json({ error: 'Zlé údaje' }, 400);
+      if (hra === 'kviz') {
+        const k = String(body.k || ''), today = skDate(0), yday = skDate(-1);
+        if (k !== today && k !== yday) return json({ error: 'Kvíz už neplatí' }, 409);
+        if (score > KVIZ_MAX) return json({ error: 'Zlé skóre' }, 400);
+        const had = this.rows('SELECT score FROM hry WHERE meno=? AND hra=? AND k=?', meno, hra, k)[0];
+        if (had) return json({ ok: true, prvy: false, score: had.score });
+        this.ctx.storage.sql.exec('INSERT INTO hry (meno, hra, k, score, t) VALUES (?, ?, ?, ?, ?)', meno, hra, k, score, Date.now());
+        return json({ ok: true, prvy: true, score });
+      }
+      if (hra === 'pk') {
+        if (score > 300) return json({ error: 'Zlé skóre' }, 400);
+        this.ctx.storage.sql.exec(`INSERT INTO hry (meno, hra, k, score, t) VALUES (?, 'pk', 'best', ?, ?)
+          ON CONFLICT (meno, hra, k) DO UPDATE SET score = excluded.score, t = excluded.t WHERE excluded.score > hry.score`, meno, score, Date.now());
+        const best = this.rows(`SELECT score FROM hry WHERE meno=? AND hra='pk' AND k='best'`, meno)[0].score;
+        return json({ ok: true, best });
+      }
+      return json({ error: 'Neznáma hra' }, 400);
     }
     if (path === '/mvp/get') {
       const meno = url.searchParams.get('meno') || '';
@@ -334,16 +407,57 @@ export class ChatRoom {
   }
   async tipBoard() {
     const ms = await this.tipMatches(), pl = {};
-    for (const r of this.rows('SELECT meno, mid, h, a FROM tips')) {
+    const st = (await this.body()).strelci || {};
+    for (const r of this.rows('SELECT meno, mid, h, a, s FROM tips')) {
       const m = ms.get(r.mid);
-      const p = pl[r.meno] || (pl[r.meno] = { meno: r.meno, b: 0, presne: 0, vitaz: 0, tipy: 0, kola: {} });
+      const p = pl[r.meno] || (pl[r.meno] = { meno: r.meno, b: 0, presne: 0, vitaz: 0, strelec: 0, tipy: 0, kola: {} });
       if (!m || m.hs == null) continue;
-      const b = tipPoints(r, m);
-      p.tipy++; p.b += b; if (b === 3) p.presne++; else if (b === 1) p.vitaz++;
+      const t = tipPoints(r, m), b = tipTotal(r, m, st);
+      p.tipy++; p.b += b; if (t === 3) p.presne++; else if (t === 1) p.vitaz++;
+      if (b > t) p.strelec++;
       if (m.round != null) p.kola[m.round] = (p.kola[m.round] || 0) + b;
     }
     const board = Object.values(pl).sort((a, b) => b.b - a.b || b.presne - a.presne || a.meno.localeCompare(b.meno, 'sk'));
     return { board, at: Date.now() };
+  }
+
+  async body() {
+    // body do hier z data/hry_body.json (počíta doplnky.py zo zápisov o stretnutí)
+    if (!this.bodyCache || Date.now() - this.bodyCache.at > 5 * 60000) {
+      try {
+        const r = await fetch((this.env.DATA_URL || DATA_URL).replace('ligy.json', 'hry_body.json') + '?t=' + Date.now(), { cf: { cacheTtl: 60 } });
+        this.bodyCache = { at: Date.now(), d: r.ok ? await r.json() : {} };
+      } catch (e) { if (!this.bodyCache) this.bodyCache = { at: 0, d: {} }; }
+    }
+    return this.bodyCache.d;
+  }
+  async roundLock(kolo) {
+    // kolo sa zamkne výkopom prvého zápasu kola
+    const ks = [...(await this.tipMatches()).values()].filter(m => String(m.round) === String(kolo)).map(kickoff).filter(Boolean);
+    return ks.length ? Math.min(...ks) : null;
+  }
+  async fanBoard() {
+    const B = await this.body(), F = B.fantasy || {}, pl = {};
+    for (const r of this.rows('SELECT meno, kolo, picks, cap FROM fantasy')) {
+      const pts = F[r.kolo];
+      const p = pl[r.meno] || (pl[r.meno] = { meno: r.meno, b: 0, kola: {} });
+      if (!pts) continue;
+      const b = fanPoints(JSON.parse(r.picks), r.cap, pts);
+      p.b += b; p.kola[r.kolo] = b;
+    }
+    return { board: Object.values(pl).sort((a, b) => b.b - a.b || a.meno.localeCompare(b.meno, 'sk')), hotove: B.kola_hotove || [], at: Date.now() };
+  }
+  hraBoard(hra) {
+    if (hra === 'kviz') {
+      const today = skDate(0);
+      return {
+        dnes: this.rows(`SELECT meno, score FROM hry WHERE hra='kviz' AND k=? ORDER BY score DESC, t LIMIT 50`, today),
+        spolu: this.rows(`SELECT meno, SUM(score) AS score, COUNT(*) AS dni FROM hry WHERE hra='kviz' GROUP BY meno ORDER BY score DESC LIMIT 50`),
+        den: today,
+      };
+    }
+    if (hra === 'pk') return { best: this.rows(`SELECT meno, score, t FROM hry WHERE hra='pk' AND k='best' ORDER BY score DESC, t LIMIT 50`) };
+    return {};
   }
 
   mvpState(id, meno) {
@@ -378,7 +492,7 @@ export default {
       if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
       const path = new URL(request.url).pathname.replace(/\/+$/, '');
       if (path === '/dochadzka') return await attendance(request, env);
-      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/')) {
+      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/')) {
         if (!env.CHAT) return json({ error: 'Chat nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('klub')).fetch(request);
       }
