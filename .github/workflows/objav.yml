@@ -7,10 +7,14 @@ jobs:
   objav:
     runs-on: ubuntu-latest
     steps:
-      - name: Skupiny 3. ligy cez parameter
+      - name: API sportnetu
         run: |
-          for p in 6a173c66c9a61a70ee926736 6a173c81c9a61a70ee926737; do
-            for u in "tabulky/?partId=$p" "vysledky/?partId=$p" "program/?partId=$p"; do
-              echo "== $u"; curl -sL -A "Mozilla/5.0" "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/$u" | grep -oE '/futbalnet/k/[a-z0-9-]+/tim/' | sort -u | head -5
+          curl -sL -A "Mozilla/5.0" "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/tabulky/" > t.html
+          grep -oE 'https?://[a-z.]*sportnet[a-z.]*/[^"\\ ]{0,80}' t.html | sort -u | head -20
+          grep -oE '\\"(competitionId|_id|appSpace|seasonId)\\":\\"[^\\]{5,40}' t.html | sort | uniq -c | sort -rn | head -10
+          C=$(grep -oE 'competitions/[0-9a-f]{24}' t.html | head -1); echo "comp: $C"
+          for P in 6a173c66c9a61a70ee926736; do
+            for U in "https://api.sportnet.online/v1/ppo/sfz/competitions/${C#competitions/}/parts/$P/results" "https://api.sportnet.online/v1/public/competitions/${C#competitions/}/parts/$P/results" "https://api.sportnet.online/v1/competitions/${C#competitions/}/parts/$P/results"; do
+              echo "== $U"; curl -s -o r.json -w "%{http_code}\n" "$U"; head -c 300 r.json; echo
             done
           done
