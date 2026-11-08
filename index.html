@@ -327,7 +327,8 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
 .tipv{min-width:52px;text-align:center;font-family:var(--cond);font-size:20px;background:none;border:0;color:inherit;padding:0}
 .tipv small{display:block;font-family:Roboto,sans-serif;font-size:11px;color:var(--mute)}
 .tipv.lk{border:1px dashed var(--line);border-radius:6px;padding:4px}
-.lt.sez td,.lt.sez th{white-space:nowrap;padding-left:4px;padding-right:4px}
+.lt.sez td,.lt.sez th{white-space:nowrap;padding-left:3px;padding-right:3px}
+.lt.sez{font-size:14px}
 .lt.sez td.tm,.lt.sez th.l{white-space:normal}
 .pbar{display:flex;gap:1px;margin-top:3px;height:5px}
 .pbar i{flex:1;background:var(--ink);border-radius:1px}
@@ -1394,7 +1395,9 @@ document.addEventListener('keydown',e=>{
 let hsub='tip'; try{ hsub=localStorage.getItem('hsub')||'tip'; }catch(e){}
 const realM=m=>m.home!==BYE&&m.away!==BYE;
 function kickTs(m){ return m.date&&m.time?new Date(m.date+'T'+m.time).getTime():null; }
-function hryLeague(){ return LIGY.find(l=>l.id===(HRY_L||cur))||home(); }
+let VELKE=null; // veľké európske ligy (data/velke.json z football-data.org)
+async function velkeLoad(){ if(VELKE||velkeLoad.on) return; velkeLoad.on=true; const d=await getJson(BASE+'data/velke.json'); VELKE=(d&&d.ligy)||[]; velkeLoad.on=false; if(tab==='hry'&&(hsub==='sez'||hsub==='zap')) render(); }
+function hryLeague(){ return LIGY.concat(VELKE||[]).find(l=>l.id===(HRY_L||cur))||home(); }
 let HRY_L=null;
 
 /* --- model sily tímov (Poissonovo rozdelenie gólov) --- */
@@ -1402,7 +1405,7 @@ function teamModel(l){
   const ms=(l.matches||[]).filter(m=>realM(m)&&m.hs!=null);
   const now=Date.now(), w=m=>{ const d=(now-new Date((m.date||'2000-01-01')+'T12:00'))/864e5; return Math.exp(-Math.max(0,d)/240); };
   let sw=0,sh=0,sa=0; ms.forEach(m=>{ const x=w(m); sw+=x; sh+=m.hs*x; sa+=m.as*x; });
-  const avgH=sw?sh/sw:1.6, avgA=sw?sa/sw:1.2, avg=(avgH+avgA)/2||1.4, K=5;
+  const avgH=sw?sh/sw:1.6, avgA=sw?sa/sw:1.2, avg=(avgH+avgA)/2||1.4, K=l.velka?12:5; // vo veľkých ligách sú tímy vyrovnanejšie, preto silnejšie ťaháme k priemeru
   const T={}; (l.teams||[]).forEach(t=>T[t.name]={gf:0,ga:0,n:0});
   ms.forEach(m=>{ const x=w(m);
     [[m.home,m.hs,m.as],[m.away,m.as,m.hs]].forEach(([n,f,a])=>{ const t=T[n]||(T[n]={gf:0,ga:0,n:0}); t.gf+=f*x; t.ga+=a*x; t.n+=x; }); });
@@ -1543,9 +1546,10 @@ function vSezona(){
   if(SEZ.key!==key) return hryPick()+'<p class="note">Hrám zvyšok sezóny 5 000-krát…</p>';
   const R=SEZ.res, n=R.n;
   let h=hryPick()+`<p class="note" style="margin-top:0">Zvyšných ${R.rem} zápasov sme odohrali ${R.N.toLocaleString('sk-SK')}-krát podľa doterajších výsledkov. Čisto pre zábavu, futbal sa hrá na ihrisku.</p>`;
-  h+='<table class="lt sez"><thead><tr><th class="l">Klub</th><th title="Body teraz">Teraz</th><th title="Priemerný počet bodov na konci">Ø B</th><th title="Šanca na 1. miesto">1.</th><th title="Šanca skončiť v prvej trojke">Top 3</th><th title="Šanca skončiť posledný">Posl.</th></tr></thead><tbody>';
-  R.rows.forEach(r=>{ const top3=r.pos.slice(0,3).reduce((a,b)=>a+b,0);
-    h+=`<tr class="${r.name===US?'us':''}"><td class="tm">${esc(r.name)}<div class="pbar" aria-hidden="true">${r.pos.map(p=>`<i style="opacity:${Math.min(1,.08+p*2.2).toFixed(2)}"></i>`).join('')}</div></td><td>${r.cur}</td><td class="pts">${Math.round(r.pts)}</td><td>${pct(r.pos[0]).replace(' ','')}</td><td>${pct(top3).replace(' ','')}</td><td>${pct(r.pos[n-1]).replace(' ','')}</td></tr>`; });
+  const Z=l.zona, tn=Z?Z.n:3, zn=Z?Z.zostup:1, tl=Z?(Z.top==='Postup'?'Post.':'LM'):'Top 3', zl=Z?'Zost.':'Posl.';
+  h+=`<table class="lt sez"><thead><tr><th class="l">Klub</th><th title="Body teraz">Teraz</th><th title="Priemerný počet bodov na konci">Ø B</th><th title="Šanca na 1. miesto">1.</th><th title="${Z?esc(Z.top)+' – prvých '+tn:'Šanca skončiť v prvej trojke'}">${tl}</th><th title="${Z?'Zostup – posledných '+zn:'Šanca skončiť posledný'}">${zl}</th></tr></thead><tbody>`;
+  R.rows.forEach(r=>{ const top3=r.pos.slice(0,tn).reduce((a,b)=>a+b,0), bot=r.pos.slice(n-zn).reduce((a,b)=>a+b,0);
+    h+=`<tr class="${r.name===US?'us':''}"><td class="tm">${esc(r.name)}<div class="pbar" aria-hidden="true">${r.pos.map(p=>`<i style="opacity:${Math.min(1,.08+p*2.2).toFixed(2)}"></i>`).join('')}</div></td><td>${r.cur}</td><td class="pts">${Math.round(r.pts)}</td><td>${pct(r.pos[0]).replace(' ','')}</td><td>${pct(top3).replace(' ','')}</td><td>${pct(bot).replace(' ','')}</td></tr>`; });
   h+='</tbody></table><p class="note">Pásik pod klubom: kde všade môže skončiť, od 1. miesta vľavo po posledné vpravo. Čím tmavší dielik, tým pravdepodobnejšie.</p>';
   const us=R.rows.find(r=>r.name===US);
   if(us){ const best=us.pos.indexOf(Math.max(...us.pos));
@@ -1562,8 +1566,10 @@ function vSezona(){
   return h;
 }
 function hryPick(){
-  const L=LIGY.filter(l=>(l.teams||[]).length);
-  return `<select class="lgsel" id="hryL" aria-label="Liga">${L.map(l=>`<option value="${esc(l.id)}" ${l.id===hryLeague().id?'selected':''}>${esc(l.name)}</option>`).join('')}</select>`;
+  velkeLoad();
+  const L=LIGY.filter(l=>(l.teams||[]).length), V=(VELKE||[]).filter(l=>(l.teams||[]).length), cid=hryLeague().id;
+  const o=l=>`<option value="${esc(l.id)}" ${l.id===cid?'selected':''}>${esc(l.name)}</option>`;
+  return `<select class="lgsel" id="hryL" aria-label="Liga"><optgroup label="Naše ligy">${L.map(o).join('')}</optgroup>${V.length?`<optgroup label="Veľké ligy">${V.map(o).join('')}</optgroup>`:''}</select>`;
 }
 
 /* --- SIMULÁTOR ZÁPASU --- */
@@ -1581,13 +1587,16 @@ const SKRAT=n=>n.replace(/^((TJ|ŠK|FK|SC|OFK|MFK|FC|OŠK|AFC|TJD)\s+)+/,'').rep
 function simMatch(l,H,A){
   const md=teamModel(l), [lh,la]=md.exp(H,A), RH=roster(H), RA=roster(A), stop=[1+Math.floor(Math.random()*3), 2+Math.floor(Math.random()*4)];
   const sides={home:{t:H,r:RH,on:RH?RH.start.map(p=>p.n):[],subs:RH?RH.subs.map(p=>p.n):[],yel:{}}, away:{t:A,r:RA,on:RA?RA.start.map(p=>p.n):[],subs:RA?RA.subs.map(p=>p.n):[],yel:{}}};
-  const ev=[], sc=[0,0], shots=[0,0];
+  const ev=[], sc=[0,0], shots=[0,0], T={home:H,away:A};
   const nm=(sd)=>{ const s=sides[sd]; return s.on.length?s.on:null; };
-  const who=(sd,kind)=>{ const s=sides[sd], on=nm(sd); if(!on) return null;
+  const ST=l.strelci||null;
+  const who=(sd,kind)=>{ const s=sides[sd], on=nm(sd);
+    if(!on){ // veľké ligy: bez zostáv, strelcov berieme z tabuľky strelcov ligy
+      const e=kind==='goal'&&ST&&ST[T[sd]]?Object.entries(ST[T[sd]]):null;
+      return e&&e.length&&Math.random()<.7?wpick(e.map(x=>x[0]),e.map(x=>x[1]+.5)):null; }
     const gk=new Set((s.r?s.r.start.concat(s.r.subs):[]).filter(p=>p.gk).map(p=>p.n));
     if(kind==='goal') return wpick(on,on.map(n=>gk.has(n)?.02:1+2*((s.r.goly||{})[n]||0)));
     return wpick(on,on.map(n=>gk.has(n)?.15:1)); };
-  const T={home:H,away:A};
   const line=(min,sd,type,text)=>ev.push({min,sd,type,text});
   line(0,null,'info',rnd1([`Rozhodca píska začiatok zápasu ${H} – ${A}.`,`Ide sa na to! ${SKRAT(H)} rozohráva.`,`Výkop! Diváci sú pripravení.`]));
   const mins=[]; for(let m=1;m<=45+stop[0];m++) mins.push([m,m<=45?String(m):'45+'+(m-45)]); mins.push(null);
@@ -1638,8 +1647,8 @@ function vZapas(){
     h+=`<div class="simsb"><div class="tn h">${esc(R.H)}</div><div class="big">${s[0]}:${s[1]}</div><div class="tn">${esc(R.A)}</div></div>
       <div class="simmin">${SIM.step>=R.ev.length?'Koniec':last.min+"'"}</div>
       <div class="simfeed">${shown.slice().reverse().map(e=>`<div class="sev ${e.type} ${e.sd||''}"><span class="sm">${e.type==='info'||e.type==='end'?'':e.min+"'"}</span><span>${e.type==='goal'?'⚽ ':e.type==='yellow'?'🟨 ':e.type==='red'?'🟥 ':e.type==='sub'?'🔁 ':''}${esc(e.text)}</span></div>`).join('')}</div>`;
-    if(SIM.step>=R.ev.length) h+=`<p class="note">Strely ${R.shots[0]}:${R.shots[1]}. Simulácia je len pre zábavu, mená sú z posledných zostáv na Sportnete.</p>`;
-  } else h+=`<p class="note">Zápas sa odohrá podľa doterajších výsledkov oboch tímov, s hráčmi z ich poslednej zostavy. Výsledok je zakaždým iný. Len pre zábavu.</p>`;
+    if(SIM.step>=R.ev.length) h+=`<p class="note">Strely ${R.shots[0]}:${R.shots[1]}. Simulácia je len pre zábavu, ${l.velka?'mená strelcov sú z tabuľky strelcov ligy':'mená sú z posledných zostáv na Sportnete'}.</p>`;
+  } else h+=`<p class="note">Zápas sa odohrá podľa doterajších výsledkov oboch tímov${l.velka?'. Pri veľkých ligách nemáme zostavy, mená strelcov sú z tabuľky strelcov':', s hráčmi z ich poslednej zostavy'}. Výsledok je zakaždým iný. Len pre zábavu.</p>`;
   return h;
 }
 function simStart(){
