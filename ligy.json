@@ -46,8 +46,52 @@
     "url": "https://sportnet.sme.sk/futbalnet/z/sfz/s/monacobet-liga/"
   },
   {
+    "id": "sk-3-zapad",
+    "name": "3. liga Západ",
+    "url": "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/",
+    "teams": [
+      "/futbalnet/k/as-trencin/tim/dospeli-m-b/",
+      "/futbalnet/k/fc-banik-prievidza/tim/dospeli-m-a/",
+      "/futbalnet/k/fc-nitra/tim/dospeli-m-a/",
+      "/futbalnet/k/fk-belusa/tim/dospeli-m-a/",
+      "/futbalnet/k/fk-dac-1904-dunajska-streda/tim/dospeli-m-b/",
+      "/futbalnet/k/fk-raca-bratislava/tim/dospeli-m-a/",
+      "/futbalnet/k/fk-slovan-duslo-sala/tim/dospeli-m-a/",
+      "/futbalnet/k/fkm-nove-zamky/tim/dospeli-m-a/",
+      "/futbalnet/k/kfc-komarno-futbal/tim/dospeli-m-b/",
+      "/futbalnet/k/msk-puchov/tim/dospeli-m-a/",
+      "/futbalnet/k/msk-senec/tim/dospeli-m-a/",
+      "/futbalnet/k/ofk-dunajska-luzna/tim/dospeli-m-a/",
+      "/futbalnet/k/ok-castkovce/tim/dospeli-m-a/",
+      "/futbalnet/k/sk-1923-gabcikovo/tim/dospeli-m-a/",
+      "/futbalnet/k/spartak-myjava/tim/dospeli-m-a/",
+      "/futbalnet/k/tj-druzstevnik-velke-ludince/tim/dospeli-m-a/"
+    ]
+  },
+  {
+    "id": "sk-3-stred",
+    "name": "3. liga Stred",
+    "url": "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/",
+    "teams": [
+      "/futbalnet/k/fk-cadca/tim/dospeli-m-a/",
+      "/futbalnet/k/ftc-filakovo/tim/dospeli-m-a/",
+      "/futbalnet/k/futbalovy-klub-podkonice/tim/dospeli-m-a/",
+      "/futbalnet/k/mfk-dolny-kubin-1/tim/dospeli-m-a/",
+      "/futbalnet/k/mfk-dukla-banska-bystrica-1/tim/dospeli-m-b/",
+      "/futbalnet/k/mfk-ruzomberok/tim/dospeli-m-b/",
+      "/futbalnet/k/msk-fomat-martin/tim/dospeli-m-a/",
+      "/futbalnet/k/msk-kysucke-nove-mesto/tim/dospeli-m-a/",
+      "/futbalnet/k/msk-namestovo/tim/dospeli-m-a/",
+      "/futbalnet/k/msk-novohrad-lucenec/tim/dospeli-m-a/",
+      "/futbalnet/k/msk-rimavska-sobota/tim/dospeli-m-a/",
+      "/futbalnet/k/tj-banik-kalinovo/tim/dospeli-m-a/",
+      "/futbalnet/k/tj-sokol-medzibrod/tim/dospeli-m-a/",
+      "/futbalnet/k/tj-tatran-oravske-vesele/tim/dospeli-m-a/"
+    ]
+  },
+  {
     "id": "sk-3",
-    "name": "3. liga",
+    "name": "3. liga Východ",
     "url": "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/"
   }
 ]

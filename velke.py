@@ -25,6 +25,7 @@ LIGY = [
     ('FL1', 'Ligue 1 (Francúzsko)', ('Liga majstrov', 3), 2),
     ('SA', 'Serie A (Taliansko)', ('Liga majstrov', 4), 3),
     ('PD', 'La Liga (Španielsko)', ('Liga majstrov', 4), 3),
+    ('PPL', 'Primeira Liga (Portugalsko)', ('Liga majstrov', 2), 2),
 ]
 MAX_AGE = 3 * 3600
 

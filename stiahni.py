@@ -384,6 +384,56 @@ def grounds(res, olds, fetch):
     p.write_text(json.dumps(ih, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
 
 
+def scrape_group(lg, prev):
+    """Skupina súťaže, ktorú Sportnet nedáva ako samostatnú stránku (napr. 3. liga Západ).
+    Zápasy sa zložia zo stránok tímov skupiny a tabuľka sa vypočíta z výsledkov."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    full_at = prev.get('full_at')
+    if full_at and now - datetime.datetime.fromisoformat(full_at) < FULL_EVERY and prev.get('teams'):
+        print('  skupina: ešte aktuálna')
+        return prev
+    pages = {}
+    for path in lg['teams']:
+        base = requests.compat.urljoin('https://sportnet.sme.sk/', path)
+        got = get_many([base + 'vysledky/', base + 'program/'])
+        pages[path] = [v for v in got.values() if v is not None]
+    own, all_ms = {}, {}
+    for path, docs in pages.items():
+        cnt = {}
+        for soup in docs:
+            for m in parse_matches(soup, None):
+                all_ms.setdefault(m['id'], m)
+                for n in (m['home'], m['away']):
+                    cnt[n] = cnt.get(n, 0) + 1
+        if cnt:
+            own[path] = max(cnt, key=cnt.get)   # vlastné meno tímu = najčastejšie meno na jeho stránke
+    names = set(own.values())
+    ms = {k: v for k, v in all_ms.items() if v['home'] in names and v['away'] in names}
+    for m in prev.get('matches', []):
+        if m['id'] in ms and ms[m['id']].get('round') is None and m.get('round') is not None:
+            ms[m['id']]['round'] = m['round']
+    tab = {n: {'name': n, 'z': 0, 'v': 0, 'r': 0, 'p': 0, 'gf': 0, 'ga': 0, 'b': 0} for n in names}
+    for m in ms.values():
+        if m.get('hs') is None:
+            continue
+        h, a = tab[m['home']], tab[m['away']]
+        for t, f, g in ((h, m['hs'], m['as']), (a, m['as'], m['hs'])):
+            t['z'] += 1; t['gf'] += f; t['ga'] += g
+            if f > g: t['v'] += 1; t['b'] += 3
+            elif f == g: t['r'] += 1; t['b'] += 1
+            else: t['p'] += 1
+    slug = {n: p.split('/k/')[1].split('/')[0] for p, n in own.items()}
+    href = {n: p for p, n in own.items()}
+    rows = sorted(tab.values(), key=lambda t: (-t['b'], -(t['gf'] - t['ga']), -t['gf'], t['name']))
+    teams = [{'pos': i + 1, 'name': t['name'], 'slug': slug.get(t['name'], ''), 'href': href.get(t['name'], ''),
+              'g': f"{t['gf']}:{t['ga']}", 'z': t['z'], 'v': t['v'], 'r': t['r'], 'p': t['p'], 'b': t['b']} for i, t in enumerate(rows)]
+    print(f'  skupina: {len(teams)} tímov, {len(ms)} zápasov')
+    ok = len(teams) >= len(lg['teams']) * 0.8
+    return {'id': lg['id'], 'name': lg['name'], 'home': False, 'url': lg.get('url', ''), 'computed': True,
+            'at': now.isoformat(timespec='seconds') if ok else prev.get('at'), 'full_at': now.isoformat(timespec='seconds') if ok else full_at,
+            'teams': teams if ok else prev.get('teams', teams), 'matches': list(ms.values()) if ok else prev.get('matches', []), 'stats': []}
+
+
 def main():
     leagues = json.loads((ROOT / 'ligy.json').read_text(encoding='utf-8'))
     old = {}
@@ -396,7 +446,7 @@ def main():
     for lg in leagues:
         print(lg['name'])
         try:
-            res.append(scrape(lg, old.get(lg['id'], {})))
+            res.append((scrape_group if lg.get('teams') else scrape)(lg, old.get(lg['id'], {})))
         except Exception as e:
             print(f'  CHYBA {e}')
             if lg['id'] in old:
