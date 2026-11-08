@@ -1470,6 +1470,7 @@ async function tipLoad(force){
       CHPIN&&JA?chatApi('/tip/mine?pin='+encodeURIComponent(CHPIN)+'&meno='+encodeURIComponent(JA)).catch(e=>{ if(e.status===403){ CHPIN=''; lsSet('chatPin',''); } return null; }):null
     ]);
     if(b) TIP.board=b.board||[]; if(m) TIP.mine=m.tips||{};
+    if(!b||(CHPIN&&JA&&!m)) setTimeout(()=>{ if(tab==='hry'&&hsub==='tip') tipLoad(); },15000); // server neodpovedal – skúsiť znova
   }finally{ TIP.loading=false; }
   if(tab==='hry'&&hsub==='tip') render();
 }
@@ -1746,6 +1747,19 @@ function besaScorers(){
   return [...names].filter(n=>!gk.has(n)).sort((a,b)=>((s.goly||{})[b]||0)-((s.goly||{})[a]||0)||a.localeCompare(b,'sk'));
 }
 
+/* --- poradia z servera: obnovia sa samy (po chybe o 15 s, inak po 2 min) --- */
+const BOARDS={};
+function board(key,sub){
+  const B=BOARDS[key], now=Date.now();
+  if(PROXY&&(!B||(!B.on&&now-B.at>(B.err?15000:120000)))){
+    BOARDS[key]=Object.assign(B||{d:null},{on:true});
+    fetch(PROXY+'/hra/board?hra='+key,{cache:'no-store'}).then(r=>{ if(!r.ok) throw 0; return r.json(); })
+      .then(d=>{ BOARDS[key]={d,at:Date.now(),err:false}; }).catch(()=>{ BOARDS[key]={d:(B&&B.d)||null,at:Date.now(),err:true}; setTimeout(()=>hr(sub),15500); })
+      .finally(()=>{ if(!hraBezi()) hr(sub); });
+  }
+  return (BOARDS[key]||{}).d;
+}
+const boardErr=key=>BOARDS[key]&&BOARDS[key].err&&!BOARDS[key].d?'<p class="note">Poradie sa nepodarilo načítať, skúsim znova o chvíľu.</p>':'';
 /* --- KVÍZ --- */
 const KV_LIGA=3, KV_VSEOB=5, KV_N=KV_LIGA+KV_VSEOB, KV_T=20;
 let OTAZKY=null; // banka všeobecných otázok (otazky.json)
@@ -1825,7 +1839,7 @@ function kvAnswer(i){
 async function kvFinish(){
   if(KV.ranked){ lsSet('kviz_'+KV.day,String(KV.score));
     if(PROXY&&CHPIN&&JA){ try{ KV.res=await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra:'kviz',k:KV.day,score:KV.score}); }catch(e){ toast(e.message); } }
-    KV.board=null; }
+    delete BOARDS.kviz; }
   hr('kviz');
 }
 async function kvBoard(){ if(!PROXY||KV.bl) return; KV.bl=true; try{ KV.board=await fetch(PROXY+'/hra/board?hra=kviz',{cache:'no-store'}).then(r=>r.json()); }catch(e){ KV.board={}; } KV.bl=false; hr('kviz'); }
@@ -1848,7 +1862,7 @@ function vKviz(){
   const done=lsGet('kviz_'+skToday());
   h+= done!=='' ? `<p>Dnešný kvíz máš za sebou (${esc(done)} b). Zajtra bude nový.</p><button class="btn" data-kvgo="0" style="width:100%">Cvičné kolo (nepočíta sa)</button>`
                : `<button class="btn pri" data-kvgo="1" style="width:100%">Spustiť dnešný kvíz</button>`;
-  if(PROXY){ if(!KV.board) kvBoard(); const B=KV.board||{};
+  if(PROXY){ KV.board=board('kviz','kviz'); const B=KV.board||{}; h+=boardErr('kviz');
     const dm=d=>{ const x=new Date(d+'T12:00:00'); return x.getDate()+'. '+(x.getMonth()+1)+'.'; };
     const top3=L=>'<div class="kvtop">'+L.map((p,i)=>`<div class="${p.meno===JA?'us':''}"><span>${['🥇','🥈','🥉'][i]}</span><b>${esc(p.meno)}</b><small class="mute">${p.score} b</small></div>`).join('')+'</div>';
     if(B.tyzdenOd){ const ne=new Date(B.tyzdenOd+'T12:00:00'); ne.setDate(ne.getDate()+6);
@@ -2004,7 +2018,7 @@ async function pkOver(){
   PK.st='over'; PK.saved=false; const pv=PK.mode==='pv';
   if(pv){ PK.rek=PK.goals>PK.bestPv; if(PK.rek){ PK.bestPv=PK.goals; lsSet('pvBest',String(PK.goals)); } }
   else { PK.rek=PK.goals>PK.best; if(PK.rek){ PK.best=PK.goals; lsSet('pkBest',String(PK.best)); } }
-  if(PROXY&&CHPIN&&JA&&PK.goals>0){ try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra:PK.mode,score:PK.goals}); PK.saved=true; PK.board=null; }catch(e){} }
+  if(PROXY&&CHPIN&&JA&&PK.goals>0){ try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra:PK.mode,score:PK.goals}); PK.saved=true; delete BOARDS[PK.mode]; }catch(e){} }
   hr('pk');
 }
 async function pkBoard(){ if(!PROXY||PK.bl) return; PK.bl=true; const m=PK.mode; try{ PK.board=await fetch(PROXY+'/hra/board?hra='+m,{cache:'no-store'}).then(r=>r.json()); }catch(e){ PK.board={}; } PK.boardM=m; PK.bl=false; hr('pk'); }
@@ -2216,7 +2230,7 @@ function vPK(){
   h+='<div class="pkw"><canvas id="pkc" aria-label="Pokutové kopy, hra"></canvas></div>';
   if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
   else if(PK.st==='over'&&PK.saved) h+='<p class="note">Séria zapísaná do poradia.</p>';
-  if(PROXY){ if(!PK.board||PK.boardM!==PK.mode) pkBoard(); const B=PK.boardM===PK.mode?(PK.board||{}).best||[]:[];
+  if(PROXY){ const B=(board(PK.mode,'pk')||{}).best||[]; h+=boardErr(PK.mode);
     h+=`<h2>${pv?'Najviac gólov z '+PV_N:'Najdlhšie série'}</h2>`+(B.length?boardTable(B.map(x=>[x.meno,x.score]),'Góly'):'<p class="note">Zatiaľ nikto. Buď prvý.</p>'); }
   return h;
 }
@@ -2468,11 +2482,11 @@ function koClick(d){
 /* --- spoločné poradie pre arkádové hry (beh, bloky) --- */
 const ARK={};
 async function arkBoard(hra){ if(!PROXY||(ARK[hra]&&ARK[hra].on)) return; ARK[hra]={on:true}; let d={}; try{ d=await fetch(PROXY+'/hra/board?hra='+hra,{cache:'no-store'}).then(r=>r.json()); }catch(e){} ARK[hra]={d}; hr(hra); }
-async function arkSave(hra,score){ if(!(PROXY&&CHPIN&&JA&&score>0)) return false; try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra,score}); ARK[hra]=null; return true; }catch(e){ return false; } }
+async function arkSave(hra,score){ if(!(PROXY&&CHPIN&&JA&&score>0)) return false; try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra,score}); delete BOARDS[hra]; return true; }catch(e){ return false; } }
 function arkHtml(hra,title,col){
   let h='';
   if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
-  if(PROXY){ if(!ARK[hra]) arkBoard(hra); const B=((ARK[hra]||{}).d||{}).best||[];
+  if(PROXY){ const B=(board(hra,hra)||{}).best||[]; h+=boardErr(hra);
     h+=`<h2>${title}</h2>`+(B.length?boardTable(B.map(x=>[x.meno,x.score]),col):'<p class="note">Zatiaľ nikto. Buď prvý.</p>'); }
   return h;
 }
