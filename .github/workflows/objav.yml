@@ -7,10 +7,10 @@ jobs:
   objav:
     runs-on: ubuntu-latest
     steps:
-      - name: Skupiny 3. ligy
+      - name: Skupiny 3. ligy cez parameter
         run: |
-          curl -sL -A "Mozilla/5.0" "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/tabulky/" > t.html
-          wc -c t.html
-          grep -oE 'part[^"&<> ]{0,80}' t.html | sort | uniq -c | sort -rn | head -30
-          grep -oE '.{60}(Z[aá]pad|Stred|V[yý]chod).{60}' t.html | head -20
-          grep -oE 'href="[^"]*iii-liga[^"]*"' t.html | sort -u | head -30
+          for p in 6a173c66c9a61a70ee926736 6a173c81c9a61a70ee926737; do
+            for u in "tabulky/?partId=$p" "vysledky/?partId=$p" "program/?partId=$p"; do
+              echo "== $u"; curl -sL -A "Mozilla/5.0" "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/$u" | grep -oE '/futbalnet/k/[a-z0-9-]+/tim/' | sort -u | head -5
+            done
+          done
