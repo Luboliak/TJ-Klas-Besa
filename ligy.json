@@ -34,5 +34,20 @@
     "id": "zsfz-4",
     "name": "IV. liga ZsFZ",
     "url": "https://sportnet.sme.sk/futbalnet/z/zsfz/s/majstrovstva-regionu-iv-liga-macron-yoursport-zsfz/"
+  },
+  {
+    "id": "sk-1",
+    "name": "Niké liga (1. liga)",
+    "url": "https://sportnet.sme.sk/futbalnet/z/ulk/s/nike-liga/"
+  },
+  {
+    "id": "sk-2",
+    "name": "MONACObet liga (2. liga)",
+    "url": "https://sportnet.sme.sk/futbalnet/z/sfz/s/monacobet-liga/"
+  },
+  {
+    "id": "sk-3",
+    "name": "3. liga",
+    "url": "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/"
   }
 ]
