@@ -328,8 +328,9 @@ export class ChatRoom {
         this.ctx.storage.sql.exec('INSERT INTO hry (meno, hra, k, score, t) VALUES (?, ?, ?, ?, ?)', meno, hra, k, score, Date.now());
         return json({ ok: true, prvy: true, score });
       }
-      if (hra === 'pk' || hra === 'pv') {
-        if (score > (hra === 'pv' ? 10 : 300)) return json({ error: 'Zlé skóre' }, 400);
+      const ARK_MAX = { pk: 300, pv: 10, beh: 200000, bloky: 1000000 };
+      if (ARK_MAX[hra] != null) {
+        if (score > ARK_MAX[hra]) return json({ error: 'Zlé skóre' }, 400);
         this.ctx.storage.sql.exec(`INSERT INTO hry (meno, hra, k, score, t) VALUES (?, ?, 'best', ?, ?)
           ON CONFLICT (meno, hra, k) DO UPDATE SET score = excluded.score, t = excluded.t WHERE excluded.score > hry.score`, meno, hra, score, Date.now());
         const best = this.rows(`SELECT score FROM hry WHERE meno=? AND hra=? AND k='best'`, meno, hra)[0].score;
@@ -475,7 +476,7 @@ export class ChatRoom {
         spolu: sum(() => true).slice(0, 3),
       };
     }
-    if (hra === 'pk' || hra === 'pv') return { best: this.rows(`SELECT meno, score, t FROM hry WHERE hra=? AND k='best' ORDER BY score DESC, t LIMIT 50`, hra) };
+    if (['pk', 'pv', 'beh', 'bloky'].includes(hra)) return { best: this.rows(`SELECT meno, score, t FROM hry WHERE hra=? AND k='best' ORDER BY score DESC, t LIMIT 50`, hra) };
     return {};
   }
 

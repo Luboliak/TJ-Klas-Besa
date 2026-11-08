@@ -298,7 +298,7 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
 .kovz button.on{background:var(--inv);color:var(--inv-ink);border-color:var(--inv)}
 .kovz button.on small{color:inherit;opacity:.7}
 .kohint{background:none;border:0;color:var(--mute);font-size:14px;padding:6px 0;margin-bottom:6px}
-#koc{border-radius:10px;touch-action:none;display:block}
+#koc,#runc,#blc{border-radius:10px;touch-action:none;display:block;user-select:none;-webkit-user-select:none}
 .tips{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute);margin:-2px 0 4px 14px}
 .tips select{flex:1;min-width:0;background:var(--bg);color:inherit;border:1px solid var(--line);border-radius:6px;padding:6px}
 .kvh{display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px}
@@ -751,7 +751,7 @@ async function pollLive(){
   if(!hraBezi()) render();
 }
 // počas rozohranej hry neprekresľujeme stránku na pozadí (stratil by sa dotyk)
-function hraBezi(){ return tab==='hry'&&((hsub==='kos'&&KO.st==='play')||(hsub==='pk'&&PK.st!=='aim'&&PK.st!=='over')||(hsub==='kviz'&&KV.st==='q')); }
+function hraBezi(){ return tab==='hry'&&((hsub==='kos'&&KO.st==='play')||(hsub==='pk'&&PK.st!=='aim'&&PK.st!=='over')||(hsub==='kviz'&&KV.st==='q')||(hsub==='beh'&&RUN.st==='play')||(hsub==='bloky'&&BL.st==='play')); }
 
 function vMatches(){
   const l=L(), isHome=!!l.home, mode=isHome?zapMode:'liga';
@@ -2465,11 +2465,220 @@ function koClick(d){
   return false;
 }
 
+/* --- spoločné poradie pre arkádové hry (beh, bloky) --- */
+const ARK={};
+async function arkBoard(hra){ if(!PROXY||(ARK[hra]&&ARK[hra].on)) return; ARK[hra]={on:true}; let d={}; try{ d=await fetch(PROXY+'/hra/board?hra='+hra,{cache:'no-store'}).then(r=>r.json()); }catch(e){} ARK[hra]={d}; hr(hra); }
+async function arkSave(hra,score){ if(!(PROXY&&CHPIN&&JA&&score>0)) return false; try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra,score}); ARK[hra]=null; return true; }catch(e){ return false; } }
+function arkHtml(hra,title,col){
+  let h='';
+  if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
+  if(PROXY){ if(!ARK[hra]) arkBoard(hra); const B=((ARK[hra]||{}).d||{}).best||[];
+    h+=`<h2>${title}</h2>`+(B.length?boardTable(B.map(x=>[x.meno,x.score]),col):'<p class="note">Zatiaľ nikto. Buď prvý.</p>'); }
+  return h;
+}
+function arkCanvas(id,ratio){
+  const cv=$('#'+id); if(!cv) return null;
+  const W=Math.min(cv.parentElement.clientWidth,480), H=Math.round(W*ratio), d=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*d)){ cv.width=Math.round(W*d); cv.height=Math.round(H*d); }
+  cv.style.width=W+'px'; cv.style.height=H+'px';
+  return cv;
+}
+
+/* --- BEH S LOPTOU (ako dino v prehliadači) --- */
+let RUN={st:'ready', t:0, last:0, y:0, vy:0, hold:false, holdT:0, spd:0, dist:0, obs:[], bon:[], next:0, phase:0, best:+lsGet('behBest')||0, bonus:0, raf:0, saved:false, sky:[]};
+const RUN_TYPES=[
+  {k:'kuzel', w:.035, h:.09, y:0, p:3},
+  {k:'kuzele', w:.085, h:.09, y:0, p:2},
+  {k:'prekazka', w:.04, h:.15, y:0, p:2},
+  {k:'obranca', w:.15, h:.1, y:0, p:2},
+  {k:'lopta', w:.045, h:.075, y:.2, p:1.3, min:250},   // lopta v strednej výške – treba preskočiť
+  {k:'vysoka', w:.045, h:.075, y:.36, p:1.3, min:500}, // vysoká lopta – neskákať
+];
+function runReset(){ Object.assign(RUN,{st:'play', t:0, y:0, vy:0, hold:false, spd:.42, dist:0, obs:[], bon:[], next:1.1, phase:0, bonus:0, saved:false}); }
+function runTap(down){
+  if(RUN.st!=='play'){ if(down){ runReset(); RUN.last=0; } return; }
+  if(down){ RUN.hold=true; if(RUN.y<=0.001){ RUN.vy=1.55; RUN.holdT=0; } }
+  else RUN.hold=false;
+}
+function runStep(dt){
+  RUN.t+=dt; RUN.spd=Math.min(1.15,.42+RUN.t*.0085); RUN.dist+=RUN.spd*dt*30; RUN.phase+=dt*RUN.spd*16;
+  // skok: dlhším podržaním vyššie
+  const g=RUN.hold&&RUN.vy>0&&RUN.holdT<.22?2.6:5.2; RUN.holdT+=dt;
+  RUN.vy-=g*dt; RUN.y=Math.max(0,RUN.y+RUN.vy*dt); if(RUN.y===0&&RUN.vy<0) RUN.vy=0;
+  RUN.next-=dt*RUN.spd;
+  if(RUN.next<=0){
+    const m=RUN.dist, pool=RUN_TYPES.filter(o=>!o.min||m>=o.min), s=pool.reduce((a,o)=>a+o.p,0); let r=Math.random()*s, o=pool[0];
+    for(const x of pool){ r-=x.p; if(r<=0){ o=x; break; } }
+    RUN.obs.push({...o, x:1.08});
+    if(Math.random()<.35) RUN.bon.push({x:1.08+o.w+.12, y:.18+Math.random()*.22});
+    RUN.next=.55+Math.random()*.6+Math.max(0,.25-RUN.t*.004);
+  }
+  RUN.obs.forEach(o=>o.x-=RUN.spd*dt); RUN.bon.forEach(b=>b.x-=RUN.spd*dt);
+  RUN.obs=RUN.obs.filter(o=>o.x>-.3); RUN.bon=RUN.bon.filter(b=>b.x>-.1&&!b.got);
+  // zrážky (v jednotkách šírky ihriska, výška od zeme v jednotkách výšky)
+  const px=.17, pw=.055, ph=.27, py=RUN.y;
+  for(const o of RUN.obs){ const ox0=o.x+o.w*.12, ox1=o.x+o.w*.88, oy0=o.y, oy1=o.y+o.h*.85;
+    if(px+pw>ox0&&px<ox1&&py<oy1&&py+ph>oy0){ runOver(); return; } }
+  for(const b of RUN.bon){ if(Math.abs(b.x-(px+pw/2))<.05&&Math.abs(b.y-(py+ph*.6))<.12){ b.got=true; RUN.bonus+=25; if(navigator.vibrate) try{ navigator.vibrate(20); }catch(e){} } }
+}
+async function runOver(){
+  RUN.st='over'; const sc=Math.floor(RUN.dist)+RUN.bonus;
+  RUN.score=sc; RUN.rek=sc>RUN.best; if(RUN.rek){ RUN.best=sc; lsSet('behBest',String(sc)); }
+  if(navigator.vibrate) try{ navigator.vibrate(120); }catch(e){}
+  RUN.saved=await arkSave('beh',sc); hr('beh');
+}
+function runDrawPlayer(c,x,ground,h,phase,air){
+  const w=h*.32, sw=air?0:Math.sin(phase), leg=h*.42;
+  c.save(); c.translate(x,ground);
+  // nohy
+  [[1,'#111'],[-1,'#111']].forEach(([s])=>{ c.save(); c.translate(0,-leg); c.rotate(air?(s>0?-.7:.5):sw*.75*s);
+    c.fillStyle='#e9c09a'; c.fillRect(-w*.12,0,w*.24,leg*.45); c.fillStyle='#fff'; c.fillRect(-w*.13,leg*.45,w*.26,leg*.1); c.fillStyle='#111'; c.fillRect(-w*.13,leg*.55,w*.26,leg*.35);
+    c.fillRect(-w*.13,leg*.9,w*.42,leg*.1); c.restore(); });
+  c.fillStyle='#111'; rr(c,-w*.4,-leg-h*.12,w*.8,h*.15,4); c.fill(); // trenírky
+  // dres s pásmi
+  c.save(); rr(c,-w*.45,-h*.88,w*.9,h*.36,w*.2); c.clip(); c.fillStyle='#fff'; c.fillRect(-w,-h,w*2,h); c.fillStyle='#111'; for(let i=-3;i<=3;i+=2) c.fillRect(i*w*.13-w*.065,-h,w*.13,h); c.restore();
+  // ruka
+  c.save(); c.translate(0,-h*.82); c.rotate(air?-1.2:-sw*.6); c.fillStyle='#e9c09a'; rr(c,-w*.1,0,w*.2,h*.3,w*.1); c.fill(); c.restore();
+  // hlava
+  c.fillStyle='#e9c09a'; c.beginPath(); c.arc(w*.05,-h*.95,w*.32,0,7); c.fill();
+  c.fillStyle='#2a1c12'; c.beginPath(); c.arc(w*.0,-h*1.0,w*.33,Math.PI*1.05,Math.PI*1.95); c.fill(); c.fillRect(-w*.33,-h*1.0,w*.16,w*.25);
+  c.fillStyle='#222'; c.beginPath(); c.arc(w*.22,-h*.96,w*.05,0,7); c.fill();
+  c.restore();
+}
+function runDrawBall(c,x,y,r,rot){ c.save(); c.translate(x,y); c.rotate(rot); c.fillStyle='#fff'; c.beginPath(); c.arc(0,0,r,0,7); c.fill(); c.fillStyle='#111';
+  for(let i=0;i<5;i++){ const a=i*1.2566; c.beginPath(); c.arc(Math.cos(a)*r*.6,Math.sin(a)*r*.6,r*.24,0,7); c.fill(); } c.beginPath(); c.arc(0,0,r*.26,0,7); c.fill(); c.restore(); }
+function runDraw(cv,ts){
+  const d=window.devicePixelRatio||1, W=cv.width/d, H=cv.height/d, c=cv.getContext('2d'), G=H*.82, U=H; c.setTransform(d,0,0,d,0,0);
+  let gr=c.createLinearGradient(0,0,0,G); gr.addColorStop(0,'#0e1726'); gr.addColorStop(1,'#1f3247'); c.fillStyle=gr; c.fillRect(0,0,W,G);
+  // tribúna v pozadí
+  const off=(RUN.dist*2)%W;
+  c.fillStyle='#16212f'; for(let i=-1;i<4;i++){ const x=i*W*.4-off*.3%(W*.4); c.fillRect(x,G*.45,W*.36,G*.55); }
+  c.fillStyle='rgba(255,255,255,.07)'; for(let i=0;i<40;i++){ const x=((i*61)-off*.3)%W; c.fillRect((x+W)%W,G*.5+(i%5)*G*.09,3,3); }
+  c.fillStyle='#f2f2f2'; for(let i=0;i<3;i++){ const x=(W*.2+i*W*.45-off*.8)%(W*1.35); c.fillRect(x>0?x:x+W*1.35,G*.16,3,G*.84); c.beginPath(); c.arc(x>0?x:x+W*1.35,G*.16,7,0,7); c.fill(); } // stĺpy osvetlenia
+  c.fillStyle='#2f7d32'; c.fillRect(0,G,W,H-G); c.fillStyle='#2a722d'; for(let i=-1;i<10;i++){ const x=i*W*.2-(RUN.dist*6)%(W*.4); if(i%2) c.fillRect(x,G,W*.2,H-G); }
+  c.fillStyle='rgba(255,255,255,.8)'; c.fillRect(0,G,W,2);
+  // prekážky
+  RUN.obs.forEach(o=>{ const x=o.x*W, w=o.w*W, h=o.h*U*.83, y=G-o.y*U*.83;
+    if(o.k==='kuzel'||o.k==='kuzele'){ const n=o.k==='kuzele'?2:1; for(let i=0;i<n;i++){ const cx=x+(i+.5)*w/n, bw=w/n*.9;
+      c.fillStyle='#ff7a00'; c.beginPath(); c.moveTo(cx-bw/2,y); c.lineTo(cx,y-h); c.lineTo(cx+bw/2,y); c.closePath(); c.fill(); c.fillStyle='#fff'; c.fillRect(cx-bw*.26,y-h*.55,bw*.52,h*.12); } }
+    else if(o.k==='prekazka'){ c.fillStyle='#e8e8e8'; c.fillRect(x,y-h,3,h); c.fillRect(x+w-3,y-h,3,h); c.fillStyle='#ffd400'; c.fillRect(x,y-h,w,h*.18); }
+    else if(o.k==='obranca'){ // súper v sklze
+      c.save(); c.translate(x,y); c.fillStyle='#c81d25'; rr(c,w*.25,-h*.75,w*.45,h*.5,6); c.fill(); c.fillStyle='#fff'; c.fillRect(w*.55,-h*.45,w*.2,h*.25);
+      c.fillStyle='#e9c09a'; c.beginPath(); c.arc(w*.15,-h*.6,h*.22,0,7); c.fill(); c.fillStyle='#111'; c.fillRect(w*.7,-h*.32,w*.3,h*.18); c.fillRect(w*.72,-h*.18,w*.28,h*.18);
+      c.fillStyle='rgba(255,255,255,.35)'; c.fillRect(0,-3,w,3); c.restore(); }
+    else runDrawBall(c,x+w/2,y-h/2,h/2,ts/90);
+  });
+  RUN.bon.forEach(b=>{ const x=b.x*W, y=G-b.y*U*.83; c.fillStyle='#ffd400'; c.beginPath(); for(let i=0;i<10;i++){ const a=i*Math.PI/5-Math.PI/2, r=i%2?6:13; c.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r); } c.closePath(); c.fill(); });
+  // hráč a lopta pri nohe
+  const ph=RUN.y*U*.83, px=W*.17+W*.0275, air=RUN.y>0.01;
+  runDrawPlayer(c,px,G-ph,U*.27*.83,RUN.phase,air);
+  const bb=air?0:Math.abs(Math.sin(RUN.phase*.5))*U*.05;
+  runDrawBall(c,px+W*.055,G-ph-U*.035-bb,U*.035,RUN.dist*.5);
+  // skóre
+  c.fillStyle='#fff'; c.textAlign='right'; c.font=`700 ${Math.round(W*.045)}px Roboto,sans-serif`;
+  c.fillText(String(Math.floor(RUN.dist)+RUN.bonus).padStart(5,'0'),W-12,H*.09);
+  c.font=`${Math.round(W*.032)}px Roboto,sans-serif`; c.fillStyle='#bbb'; c.fillText('rekord '+RUN.best,W-12,H*.15);
+  if(RUN.st!=='play'){ c.fillStyle='rgba(0,0,0,.55)'; c.fillRect(0,0,W,H); c.textAlign='center'; c.fillStyle='#fff';
+    c.font=`800 ${Math.round(W*.07)}px Roboto,sans-serif`; c.fillText(RUN.st==='over'?'Faul! Koniec behu':'Beh s loptou',W/2,H*.38);
+    c.font=`${Math.round(W*.04)}px Roboto,sans-serif`; c.fillText(RUN.st==='over'?`${RUN.score} bodov${RUN.rek?' · nový rekord!':''}`:'Ťukni a preskakuj prekážky',W/2,H*.5);
+    c.fillStyle='#ccc'; c.fillText(RUN.st==='over'?'Ťukni a bež znova':'Podrž dlhšie = vyšší skok',W/2,H*.6); }
+}
+function runLoop(ts){ RUN.raf=0; const cv=$('#runc'); if(!cv||tab!=='hry'||hsub!=='beh') return;
+  const dt=Math.min(.04,RUN.last?(ts-RUN.last)/1000:0); RUN.last=ts; if(RUN.st==='play') runStep(dt); runDraw(cv,ts); RUN.raf=requestAnimationFrame(runLoop); }
+function runAttach(){ const cv=arkCanvas('runc',.62); if(!cv) return;
+  cv.onpointerdown=e=>{ e.preventDefault(); runTap(true); }; cv.onpointerup=cv.onpointercancel=()=>runTap(false);
+  if(!RUN.raf){ RUN.last=0; RUN.raf=requestAnimationFrame(runLoop); } }
+function vBeh(){
+  return `<p class="note" style="margin-top:0">Bež s loptou a preskakuj kužele, prekážky aj súperov v sklze. Pozor na vysoké lopty, pod tými treba prebehnúť bez skoku. Hviezdičky dávajú +25 bodov. Ťuknutie je skok, dlhšie podržanie vyšší skok.</p>
+    <div class="pkw"><canvas id="runc" aria-label="Beh s loptou, hra"></canvas></div>`+arkHtml('beh','Najlepší bežci','Body');
+}
+
+/* --- BLOKY (9 × 9 ako Blockdoku) --- */
+const BL_SHAPES=[
+  [[0,0]],[[0,0],[1,0]],[[0,0],[0,1]],[[0,0],[1,0],[2,0]],[[0,0],[0,1],[0,2]],[[0,0],[1,0],[2,0],[3,0]],[[0,0],[0,1],[0,2],[0,3]],
+  [[0,0],[1,0],[2,0],[3,0],[4,0]],[[0,0],[0,1],[0,2],[0,3],[0,4]],[[0,0],[1,0],[0,1],[1,1]],
+  [[0,0],[0,1],[1,1]],[[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1]],[[0,0],[1,0],[1,1]],
+  [[0,0],[0,1],[0,2],[1,2]],[[1,0],[1,1],[1,2],[0,2]],[[0,0],[1,0],[2,0],[0,1]],[[0,0],[1,0],[2,0],[2,1]],
+  [[0,0],[1,0],[2,0],[1,1]],[[1,0],[0,1],[1,1],[2,1]],[[0,0],[0,1],[0,2],[1,1]],
+  [[0,0],[1,0],[1,1],[2,1]],[[1,0],[2,0],[0,1],[1,1]],[[0,0],[0,1],[1,1],[1,2]],
+  [[0,0],[1,1]],[[1,0],[0,1]],[[0,0],[1,1],[2,2]],[[0,0],[1,0],[2,0],[1,1],[1,2]],[[0,0],[0,1],[0,2],[1,2],[2,2]],
+  [[0,0],[1,0],[2,0],[0,1],[0,2]],[[1,0],[0,1],[1,1],[2,1],[1,2]],
+];
+let BL={b:null, tray:[], score:0, best:+lsGet('blokyBest')||0, st:'ready', drag:null, combo:0, flash:[], raf:0, saved:false, msg:'', msgT:0};
+function blReset(){ BL.b=Array(81).fill(0); BL.score=0; BL.combo=0; BL.st='play'; BL.saved=false; BL.flash=[]; blTray(); }
+function blTray(){ BL.tray=[0,1,2].map(()=>BL_SHAPES[Math.floor(Math.random()*BL_SHAPES.length)]); }
+function blFits(s,cx,cy){ return s.every(([x,y])=>{ const X=cx+x, Y=cy+y; return X>=0&&Y>=0&&X<9&&Y<9&&!BL.b[Y*9+X]; }); }
+function blAnyFit(){ return BL.tray.some(s=>s&&Array.from({length:81},(_,i)=>i).some(i=>blFits(s,i%9,Math.floor(i/9)))); }
+function blPlace(s,cx,cy){
+  s.forEach(([x,y])=>BL.b[(cy+y)*9+cx+x]=1); BL.score+=s.length;
+  const clr=new Set(); let units=0;
+  for(let r=0;r<9;r++){ const row=[...Array(9)].map((_,i)=>r*9+i); if(row.every(i=>BL.b[i])){ row.forEach(i=>clr.add(i)); units++; } }
+  for(let k=0;k<9;k++){ const col=[...Array(9)].map((_,i)=>i*9+k); if(col.every(i=>BL.b[i])){ col.forEach(i=>clr.add(i)); units++; } }
+  for(let q=0;q<9;q++){ const bx=(q%3)*3, by=Math.floor(q/3)*3, box=[]; for(let y=0;y<3;y++) for(let x=0;x<3;x++) box.push((by+y)*9+bx+x); if(box.every(i=>BL.b[i])){ box.forEach(i=>clr.add(i)); units++; } }
+  if(units){ BL.combo++; const pts=units*18*(units>1?units:1)+(BL.combo>1?(BL.combo-1)*10:0); BL.score+=pts;
+    BL.msg=units>1?`Kombo ×${units}! +${pts}`:(BL.combo>1?`Séria ${BL.combo}! +${pts}`:`+${pts}`); BL.msgT=performance.now();
+    BL.flash=[...clr].map(i=>({i,t:performance.now()})); clr.forEach(i=>BL.b[i]=0); if(navigator.vibrate) try{ navigator.vibrate(30); }catch(e){} }
+  else BL.combo=0;
+}
+function blGeo(W,H){ const c=Math.floor((W-24)/9), bx=(W-c*9)/2, by=12, ty=by+c*9+18, tc=Math.floor(c*.55); return {c,bx,by,ty,tc,tw:W/3}; }
+function blTrayPos(G,i,s){ const w=Math.max(...s.map(p=>p[0]))+1, h=Math.max(...s.map(p=>p[1]))+1; return {x:G.tw*i+G.tw/2-w*G.tc/2, y:G.ty+(G.tc*5-h*G.tc)/2, w, h}; }
+function blPointer(e,kind){
+  const cv=e.currentTarget, r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, G=blGeo(r.width,r.height);
+  if(kind==='down'){
+    e.preventDefault();
+    if(BL.st!=='play'){ blReset(); return; }
+    const i=Math.floor(x/G.tw); if(y<G.ty-10||!BL.tray[i]) return;
+    try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+    BL.drag={i, s:BL.tray[i], x, y};
+  } else if(kind==='move'&&BL.drag){ BL.drag.x=x; BL.drag.y=y; }
+  else if(kind==='up'&&BL.drag){ const D=BL.drag, t=blTarget(G,D); BL.drag=null;
+    if(t&&blFits(D.s,t[0],t[1])){ blPlace(D.s,t[0],t[1]); BL.tray[D.i]=null; if(BL.tray.every(s=>!s)) blTray();
+      if(!blAnyFit()) blOver(); } }
+}
+function blTarget(G,D){ // tvar sa ťahá nad prstom, aby ho prst nezakrýval
+  const w=Math.max(...D.s.map(p=>p[0]))+1, h=Math.max(...D.s.map(p=>p[1]))+1;
+  const gx=D.x-w*G.c/2, gy=D.y-h*G.c-G.c*1.2;
+  return [Math.round((gx-G.bx)/G.c), Math.round((gy-G.by)/G.c)];
+}
+async function blOver(){ BL.st='over'; BL.rek=BL.score>BL.best; if(BL.rek){ BL.best=BL.score; lsSet('blokyBest',String(BL.score)); } BL.saved=await arkSave('bloky',BL.score); hr('bloky'); }
+function blDraw(cv,ts){
+  const d=window.devicePixelRatio||1, W=cv.width/d, H=cv.height/d, c=cv.getContext('2d'), G=blGeo(W,H); c.setTransform(d,0,0,d,0,0);
+  const css=getComputedStyle(document.documentElement), ink=css.getPropertyValue('--ink').trim()||'#eee', line=css.getPropertyValue('--line').trim()||'#333', panel=css.getPropertyValue('--panel').trim()||'#1b1e22';
+  c.clearRect(0,0,W,H);
+  for(let q=0;q<9;q++){ const bx=(q%3)*3, by=Math.floor(q/3)*3; c.fillStyle=(bx/3+by/3)%2?panel:'rgba(127,127,127,.12)'; c.fillRect(G.bx+bx*G.c,G.by+by*G.c,G.c*3,G.c*3); }
+  c.strokeStyle=line; c.lineWidth=1; for(let i=0;i<=9;i++){ c.beginPath(); c.moveTo(G.bx+i*G.c,G.by); c.lineTo(G.bx+i*G.c,G.by+9*G.c); c.stroke(); c.beginPath(); c.moveTo(G.bx,G.by+i*G.c); c.lineTo(G.bx+9*G.c,G.by+i*G.c); c.stroke(); }
+  c.strokeStyle=ink; c.lineWidth=2; for(let i=0;i<=3;i++){ c.beginPath(); c.moveTo(G.bx+i*3*G.c,G.by); c.lineTo(G.bx+i*3*G.c,G.by+9*G.c); c.stroke(); c.beginPath(); c.moveTo(G.bx,G.by+i*3*G.c); c.lineTo(G.bx+9*G.c,G.by+i*3*G.c); c.stroke(); }
+  const cell=(x,y,s,col)=>{ c.fillStyle=col; rr(c,x+1.5,y+1.5,s-3,s-3,Math.max(2,s*.14)); c.fill(); };
+  if(BL.b) BL.b.forEach((v,i)=>{ if(v) cell(G.bx+(i%9)*G.c,G.by+Math.floor(i/9)*G.c,G.c,ink); });
+  BL.flash=BL.flash.filter(f=>ts-f.t<350); BL.flash.forEach(f=>{ c.globalAlpha=1-(ts-f.t)/350; cell(G.bx+(f.i%9)*G.c,G.by+Math.floor(f.i/9)*G.c,G.c,'#ffd400'); c.globalAlpha=1; });
+  // náhľad umiestnenia
+  if(BL.drag){ const t=blTarget(G,BL.drag); if(t&&blFits(BL.drag.s,t[0],t[1])){ c.globalAlpha=.3; BL.drag.s.forEach(([x,y])=>cell(G.bx+(t[0]+x)*G.c,G.by+(t[1]+y)*G.c,G.c,ink)); c.globalAlpha=1; } }
+  BL.tray.forEach((s,i)=>{ if(!s||(BL.drag&&BL.drag.i===i)) return; const P=blTrayPos(G,i,s); s.forEach(([x,y])=>cell(P.x+x*G.tc,P.y+y*G.tc,G.tc,ink)); });
+  if(BL.drag){ const D=BL.drag, w=Math.max(...D.s.map(p=>p[0]))+1, h=Math.max(...D.s.map(p=>p[1]))+1, gx=D.x-w*G.c/2, gy=D.y-h*G.c-G.c*1.2;
+    D.s.forEach(([x,y])=>cell(gx+x*G.c,gy+y*G.c,G.c,'#ffd400')); }
+  c.fillStyle=ink; c.textAlign='left'; c.font=`700 ${Math.round(W*.05)}px Roboto,sans-serif`; c.fillText(String(BL.score),G.bx,H-10);
+  c.textAlign='right'; c.font=`${Math.round(W*.034)}px Roboto,sans-serif`; c.fillText('rekord '+BL.best,W-G.bx,H-12);
+  if(BL.msg&&ts-BL.msgT<1200){ c.globalAlpha=1-(ts-BL.msgT)/1200; c.textAlign='center'; c.font=`800 ${Math.round(W*.07)}px Roboto,sans-serif`; c.fillStyle='#ffd400'; c.fillText(BL.msg,W/2,G.by+G.c*4.7); c.globalAlpha=1; }
+  if(BL.st!=='play'){ c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(0,0,W,H); c.textAlign='center'; c.fillStyle='#fff';
+    c.font=`800 ${Math.round(W*.08)}px Roboto,sans-serif`; c.fillText(BL.st==='over'?'Koniec hry':'Bloky',W/2,H*.38);
+    c.font=`${Math.round(W*.042)}px Roboto,sans-serif`; c.fillText(BL.st==='over'?`${BL.score} bodov${BL.rek?' · nový rekord!':''}`:'Skladaj tvary do mriežky 9 × 9',W/2,H*.47);
+    c.fillStyle='#ccc'; c.fillText(BL.st==='over'?'Ťukni a hraj znova':'Ťukni a začni',W/2,H*.55); }
+}
+function blLoop(ts){ BL.raf=0; const cv=$('#blc'); if(!cv||tab!=='hry'||hsub!=='bloky') return; blDraw(cv,ts); BL.raf=requestAnimationFrame(blLoop); }
+function blAttach(){ const cv=$('#blc'); if(!cv) return; const W=Math.min(cv.parentElement.clientWidth,480), G=blGeo(W,0), H=Math.round(G.ty+G.tc*5+44), d=window.devicePixelRatio||1;
+  cv.width=Math.round(W*d); cv.height=Math.round(H*d); cv.style.width=W+'px'; cv.style.height=H+'px';
+  cv.onpointerdown=e=>blPointer(e,'down'); cv.onpointermove=e=>blPointer(e,'move'); cv.onpointerup=cv.onpointercancel=e=>blPointer(e,'up');
+  if(!BL.raf) BL.raf=requestAnimationFrame(blLoop); }
+function vBloky(){
+  return `<p class="note" style="margin-top:0">Ťahaj tvary do mriežky. Plný riadok, stĺpec alebo štvorec 3 × 3 zmizne a dá body. Viac naraz = kombo, za sebou = séria. Hra končí, keď sa už žiadny tvar nezmestí.</p>
+    <div class="pkw"><canvas id="blc" aria-label="Bloky, hra"></canvas></div>`+arkHtml('bloky','Najlepší v blokoch','Body');
+}
+
 function vHry(){
-  const segs=[['tip','Tipovačka'],['fan','Fantasy'],['kviz','Kvíz'],['pk','Penalty'],['sez','Sezóna'],['zap','Simulátor'],['kos','Kosenie']];
+  const segs=[['tip','Tipovačka'],['fan','Fantasy'],['kviz','Kvíz'],['pk','Penalty'],['sez','Sezóna'],['zap','Simulátor'],['kos','Kosenie'],['beh','Beh'],['bloky','Bloky']];
   if(!segs.some(x=>x[0]===hsub)) hsub='tip';
   let h=`<div class="seg hseg">${segs.map(([k,n])=>`<button data-hs="${k}" class="${hsub===k?'on':''}">${n}</button>`).join('')}</div>`;
-  return h+(hsub==='tip'?vTip():hsub==='fan'?vFan():hsub==='kviz'?vKviz():hsub==='pk'?vPK():hsub==='sez'?vSezona():hsub==='kos'?vKos():vZapas());
+  return h+(hsub==='tip'?vTip():hsub==='fan'?vFan():hsub==='kviz'?vKviz():hsub==='pk'?vPK():hsub==='sez'?vSezona():hsub==='kos'?vKos():hsub==='beh'?vBeh():hsub==='bloky'?vBloky():vZapas());
 }
 function hryAfterRender(v){
   const s=$('#hryL'); if(s) s.onchange=()=>{ HRY_L=s.value; SIM.run=null; SIM.many=null; clearInterval(SIM.timer); SIM.timer=null; render(); };
@@ -2479,6 +2688,8 @@ function hryAfterRender(v){
   v.querySelectorAll('[data-tip]').forEach(i=>{ i.oninput=()=>tipInput(i); i.onchange=()=>tipInput(i); });
   if(hsub==='pk') pkAttach();
   if(hsub==='kos') koAttach();
+  if(hsub==='beh') runAttach();
+  if(hsub==='bloky') blAttach();
 }
 function hryClick(b){
   const d=b.dataset;
