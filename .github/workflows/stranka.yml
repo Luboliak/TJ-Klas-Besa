@@ -35,6 +35,11 @@ jobs:
           pip install requests beautifulsoup4
           python stiahni.py
 
+      - name: Veľké ligy (football-data.org)
+        env:
+          FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}
+        run: python velke.py || true
+
       - name: Štatistiky, fotky, kalendár a upozornenia
         run: |
           pip install pillow pillow-heif
