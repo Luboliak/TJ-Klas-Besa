@@ -2620,20 +2620,35 @@ function blPlace(s,cx,cy){
     BL.flash=[...clr].map(i=>({i,t:performance.now()})); clr.forEach(i=>BL.b[i]=0); if(navigator.vibrate) try{ navigator.vibrate(30); }catch(e){} }
   else BL.combo=0;
 }
-function blGeo(W,H){ const c=Math.floor((W-24)/9), bx=(W-c*9)/2, by=12, ty=by+c*9+18, tc=Math.floor(c*.55); return {c,bx,by,ty,tc,tw:W/3}; }
-function blTrayPos(G,i,s){ const w=Math.max(...s.map(p=>p[0]))+1, h=Math.max(...s.map(p=>p[1]))+1; return {x:G.tw*i+G.tw/2-w*G.tc/2, y:G.ty+(G.tc*5-h*G.tc)/2, w, h}; }
+function blGeo(W,H){
+  const c=BL.cc||Math.floor((W-24)/9);
+  if(BL.side){ // štvorcový displej: tvary v stĺpci vpravo od mriežky
+    const bx=12, by=12, x0=bx+c*9+14, tw=W-x0-8, sh=c*3, tc=Math.floor(Math.min(c*.8,(tw-8)/5,(sh-10)/5));
+    return {c,bx,by,tc,side:true,H:by+c*9+44,slots:[0,1,2].map(i=>({x:x0,y:by+i*sh,w:tw,h:sh}))};
+  }
+  const bx=(W-c*9)/2, by=12, ty=by+c*9+18, tc=Math.floor(Math.min(c*.75,(W/3-16)/5));
+  return {c,bx,by,tc,H:ty+tc*5+44,slots:[0,1,2].map(i=>({x:W/3*i,y:ty,w:W/3,h:tc*5}))};
+}
+function blTrayPos(G,i,s){ const w=Math.max(...s.map(p=>p[0]))+1, h=Math.max(...s.map(p=>p[1]))+1, S=G.slots[i]; return {x:S.x+S.w/2-w*G.tc/2, y:S.y+(S.h-h*G.tc)/2, w, h}; }
 function blPointer(e,kind){
   const cv=e.currentTarget, r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, G=blGeo(r.width,r.height);
+  const put=(s,i,cx,cy)=>{ if(!blFits(s,cx,cy)) return false; blPlace(s,cx,cy); BL.tray[i]=null; BL.sel=null; if(BL.tray.every(t=>!t)) blTray(); if(!blAnyFit()) blOver(); return true; };
   if(kind==='down'){
     e.preventDefault();
-    if(BL.st!=='play'){ blReset(); return; }
-    const i=Math.floor(x/G.tw); if(y<G.ty-10||!BL.tray[i]) return;
+    if(BL.st!=='play'){ blReset(); cv.scrollIntoView({block:'center',behavior:'smooth'}); return; }
+    const si=G.slots.findIndex(S=>x>=S.x&&x<=S.x+S.w&&y>=S.y-10&&y<=S.y+S.h+10);
+    if(si<0){ // ťuknutie do mriežky s vybraným tvarom (ovládanie bez ťahania)
+      if(BL.sel!=null&&BL.tray[BL.sel]){ const s=BL.tray[BL.sel], w=Math.max(...s.map(p=>p[0]))+1, h=Math.max(...s.map(p=>p[1]))+1;
+        const cx=Math.floor((x-G.bx)/G.c)-Math.floor((w-1)/2), cy=Math.floor((y-G.by)/G.c)-Math.floor((h-1)/2);
+        if(!put(s,BL.sel,cx,cy)) toast('Sem sa tvar nezmestí'); }
+      return; }
+    const i=si; if(!BL.tray[i]) return;
     try{ cv.setPointerCapture(e.pointerId); }catch(_){}
-    BL.drag={i, s:BL.tray[i], x, y};
+    BL.drag={i, s:BL.tray[i], x, y, x0:x, y0:y};
   } else if(kind==='move'&&BL.drag){ BL.drag.x=x; BL.drag.y=y; }
-  else if(kind==='up'&&BL.drag){ const D=BL.drag, t=blTarget(G,D); BL.drag=null;
-    if(t&&blFits(D.s,t[0],t[1])){ blPlace(D.s,t[0],t[1]); BL.tray[D.i]=null; if(BL.tray.every(s=>!s)) blTray();
-      if(!blAnyFit()) blOver(); } }
+  else if(kind==='up'&&BL.drag){ const D=BL.drag; BL.drag=null;
+    if(Math.hypot(D.x-D.x0,D.y-D.y0)<10){ BL.sel=BL.sel===D.i?null:D.i; return; } // krátke ťuknutie = vybrať tvar
+    const t=blTarget(G,D); if(t) put(D.s,D.i,t[0],t[1]); }
 }
 function blTarget(G,D){ // tvar sa ťahá nad prstom, aby ho prst nezakrýval
   const w=Math.max(...D.s.map(p=>p[0]))+1, h=Math.max(...D.s.map(p=>p[1]))+1;
@@ -2653,7 +2668,9 @@ function blDraw(cv,ts){
   BL.flash=BL.flash.filter(f=>ts-f.t<350); BL.flash.forEach(f=>{ c.globalAlpha=1-(ts-f.t)/350; cell(G.bx+(f.i%9)*G.c,G.by+Math.floor(f.i/9)*G.c,G.c,'#ffd400'); c.globalAlpha=1; });
   // náhľad umiestnenia
   if(BL.drag){ const t=blTarget(G,BL.drag); if(t&&blFits(BL.drag.s,t[0],t[1])){ c.globalAlpha=.3; BL.drag.s.forEach(([x,y])=>cell(G.bx+(t[0]+x)*G.c,G.by+(t[1]+y)*G.c,G.c,ink)); c.globalAlpha=1; } }
-  BL.tray.forEach((s,i)=>{ if(!s||(BL.drag&&BL.drag.i===i)) return; const P=blTrayPos(G,i,s); s.forEach(([x,y])=>cell(P.x+x*G.tc,P.y+y*G.tc,G.tc,ink)); });
+  BL.tray.forEach((s,i)=>{ if(!s||(BL.drag&&BL.drag.i===i)) return; const P=blTrayPos(G,i,s);
+    if(BL.sel===i){ c.strokeStyle='#ffd400'; c.lineWidth=2; { const S=G.slots[i]; rr(c,S.x+6,S.y-4,S.w-12,S.h+8,10); } c.stroke(); }
+    s.forEach(([x,y])=>cell(P.x+x*G.tc,P.y+y*G.tc,G.tc,BL.sel===i?'#ffd400':ink)); });
   if(BL.drag){ const D=BL.drag, w=Math.max(...D.s.map(p=>p[0]))+1, h=Math.max(...D.s.map(p=>p[1]))+1, gx=D.x-w*G.c/2, gy=D.y-h*G.c-G.c*1.2;
     D.s.forEach(([x,y])=>cell(gx+x*G.c,gy+y*G.c,G.c,'#ffd400')); }
   c.fillStyle=ink; c.textAlign='left'; c.font=`700 ${Math.round(W*.05)}px Roboto,sans-serif`; c.fillText(String(BL.score),G.bx,H-10);
@@ -2665,12 +2682,17 @@ function blDraw(cv,ts){
     c.fillStyle='#ccc'; c.fillText(BL.st==='over'?'Ťukni a hraj znova':'Ťukni a začni',W/2,H*.55); }
 }
 function blLoop(ts){ BL.raf=0; const cv=$('#blc'); if(!cv||tab!=='hry'||hsub!=='bloky') return; blDraw(cv,ts); BL.raf=requestAnimationFrame(blLoop); }
-function blAttach(){ const cv=$('#blc'); if(!cv) return; const W=Math.min(cv.parentElement.clientWidth,480), G=blGeo(W,0), H=Math.round(G.ty+G.tc*5+44), d=window.devicePixelRatio||1;
+function blAttach(){ const cv=$('#blc'); if(!cv) return; const W=Math.min(cv.parentElement.clientWidth,480);
+  // celá hra (mriežka aj tvary) sa musí zmestiť na obrazovku – dôležité pri štvorcových displejoch (Titan)
+  const nav=($('#nav')||{}).offsetHeight||0, hd=(document.querySelector('header')||{}).offsetHeight||0, avail=innerHeight-nav-hd-24;
+  const cN=Math.min((W-24)/9,(avail-74)/12.75), cS=Math.min((W-38)/12,(avail-56)/9);
+  BL.side=cS>cN*1.08; BL.cc=Math.max(18,Math.floor(BL.side?cS:cN));
+  const G=blGeo(W,0), H=Math.round(G.H), d=window.devicePixelRatio||1;
   cv.width=Math.round(W*d); cv.height=Math.round(H*d); cv.style.width=W+'px'; cv.style.height=H+'px';
   cv.onpointerdown=e=>blPointer(e,'down'); cv.onpointermove=e=>blPointer(e,'move'); cv.onpointerup=cv.onpointercancel=e=>blPointer(e,'up');
   if(!BL.raf) BL.raf=requestAnimationFrame(blLoop); }
 function vBloky(){
-  return `<p class="note" style="margin-top:0">Ťahaj tvary do mriežky. Plný riadok, stĺpec alebo štvorec 3 × 3 zmizne a dá body. Viac naraz = kombo, za sebou = séria. Hra končí, keď sa už žiadny tvar nezmestí.</p>
+  return `<p class="note" style="margin-top:0">Ťahaj tvary do mriežky. Plný riadok, stĺpec alebo štvorec 3 × 3 zmizne a dá body. Viac naraz = kombo, za sebou = séria. Hra končí, keď sa už žiadny tvar nezmestí. Ak sa ti nechce ťahať: ťukni na tvar dole a potom na miesto v mriežke.</p>
     <div class="pkw"><canvas id="blc" aria-label="Bloky, hra"></canvas></div>`+arkHtml('bloky','Najlepší v blokoch','Body');
 }
 
