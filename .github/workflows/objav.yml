@@ -7,10 +7,11 @@ jobs:
   objav:
     runs-on: ubuntu-latest
     steps:
-      - name: Swagger a pokusy
+      - name: Kontexty skupiny Západ
         run: |
-          curl -s https://api.sportnet.online/v1/docs/swagger.json | head -c 3200; echo
-          C=6a0da2fa5736165c0ec9843e; P=6a173c66c9a61a70ee926736
-          for U in "v1/public/sfz/competitions/$C/parts/$P/results" "v1/public/competitions/$C/parts/$P/results" "v1/ppo/sfz/competitions/$C/parts/$P/results" "v1/public/sfz/competitions/$C/parts/$P/matches" "v1/public/competitions/$C/parts/$P/matches" "v1/public/sfz/competitions/$C/parts" ; do
-            echo "== $U $(curl -s -o r.json -w '%{http_code}' https://api.sportnet.online/$U) $(head -c 200 r.json)"
+          for s in tabulky/ "" timy/ vysledky/; do
+            curl -sL -A "Mozilla/5.0" "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/$s" > t.html
+            echo "== $s $(wc -c < t.html) $(grep -o '6a173c66c9a61a70ee926736' t.html | wc -l)"
+            grep -oE '/futbalnet/k/[a-z0-9-]+/' t.html | sort -u | wc -l
           done
+          curl -sL -A "Mozilla/5.0" "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/timy/" | grep -oE '/futbalnet/k/[a-z0-9-]+/tim/[a-z0-9-]+/' | sort -u
