@@ -1,0 +1,17 @@
+name: Objaviť súťaže (jednorazovo)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  objav:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stránkovanie výsledkov tímu
+        run: |
+          B=https://sportnet.sme.sk/futbalnet/k/fc-nitra/tim/dospeli-m-a/vysledky/
+          curl -sL -A "Mozilla/5.0" "$B" > v.html; echo "zapasov: $(grep -oE '/zapas/[0-9a-f]{24}' v.html | sort -u | wc -l)"
+          grep -oE '(page|offset|limit|nextOffset|Načítať[^<]{0,30}|Ďalšie[^<]{0,30}|Staršie[^<]{0,30})[^"<]{0,40}' v.html | sort | uniq -c | sort -rn | head -20
+          for q in "?page=2" "?offset=10" "?limit=50" "?strana=2"; do echo "== $q $(curl -sL -A 'Mozilla/5.0' "$B$q" | grep -oE '/zapas/[0-9a-f]{24}' | sort -u | md5sum | cut -c1-8) $(curl -sL -A 'Mozilla/5.0' "$B$q" | grep -oE '/zapas/[0-9a-f]{24}' | sort -u | wc -l)"; done
+          echo "base md5 $(grep -oE '/zapas/[0-9a-f]{24}' v.html | sort -u | md5sum | cut -c1-8)"
+          curl -sL -A "Mozilla/5.0" "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/vysledky/" > r.html; echo "sutaz vysledky zapasov: $(grep -oE '/zapas/[0-9a-f]{24}' r.html | sort -u | wc -l)"; grep -oE '[0-9]+\. kolo' r.html | sort -u | head
