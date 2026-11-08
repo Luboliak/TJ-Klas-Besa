@@ -389,7 +389,7 @@ def scrape_group(lg, prev):
     Zápasy sa zložia zo stránok tímov skupiny a tabuľka sa vypočíta z výsledkov."""
     now = datetime.datetime.now(datetime.timezone.utc)
     full_at = prev.get('full_at')
-    if full_at and now - datetime.datetime.fromisoformat(full_at) < FULL_EVERY and prev.get('teams'):
+    if full_at and now - datetime.datetime.fromisoformat(full_at) < FULL_EVERY and prev.get('teams') and prev.get('tab_ok'):
         print('  skupina: ešte aktuálna')
         return prev
     pages = {}
@@ -407,29 +407,22 @@ def scrape_group(lg, prev):
                     cnt[n] = cnt.get(n, 0) + 1
         if cnt:
             own[path] = max(cnt, key=cnt.get)   # vlastné meno tímu = najčastejšie meno na jeho stránke
-    names = set(own.values())
-    ms = {k: v for k, v in all_ms.items() if v['home'] in names and v['away'] in names}
-    for m in prev.get('matches', []):
-        if m['id'] in ms and ms[m['id']].get('round') is None and m.get('round') is not None:
-            ms[m['id']]['round'] = m['round']
-    tab = {n: {'name': n, 'z': 0, 'v': 0, 'r': 0, 'p': 0, 'gf': 0, 'ga': 0, 'b': 0} for n in names}
-    for m in ms.values():
-        if m.get('hs') is None:
-            continue
-        h, a = tab[m['home']], tab[m['away']]
-        for t, f, g in ((h, m['hs'], m['as']), (a, m['as'], m['hs'])):
-            t['z'] += 1; t['gf'] += f; t['ga'] += g
-            if f > g: t['v'] += 1; t['b'] += 3
-            elif f == g: t['r'] += 1; t['b'] += 1
-            else: t['p'] += 1
-    slug = {n: p.split('/k/')[1].split('/')[0] for p, n in own.items()}
-    href = {n: p for p, n in own.items()}
-    rows = sorted(tab.values(), key=lambda t: (-t['b'], -(t['gf'] - t['ga']), -t['gf'], t['name']))
-    teams = [{'pos': i + 1, 'name': t['name'], 'slug': slug.get(t['name'], ''), 'href': href.get(t['name'], ''),
-              'g': f"{t['gf']}:{t['ga']}", 'z': t['z'], 'v': t['v'], 'r': t['r'], 'p': t['p'], 'b': t['b']} for i, t in enumerate(rows)]
+    # oficiálna tabuľka skupiny je na stránke tímu (podstránka tabulky/)
+    teams = []
+    for path in lg['teams']:
+        doc = get_many([requests.compat.urljoin('https://sportnet.sme.sk/', path) + 'tabulky/']).popitem()[1]
+        if doc is not None:
+            teams = parse_table(doc)
+            if len(teams) >= len(lg['teams']) * 0.8:
+                break
+    names = {t['name'] for t in teams} or set(own.values())
+    ms = {m['id']: dict(m) for m in prev.get('matches', []) if m['home'] in names and m['away'] in names}
+    for m in all_ms.values():
+        if m['home'] in names and m['away'] in names:
+            merge(ms, m)
     print(f'  skupina: {len(teams)} tímov, {len(ms)} zápasov')
     ok = len(teams) >= len(lg['teams']) * 0.8
-    return {'id': lg['id'], 'name': lg['name'], 'home': False, 'url': lg.get('url', ''), 'computed': True,
+    return {'id': lg['id'], 'name': lg['name'], 'home': False, 'url': lg.get('url', ''), 'computed': True, 'tab_ok': ok,
             'at': now.isoformat(timespec='seconds') if ok else prev.get('at'), 'full_at': now.isoformat(timespec='seconds') if ok else full_at,
             'teams': teams if ok else prev.get('teams', teams), 'matches': list(ms.values()) if ok else prev.get('matches', []), 'stats': []}
 

@@ -97,7 +97,8 @@ def main():
     except Exception:
         pass
     at = old.get('at')
-    if at and '--force' not in sys.argv:
+    changed = {'v-' + c.lower() for c, *_ in LIGY} != {l['id'] for l in old.get('ligy', [])}
+    if at and not changed and '--force' not in sys.argv:
         age = (datetime.datetime.now(TZ) - datetime.datetime.fromisoformat(at)).total_seconds()
         if age < MAX_AGE:
             print(f'Veľké ligy: aktuálne ({int(age / 60)} min), preskakujem.')
