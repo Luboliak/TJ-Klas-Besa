@@ -1,0 +1,16 @@
+name: Objaviť súťaže (jednorazovo)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  objav:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skupiny 3. ligy
+        run: |
+          curl -sL -A "Mozilla/5.0" "https://sportnet.sme.sk/futbalnet/z/sfz/s/iii-liga/tabulky/" > t.html
+          wc -c t.html
+          grep -oE 'part[^"&<> ]{0,80}' t.html | sort | uniq -c | sort -rn | head -30
+          grep -oE '.{60}(Z[aá]pad|Stred|V[yý]chod).{60}' t.html | head -20
+          grep -oE 'href="[^"]*iii-liga[^"]*"' t.html | sort -u | head -30
