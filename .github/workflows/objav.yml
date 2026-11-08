@@ -7,11 +7,10 @@ jobs:
   objav:
     runs-on: ubuntu-latest
     steps:
-      - name: Swagger
+      - name: Swagger a pokusy
         run: |
-          for s in https://api.sportnet.online/v1/swagger.json https://api.sportnet.online/v1/docs/swagger.json https://api.sportnet.online/swagger.json https://api.sportnet.online/v1/api-docs; do
-            c=$(curl -s -o s.json -w "%{http_code}" "$s"); echo "$s $c $(wc -c < s.json)"
-            if [ "$c" = 200 ]; then python3 -c "
-          import json;d=json.load(open('s.json'));ps=[p for p in d.get('paths',{}) if 'part' in p.lower() and ('result' in p.lower() or 'match' in p.lower() or 'table' in p.lower())]
-          print(len(d.get('paths',{})),'paths'); [print(p) for p in ps[:40]]"; break; fi
+          curl -s https://api.sportnet.online/v1/docs/swagger.json | head -c 3200; echo
+          C=6a0da2fa5736165c0ec9843e; P=6a173c66c9a61a70ee926736
+          for U in "v1/public/sfz/competitions/$C/parts/$P/results" "v1/public/competitions/$C/parts/$P/results" "v1/ppo/sfz/competitions/$C/parts/$P/results" "v1/public/sfz/competitions/$C/parts/$P/matches" "v1/public/competitions/$C/parts/$P/matches" "v1/public/sfz/competitions/$C/parts" ; do
+            echo "== $U $(curl -s -o r.json -w '%{http_code}' https://api.sportnet.online/$U) $(head -c 200 r.json)"
           done
