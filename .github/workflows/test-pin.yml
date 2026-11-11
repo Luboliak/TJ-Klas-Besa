@@ -1,0 +1,9 @@
+name: Test PIN
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          U=https://tjklas.v8kjgs4tmc.workers.dev
+          curl -s -w " %{http_code}\n" -X POST -H 'Content-Type: application/json' -d '{"kod":"ZZZZZZ","dev":"testtesttesttesttest"}' $U/pristup/login
