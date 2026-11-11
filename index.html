@@ -1004,6 +1004,7 @@ function pickName(){
 function setJa(n){
   n=(n||($('#jaInput')&&$('#jaInput').value)||'').trim().replace(/\s+/g,' ').slice(0,60);
   if(!n) return;
+  setTimeout(()=>{ if(typeof arkSync==='function') arkSync(); },1500);
   JA=n; try{ localStorage.setItem('ja',n); }catch(e){}
   closeSheet(); render(); toast('Si zapísaný ako '+n);
 }
@@ -2531,6 +2532,10 @@ function koClick(d){
 /* --- spoločné poradie pre arkádové hry (beh, bloky) --- */
 const ARK={};
 async function arkBoard(hra){ if(!PROXY||(ARK[hra]&&ARK[hra].on)) return; ARK[hra]={on:true}; let d={}; try{ d=await fetch(PROXY+'/hra/board?hra='+hra,{cache:'no-store'}).then(r=>r.json()); }catch(e){} ARK[hra]={d}; hr(hra); }
+// osobné rekordy uložené v telefóne pošle do rebríčka, keď hráč ešte nebol prihlásený (server si nechá vyššie)
+let ARK_SYNC=false;
+function arkSync(){ if(ARK_SYNC||!(PROXY&&CHPIN&&JA)) return; ARK_SYNC=true;
+  [['pk','pkBest'],['pv','pvBest'],['beh','behBest'],['bloky','blokyBest']].forEach(([h,k])=>{ const v=+lsGet(k)||0; if(v>0) arkSave(h,v); }); }
 async function arkSave(hra,score){ if(!(PROXY&&CHPIN&&JA&&score>0)) return false; try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra,score}); delete BOARDS[hra]; return true; }catch(e){ return false; } }
 function arkHtml(hra,title,col){
   let h='';
@@ -2972,6 +2977,7 @@ if('serviceWorker' in navigator && !APP) navigator.serviceWorker.register('sw.js
 if(APP){ const nav=$('#nav'); nav.insertAdjacentHTML('beforeend','<button data-t="ved">Vedenie</button>'); nav.style.gridTemplateColumns='repeat(7,1fr)'; }
 function boot(){
   loadAll(false).then(pollLive).then(()=>{ if(PROXY&&CHPIN) chatStart(); });
+  setTimeout(arkSync,4000);
   setInterval(()=>{ if(document.visibilityState==='visible') loadAll(false); }, 5*60000);
   setInterval(pollLive, 2*60000);
   setInterval(()=>{ if(tab==='live' && NTFY && document.visibilityState==='visible') loadNtfy(true).then(()=>{ if(tab==='live') render(); }); }, 60000);
