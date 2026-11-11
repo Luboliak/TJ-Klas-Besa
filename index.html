@@ -130,7 +130,7 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .sheet h3 span{flex:1}
 label.f{display:block;margin-bottom:10px}
 label.f span{display:block;color:var(--mute);font-size:13px;margin-bottom:3px}
-input[type=text],input[type=number],input[type=date],input[type=time],select{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=password],input:not([type]),select{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
 .row2{display:flex;gap:8px}.row2>*{flex:1}
 .pl{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:5px}
 .pl .ck{width:24px;height:24px;border-radius:6px;border:2px solid var(--mute);flex:none;display:grid;place-items:center}
@@ -304,6 +304,12 @@ a.btn{text-decoration:none;display:inline-block;text-align:center;color:inherit}
 .kvh{display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px}
 .kvt{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
 .kvt i{display:block;height:100%;background:var(--ink);transition:width .2s linear}
+.psr{border-bottom:1px solid var(--line);padding:10px 0}.psh{display:flex;justify-content:space-between;align-items:center;gap:8px}.psh code{font-size:17px;letter-spacing:.08em}.psb{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.psb .btn{padding:6px 10px;font-size:13px}
+#gate{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
+#gate form{width:100%;max-width:320px;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center}
+#gate input{width:100%;font-size:26px;text-align:center;letter-spacing:.12em;text-transform:uppercase;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:inherit}
+#gate .btn{width:100%;padding:14px;font-size:17px}#gate h1{margin:0;font-size:22px}#gate p{margin:0}.gerr{color:#e06666;min-height:1.2em}
+body.gated>*:not(#gate){display:none!important}
 .kvtop{display:flex;flex-direction:column;gap:4px}.kvtop div{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}.kvtop div.us{border-color:var(--ink)}.kvtop span{font-size:20px}.kvtop b{flex:1}
 .kvtema{margin:14px 0 0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
 .kvq{font-size:19px;font-weight:600;margin:4px 0 14px;line-height:1.35}
@@ -1256,8 +1262,8 @@ let vsub='doch', curMonth=ym(today()), editEv=null;
 try{ vsub=localStorage.getItem('vsub')||'doch'; }catch(e){}
 
 function vVedenie(){
-  let h=`<div class="seg"><button data-vs="doch" class="${vsub==='doch'?'on':''}">Dochádzka</button><button data-vs="vypl" class="${vsub==='vypl'?'on':''}">Výplata</button><button data-vs="nast" class="${vsub==='nast'?'on':''}">Hráči a sadzby</button></div>`;
-  return h+(vsub==='doch'?vAttend():vsub==='vypl'?vPay():vVedNast());
+  let h=`<div class="seg"><button data-vs="doch" class="${vsub==='doch'?'on':''}">Dochádzka</button><button data-vs="vypl" class="${vsub==='vypl'?'on':''}">Výplata</button><button data-vs="nast" class="${vsub==='nast'?'on':''}">Hráči a sadzby</button><button data-vs="hesla" class="${vsub==='hesla'?'on':''}">Heslá</button></div>`;
+  return h+(vsub==='doch'?vAttend():vsub==='vypl'?vPay():vsub==='hesla'?vHesla():vVedNast());
 }
 function monthNav(){
   const [y,m]=curMonth.split('-').map(Number);
@@ -1388,8 +1394,49 @@ function restoreFile(){
     }catch(err){ toast('Súbor sa nedá načítať: '+err.message); } };
   inp.click();
 }
+function confirmTwice(b,msg){ if(b.dataset.sure) return true; const t=b.textContent; b.dataset.sure='1'; b.textContent=msg; setTimeout(()=>{ delete b.dataset.sure; b.textContent=t; },3000); return false; }
+/* --- osobné heslá na web (jedno heslo = jeden telefón) --- */
+let PS={list:null, pin:lsGet('admPin')||'', busy:false, err:''};
+const fmtKod=k=>k.slice(0,3)+'-'+k.slice(3);
+const WEB_URL='https://luboliak.github.io/TJ-Klas-Besa/';
+async function psApi(akcia,extra){
+  try{ const j=await chatApi('/pristup/admin',Object.assign({pin:PS.pin,akcia},extra||{})); PS.list=j.list||PS.list; PS.err=''; return j; }
+  catch(e){ if(e.status===403){ PS.pin=''; lsSet('admPin',''); } PS.err=e.message; toast(e.message); return null; }
+  finally{ if(tab==='ved'&&vsub==='hesla') render(); }
+}
+function psMsg(p){ return `Ahoj ${p.meno.split(' ')[0]}, tvoje osobné heslo do appky TJ Klas Beša: ${fmtKod(p.kod)}\nOtvor ${WEB_URL} a zadaj ho. Heslo funguje len na jednom telefóne, nikomu ho neposielaj.`; }
+function vHesla(){
+  if(!PROXY) return '<div class="empty">Server nie je nastavený.</div>';
+  if(!PS.pin) return `<p>Na správu hesiel zadaj správcovský PIN chatu.</p><div class="acts"><input type="password" id="psPin" inputmode="numeric" placeholder="Správcovský PIN" style="flex:1"><button class="btn pri" data-pspin="1">Pokračovať</button></div>`;
+  if(PS.list===null){ if(!PS.busy){ PS.busy=true; psApi('list').finally(()=>PS.busy=false); } return '<p class="note">Načítavam…</p>'; }
+  const have=new Set(PS.list.map(p=>p.meno)), cand=D.players.filter(p=>p.active!==false&&!have.has(p.name)).map(p=>p.name);
+  let h=`<p class="note" style="margin-top:0">Každý hráč dostane vlastné heslo na webovú appku. Pri prvom prihlásení sa heslo spáruje s jeho telefónom a inde už nefunguje. Keď vymení telefón, ťukni na „Uvoľniť“.</p>
+    <div class="acts"><select id="psMeno" style="flex:1"><option value="">– vyber hráča –</option>${cand.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>
+    <div class="acts" style="margin-top:6px"><input id="psIne" placeholder="alebo napíš iné meno" style="flex:1"><button class="btn pri" data-psnew="1">Vytvoriť heslo</button></div>`;
+  if(cand.length>1) h+=`<button class="btn" data-psall="1" style="width:100%;margin-top:6px">Vytvoriť heslá všetkým bez hesla (${cand.length})</button>`;
+  h+=`<h2>Heslá (${PS.list.length})</h2>`;
+  if(!PS.list.length) h+='<div class="empty">Zatiaľ nikto nemá heslo.</div>';
+  PS.list.forEach(p=>{ const st=p.blok?'<b style="color:#d64545">zablokované</b>':p.sparovane?`spárované s telefónom${p.posledne?' · naposledy '+new Date(p.posledne).toLocaleDateString('sk-SK'):''}`:'zatiaľ nepoužité';
+    h+=`<div class="psr"><div class="psh"><b>${esc(p.meno)}</b><code>${fmtKod(p.kod)}</code></div><small class="mute">${st}</small><div class="psb">
+      <button class="btn" data-psshare="${p.kod}">Poslať</button>
+      ${p.sparovane&&!p.blok?`<button class="btn" data-psakc="uvolni" data-kod="${p.kod}">Uvoľniť</button>`:''}
+      <button class="btn" data-psakc="${p.blok?'odblok':'blok'}" data-kod="${p.kod}">${p.blok?'Odblokovať':'Blokovať'}</button>
+      <button class="btn" data-psakc="zmaz" data-kod="${p.kod}">Zmazať</button></div></div>`; });
+  return h+'<p class="note">Tvoja Android apka heslo nepotrebuje. Heslo platí len pre webovú appku.</p>';
+}
 function vedClick(b){
   const ds=b.dataset;
+  if(ds.pspin){ const v=($('#psPin')||{}).value||''; if(!v) return true; PS.pin=v; lsSet('admPin',v); PS.list=null; render(); return true; }
+  if(ds.psnew){ const m=(($('#psIne')||{}).value||'').trim()||(($('#psMeno')||{}).value||''); if(!m){ toast('Vyber hráča'); return true; }
+    psApi('novy',{meno:m}).then(j=>{ if(j){ toast('Heslo pre '+m+': '+fmtKod(j.kod)); psApi('list'); } }); return true; }
+  if(ds.psall){ const have=new Set(PS.list.map(p=>p.meno)), cand=D.players.filter(p=>p.active!==false&&!have.has(p.name)).map(p=>p.name);
+    (async()=>{ for(const m of cand) await psApi('novy',{meno:m}); await psApi('list'); toast('Heslá vytvorené: '+cand.length); })(); return true; }
+  if(ds.psakc){ const p=PS.list.find(x=>x.kod===ds.kod);
+    if(ds.psakc==='zmaz'&&!confirmTwice(b,'Naozaj zmazať?')) return true;
+    if(ds.psakc==='uvolni') toast('Heslo uvoľnené – môže sa prihlásiť na novom telefóne');
+    psApi(ds.psakc,{kod:ds.kod}); return true; }
+  if(ds.psshare){ const p=PS.list.find(x=>x.kod===ds.psshare); const t=psMsg(p);
+    if(navigator.share) navigator.share({text:t}).catch(()=>{}); else location.href='https://wa.me/?text='+encodeURIComponent(t); return true; }
   if(ds.vs){ vsub=ds.vs; try{ localStorage.setItem('vsub',vsub); }catch(e){} render(); return true; }
   if(ds.mn){ shiftMonth(+ds.mn); return true; }
   if(ds.new){ newEvent(ds.new); return true; }
@@ -2921,10 +2968,40 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet();
   if($('#lb') && (e.key==='ArrowRight'||e.key==='ArrowLeft')) openPhoto(phIdx+(e.key==='ArrowRight'?1:-1)); });
 if('serviceWorker' in navigator && !APP) navigator.serviceWorker.register('sw.js');
 if(APP){ const nav=$('#nav'); nav.insertAdjacentHTML('beforeend','<button data-t="ved">Vedenie</button>'); nav.style.gridTemplateColumns='repeat(7,1fr)'; }
-loadAll(false).then(pollLive).then(()=>{ if(PROXY&&CHPIN) chatStart(); });
-setInterval(()=>{ if(document.visibilityState==='visible') loadAll(false); }, 5*60000);
-setInterval(pollLive, 2*60000);
-setInterval(()=>{ if(tab==='live' && NTFY && document.visibilityState==='visible') loadNtfy(true).then(()=>{ if(tab==='live') render(); }); }, 60000);
+function boot(){
+  loadAll(false).then(pollLive).then(()=>{ if(PROXY&&CHPIN) chatStart(); });
+  setInterval(()=>{ if(document.visibilityState==='visible') loadAll(false); }, 5*60000);
+  setInterval(pollLive, 2*60000);
+  setInterval(()=>{ if(tab==='live' && NTFY && document.visibilityState==='visible') loadNtfy(true).then(()=>{ if(tab==='live') render(); }); }, 60000);
+}
+/* --- prístup na web osobným heslom (Android apka heslo nepotrebuje) --- */
+function devId(){ let d=lsGet('devId'); if(!d||d.length<16){ d=(crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(16).padStart(2,'0')).join('')); lsSet('devId',d); } return d; }
+async function gateLogin(kod){
+  const r=await fetch(PROXY+'/pristup/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kod,dev:devId()})});
+  let j={}; try{ j=await r.json(); }catch(e){}
+  return {ok:r.ok, status:r.status, j};
+}
+function gateShow(msg){
+  document.body.classList.add('gated');
+  let g=$('#gate'); if(!g){ g=document.createElement('div'); g.id='gate'; document.body.appendChild(g); }
+  g.innerHTML=`<form id="gateF" autocomplete="off"><img src="logo.png" alt="" width="84" height="84"><h1>TJ Klas Beša</h1><p class="mute">Zadaj svoje osobné heslo</p>
+    <input id="gateK" placeholder="ABC-123" maxlength="7" autocapitalize="characters" spellcheck="false" aria-label="Heslo"><button class="btn pri" type="submit">Vstúpiť</button>
+    <p class="gerr" role="alert">${esc(msg||'')}</p><small class="mute">Heslo funguje len na jednom telefóne. Ak ho nemáš, napíš správcovi klubu.</small></form>`;
+  $('#gateF').onsubmit=async e=>{ e.preventDefault(); const kod=$('#gateK').value.toUpperCase().replace(/[^A-Z0-9]/g,''), err=$('#gateF .gerr');
+    if(kod.length!==6){ err.textContent='Heslo má 6 znakov'; return; }
+    err.textContent='Overujem…';
+    try{ const R=await gateLogin(kod);
+      if(R.ok){ lsSet('pristup',JSON.stringify({kod,meno:R.j.meno,at:Date.now()})); g.remove(); document.body.classList.remove('gated'); if(!JA&&R.j.meno&&typeof setJa==='function'){ try{ setJa(R.j.meno); }catch(_){} } render(); boot(); }
+      else err.textContent=R.j.error||'Nesprávne heslo'; }
+    catch(_){ err.textContent='Bez internetu sa prihlásiť nedá'; } };
+}
+if(APP||!PROXY) boot();
+else{
+  let P=null; try{ P=JSON.parse(lsGet('pristup')||'null'); }catch(e){}
+  if(!P) gateShow();
+  else{ boot(); // overenie na pozadí: zablokované alebo presunuté heslo appku zavrie
+    gateLogin(P.kod).then(R=>{ if(R.status===403){ lsSet('pristup',''); gateShow(R.j.error); } }).catch(()=>{}); }
+}
 </script>
 </body>
 </html>

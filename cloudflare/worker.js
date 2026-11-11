@@ -173,6 +173,9 @@ export class ChatRoom {
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fantasy (meno TEXT, kolo TEXT, picks TEXT, cap TEXT, t INTEGER, PRIMARY KEY (meno, kolo))`);
       this.cfg = (await ctx.storage.get('cfg')) || null;
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fails (t INTEGER)`);
+      // osobné heslá na web: jedno heslo = jeden telefón
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pristup (kod TEXT PRIMARY KEY, meno TEXT, dev TEXT, vytvor INTEGER, prve INTEGER, posledne INTEGER, blok INTEGER DEFAULT 0)`);
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pfails (t INTEGER)`);
     });
   }
 
@@ -285,6 +288,39 @@ export class ChatRoom {
         saved[mid] = s ? [h, a, s] : [h, a];
       }
       return json({ saved, late });
+    }
+    if (path === '/pristup/login' && request.method === 'POST') {
+      // prvé prihlásenie spáruje heslo s telefónom (dev), potom funguje len na ňom
+      const now = Date.now();
+      this.ctx.storage.sql.exec('DELETE FROM pfails WHERE t < ?', now - 10 * 60000);
+      if (this.rows('SELECT COUNT(*) AS n FROM pfails')[0].n >= 30) return json({ error: 'Príliš veľa pokusov, skús o 10 minút' }, 429);
+      const kod = String(body.kod || '').toUpperCase().replace(/[^A-Z0-9]/g, ''), dev = String(body.dev || '').slice(0, 64);
+      const r = kod.length === 6 && dev.length >= 16 ? this.rows('SELECT * FROM pristup WHERE kod=?', kod)[0] : null;
+      if (!r) { this.ctx.storage.sql.exec('INSERT INTO pfails (t) VALUES (?)', now); return json({ error: 'Nesprávne heslo' }, 403); }
+      if (r.blok) return json({ error: 'Prístup je zablokovaný', blok: true }, 403);
+      if (r.dev && r.dev !== dev) return json({ error: 'Toto heslo sa už používa na inom telefóne. Požiadaj správcu o nové.', iny: true }, 403);
+      if (!r.dev) this.ctx.storage.sql.exec('UPDATE pristup SET dev=?, prve=? WHERE kod=?', dev, now, kod);
+      this.ctx.storage.sql.exec('UPDATE pristup SET posledne=? WHERE kod=?', now, kod);
+      return json({ ok: true, meno: r.meno });
+    }
+    if (path === '/pristup/admin' && request.method === 'POST') {
+      const ok = await this.checkPin(body.pin, true);
+      if (ok === 'locked') return json({ error: 'Príliš veľa pokusov, skús o 10 minút' }, 429);
+      if (!ok) return json({ error: 'Nesprávny správcovský PIN' }, 403);
+      const a = body.akcia, kod = String(body.kod || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (a === 'novy') {
+        const meno = String(body.meno || '').trim().slice(0, 60); if (!meno) return json({ error: 'Chýba meno' }, 400);
+        const abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let k;
+        do { const b = crypto.getRandomValues(new Uint8Array(6)); k = [...b].map(x => abc[x % abc.length]).join(''); } while (this.rows('SELECT 1 FROM pristup WHERE kod=?', k).length);
+        this.ctx.storage.sql.exec('INSERT INTO pristup (kod, meno, vytvor) VALUES (?, ?, ?)', k, meno, Date.now());
+        return json({ ok: true, kod: k, meno });
+      }
+      if (a === 'uvolni') this.ctx.storage.sql.exec('UPDATE pristup SET dev=NULL, prve=NULL WHERE kod=?', kod);
+      else if (a === 'blok') this.ctx.storage.sql.exec('UPDATE pristup SET blok=1 WHERE kod=?', kod);
+      else if (a === 'odblok') this.ctx.storage.sql.exec('UPDATE pristup SET blok=0 WHERE kod=?', kod);
+      else if (a === 'zmaz') this.ctx.storage.sql.exec('DELETE FROM pristup WHERE kod=?', kod);
+      else if (a !== 'list') return json({ error: 'Neznáma akcia' }, 400);
+      return json({ ok: true, list: this.rows('SELECT kod, meno, dev IS NOT NULL AS sparovane, vytvor, prve, posledne, blok FROM pristup ORDER BY meno COLLATE NOCASE') });
     }
     if (path === '/fan/mine') {
       const meno = url.searchParams.get('meno') || '', out = {};
@@ -512,7 +548,7 @@ export default {
       if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
       const path = new URL(request.url).pathname.replace(/\/+$/, '');
       if (path === '/dochadzka') return await attendance(request, env);
-      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/')) {
+      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/') || path.startsWith('/pristup/')) {
         if (!env.CHAT) return json({ error: 'Chat nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('klub')).fetch(request);
       }
