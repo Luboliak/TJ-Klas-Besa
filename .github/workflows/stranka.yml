@@ -52,9 +52,14 @@ jobs:
           git add data
           git diff --cached --quiet || (git commit -m "Aktualizácia údajov" && git push) || true
 
+      - name: Pauza appky
+        id: web
+        run: |
+          if [ -f PAUZA ]; then echo "dir=pauza" >> "$GITHUB_OUTPUT"; echo "::notice::Appka je pozastavená (súbor PAUZA)"; else echo "dir=." >> "$GITHUB_OUTPUT"; fi
+
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: '.'
+          path: ${{ steps.web.outputs.dir }}
       - id: deploy
         uses: actions/deploy-pages@v5
