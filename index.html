@@ -1396,18 +1396,18 @@ function restoreFile(){
 }
 function confirmTwice(b,msg){ if(b.dataset.sure) return true; const t=b.textContent; b.dataset.sure='1'; b.textContent=msg; setTimeout(()=>{ delete b.dataset.sure; b.textContent=t; },3000); return false; }
 /* --- osobné heslá na web (jedno heslo = jeden telefón) --- */
-let PS={list:null, pin:lsGet('admPin')||'', busy:false, err:''};
+let PS={list:null, pin:lsGet('admPin')||lsGet('chatAdmin')||'', busy:false, err:''};
 const fmtKod=k=>k.slice(0,3)+'-'+k.slice(3);
 const WEB_URL='https://luboliak.github.io/TJ-Klas-Besa/';
 async function psApi(akcia,extra){
   try{ const j=await chatApi('/pristup/admin',Object.assign({pin:PS.pin,akcia},extra||{})); PS.list=j.list||PS.list; PS.err=''; return j; }
-  catch(e){ if(e.status===403){ PS.pin=''; lsSet('admPin',''); } PS.err=e.message; toast(e.message); return null; }
+  catch(e){ if(e.status===403){ PS.pin=''; lsSet('admPin',''); PS.err=e.message+(PS.list===null?' – zadaj ten istý PIN, ktorým sa v Chate prihlasuješ ako správca (nie bežný PIN chatu).':''); toast(e.message); return null; } PS.err=e.message; toast(e.message); return null; }
   finally{ if(tab==='ved'&&vsub==='hesla') render(); }
 }
 function psMsg(p){ return `Ahoj ${p.meno.split(' ')[0]}, tvoje osobné heslo do appky TJ Klas Beša: ${fmtKod(p.kod)}\nOtvor ${WEB_URL} a zadaj ho. Heslo funguje len na jednom telefóne, nikomu ho neposielaj.`; }
 function vHesla(){
   if(!PROXY) return '<div class="empty">Server nie je nastavený.</div>';
-  if(!PS.pin) return `<p>Na správu hesiel zadaj správcovský PIN chatu.</p><div class="acts"><input type="password" id="psPin" inputmode="numeric" placeholder="Správcovský PIN" style="flex:1"><button class="btn pri" data-pspin="1">Pokračovať</button></div>`;
+  if(!PS.pin) return `<p>Na správu hesiel zadaj správcovský PIN chatu (ten, ktorým sa v Chate prihlasuješ ako správca).</p><div class="acts"><input type="text" id="psPin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Správcovský PIN" style="flex:1"><button class="btn pri" data-pspin="1">Pokračovať</button></div>${PS.err?`<p class="note" style="color:#d64545">${esc(PS.err)}</p>`:''}`;
   if(PS.list===null){ if(!PS.busy){ PS.busy=true; psApi('list').finally(()=>PS.busy=false); } return '<p class="note">Načítavam…</p>'; }
   const have=new Set(PS.list.map(p=>p.meno)), cand=D.players.filter(p=>p.active!==false&&!have.has(p.name)).map(p=>p.name);
   let h=`<p class="note" style="margin-top:0">Každý hráč dostane vlastné heslo na webovú appku. Pri prvom prihlásení sa heslo spáruje s jeho telefónom a inde už nefunguje. Keď vymení telefón, ťukni na „Uvoľniť“.</p>
@@ -1426,7 +1426,7 @@ function vHesla(){
 }
 function vedClick(b){
   const ds=b.dataset;
-  if(ds.pspin){ const v=($('#psPin')||{}).value||''; if(!v) return true; PS.pin=v; lsSet('admPin',v); PS.list=null; render(); return true; }
+  if(ds.pspin){ const v=(($('#psPin')||{}).value||'').trim(); if(!v) return true; PS.pin=v; lsSet('admPin',v); PS.list=null; render(); return true; }
   if(ds.psnew){ const m=(($('#psIne')||{}).value||'').trim()||(($('#psMeno')||{}).value||''); if(!m){ toast('Vyber hráča'); return true; }
     psApi('novy',{meno:m}).then(j=>{ if(j){ toast('Heslo pre '+m+': '+fmtKod(j.kod)); psApi('list'); } }); return true; }
   if(ds.psall){ const have=new Set(PS.list.map(p=>p.meno)), cand=D.players.filter(p=>p.active!==false&&!have.has(p.name)).map(p=>p.name);
