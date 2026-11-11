@@ -1,0 +1,18 @@
+name: Test PIN
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          PIN: ${{ secrets.CHAT_ADMIN_PIN }}
+        run: |
+          U=https://tjklas.v8kjgs4tmc.workers.dev
+          echo "dlzka secretu: ${#PIN}"
+          echo "--- zaloha PIN /pristup/admin:"
+          curl -s -o r.json -w "%{http_code}\n" -X POST -H 'Content-Type: application/json' -d "$(jq -n --arg p "$PIN" '{pin:$p,akcia:"list"}')" $U/pristup/admin
+          jq -c '{error, ok, pocet:(.list|length?)}' r.json
+          echo "--- zaloha PIN /chat/config:"
+          curl -s -o c.json -w "%{http_code}\n" -X POST -H 'Content-Type: application/json' -d "$(jq -n --arg p "$PIN" '{admin:$p}')" $U/chat/config
+          jq -c '{error, ok}' c.json
+          echo "--- stav:"; curl -s $U/ ; echo
