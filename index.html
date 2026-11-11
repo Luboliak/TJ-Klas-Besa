@@ -1012,7 +1012,8 @@ function setJa(n){
 const CH={state:'init', msgs:[], topic:'', err:'', ws:null, wsOk:false, retry:0, poll:null, older:true, sending:false};
 const lsGet=k=>{ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } };
 const lsSet=(k,v)=>{ try{ v?localStorage.setItem(k,v):localStorage.removeItem(k); }catch(e){} };
-let CHPIN=lsGet('chatPin'), CHADMIN=lsGet('chatAdmin');
+let CHPIN=lsGet('chatPin'), CHADMIN=lsGet('chatAdmin'), PPIN='';
+function pristupPin(){ try{ const P=JSON.parse(lsGet('pristup')||'null'); if(P&&P.kod&&!APP){ PPIN='P:'+P.kod+':'+devId(); CHPIN=PPIN; } }catch(e){} }
 async function chatApi(path, body){
   const r=await fetch(PROXY+path, body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
   let j={}; try{ j=await r.json(); }catch(e){}
@@ -1036,7 +1037,7 @@ async function chatStart(){
     CH.msgs=h.msgs; CH.topic=h.topic; CH.older=h.msgs.length>=80; CH.state='ok'; CH.err='';
     chatConnect();
   }catch(e){
-    if(e.status===403){ CHPIN=''; lsSet('chatPin',''); CH.state='pin'; CH.err='PIN už neplatí, zadaj nový.'; }
+    if(e.status===403){ if(PPIN&&CHPIN===PPIN){ CH.state='error'; CH.err='Tvoje heslo už neplatí. Otvor appku znova.'; } else { CHPIN=PPIN; lsSet('chatPin',''); CH.state='pin'; CH.err='PIN už neplatí, zadaj nový.'; } }
     else if(e.status===409){ CH.state='setup'; }
     else { CH.state='error'; CH.err='Chat sa nepodarilo načítať. Skontroluj internet.'; }
   }
@@ -1058,6 +1059,7 @@ function chatConnect(){
   };
   ws.onclose=e=>{
     CH.ws=null; CH.wsOk=false;
+    if(e.code===4001&&PPIN){ CH.retry=0; setTimeout(chatConnect,1000); return; }
     if(e.code===4001){ CHPIN=''; lsSet('chatPin',''); CH.state='pin'; CH.err='PIN bol zmenený, zadaj nový.'; chatPaint(); return; }
     chatPollOn();
     if(document.visibilityState==='visible'){ CH.retry=Math.min(CH.retry+1,6); setTimeout(chatConnect, 1000*2**CH.retry); }
@@ -2991,7 +2993,7 @@ function gateShow(msg){
     if(kod.length!==6){ err.textContent='Heslo má 6 znakov'; return; }
     err.textContent='Overujem…';
     try{ const R=await gateLogin(kod);
-      if(R.ok){ lsSet('pristup',JSON.stringify({kod,meno:R.j.meno,at:Date.now()})); g.remove(); document.body.classList.remove('gated'); if(!JA&&R.j.meno&&typeof setJa==='function'){ try{ setJa(R.j.meno); }catch(_){} } render(); boot(); }
+      if(R.ok){ lsSet('pristup',JSON.stringify({kod,meno:R.j.meno,at:Date.now()})); pristupPin(); g.remove(); document.body.classList.remove('gated'); if(!JA&&R.j.meno&&typeof setJa==='function'){ try{ setJa(R.j.meno); }catch(_){} } render(); boot(); }
       else err.textContent=R.j.error||'Nesprávne heslo'; }
     catch(_){ err.textContent='Bez internetu sa prihlásiť nedá'; } };
 }
@@ -2999,7 +3001,7 @@ if(APP||!PROXY) boot();
 else{
   let P=null; try{ P=JSON.parse(lsGet('pristup')||'null'); }catch(e){}
   if(!P) gateShow();
-  else{ boot(); // overenie na pozadí: zablokované alebo presunuté heslo appku zavrie
+  else{ pristupPin(); boot(); // overenie na pozadí: zablokované alebo presunuté heslo appku zavrie
     gateLogin(P.kod).then(R=>{ if(R.status===403){ lsSet('pristup',''); gateShow(R.j.error); } }).catch(()=>{}); }
 }
 </script>

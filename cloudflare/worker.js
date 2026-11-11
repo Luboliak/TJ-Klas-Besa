@@ -186,6 +186,14 @@ export class ChatRoom {
     this.ctx.storage.sql.exec('DELETE FROM fails WHERE t < ?', now - 10 * 60000);
     if (this.rows('SELECT COUNT(*) AS n FROM fails')[0].n >= 15) return 'locked';
     // záložný správcovský PIN z Cloudflare (GitHub secret CHAT_ADMIN_PIN), keď sa pôvodný zabudne
+    // osobné heslo z webu (P:KÓD:ZARIADENIE) odomkne všetko ako klubový PIN, len na spárovanom telefóne
+    if (!admin && typeof pin === 'string' && pin.startsWith('P:')) {
+      const [, k, d] = pin.split(':');
+      const r = this.rows('SELECT dev, blok FROM pristup WHERE kod=?', String(k || ''))[0];
+      const okP = !!(r && !r.blok && r.dev && d && r.dev === d);
+      if (!okP) this.ctx.storage.sql.exec('INSERT INTO fails (t) VALUES (?)', now);
+      return okP;
+    }
     const envAdmin = admin && this.env.ADMIN_PIN && String(pin || '') === String(this.env.ADMIN_PIN);
     const ok = envAdmin || (await sha(this.cfg.salt + String(pin || ''))) === (admin ? this.cfg.admin : this.cfg.pin);
     if (!ok) this.ctx.storage.sql.exec('INSERT INTO fails (t) VALUES (?)', now);
