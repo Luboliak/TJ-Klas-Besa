@@ -30,3 +30,9 @@ V súbore `ligy.json` na GitHube pridaj riadok podľa vzoru (id, názov, odkaz n
 
 ## Keď niečo nejde
 V záložke **Actions** otvor posledný beh a krok „Stiahnuť ligy zo Sportnetu". Pri každej lige je vypísané, koľko tímov a zápasov našiel, alebo chyba.
+
+## Kvíz partie (samostatná appka pre partiu)
+Adresa: `https://luboliak.github.io/TJ-Klas-Besa/kviz/`
+- Partii pošli odkaz a heslo (na začiatku `partia`). Každý si zadá meno, na novom telefóne rovnaké meno = pokračuje.
+- Heslo zmeníš na prihlasovacej obrazovke cez **Správca**. Prvý PIN, ktorý tam zadáš, sa uloží ako správcovský.
+- Otázky sú v `cloudflare/kviz-otazky.js`, logika na serveri v `cloudflare/kviz.js` (nasadí sa spolu s workerom).

@@ -3,6 +3,9 @@
 //  2) Dochádzka:   /dochadzka?ids=a,b,c  (GET)  a  POST /dochadzka {id, meno, o: "ano" | "nie" | ""}
 //     Potrebuje KV úložisko pripojené pod názvom DOCHADZKA (Settings > Bindings > KV namespace).
 //  3) Chat:        /chat/... (Durable Object ChatRoom, nasadzuje sa cez GitHub Actions)
+//  4) Kvíz partie: /kp/... (samostatná inštancia ChatRoom 'kviz-partia', logika v kviz.js)
+
+import { kviz } from './kviz.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -227,6 +230,7 @@ export class ChatRoom {
     let body = {};
     if (request.method === 'POST') { try { body = await request.json(); } catch (e) { return json({ error: 'Zlé údaje' }, 400); } }
     const pin = body.pin ?? url.searchParams.get('pin');
+    if (path.startsWith('/kp/')) return await kviz(this, path, body, { json, sha, rnd, skDate, weekStart });
 
     if (path === '/chat/status') return json({ setup: !!this.cfg });
     if (path === '/tip/board') return json(await this.tipBoard(), 200, { 'Cache-Control': 'public, max-age=120' });
@@ -557,6 +561,10 @@ export default {
       if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
       const path = new URL(request.url).pathname.replace(/\/+$/, '');
       if (path === '/dochadzka') return await attendance(request, env);
+      if (path.startsWith('/kp/')) {
+        if (!env.CHAT) return json({ error: 'Kvíz nie je nasadený' }, 503);
+        return await env.CHAT.get(env.CHAT.idFromName('kviz-partia')).fetch(request);
+      }
       if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/') || path.startsWith('/pristup/')) {
         if (!env.CHAT) return json({ error: 'Chat nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('klub')).fetch(request);

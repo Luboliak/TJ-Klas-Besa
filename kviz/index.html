@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="sk" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kvíz partie</title>
+<meta name="theme-color" content="#12201b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="ikona.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column like a pub-quiz chalkboard — header board, tabs, one card per job. Dark-first. */
+:root{
+  --bg:#12201b; --panel:#192c25; --panel2:#213a31; --line:#2d4a3f;
+  --fg:#eef1e8; --muted:#9fb3a8; --chalk:#f6f3e6;
+  --brass:#e2b347; --brass-ink:#1a1405;
+  --good:#5fcf8a; --bad:#ef6f62;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#eef1ea; --panel:#ffffff; --panel2:#e4ebe2; --line:#cfd9cf;
+  --fg:#16241e; --muted:#5b6e64; --chalk:#16241e;
+  --brass:#b5841c; --brass-ink:#ffffff; --good:#1f8a4c; --bad:#c43c30; color-scheme:light } }
+:root[data-theme="light"]{
+  --bg:#eef1ea; --panel:#ffffff; --panel2:#e4ebe2; --line:#cfd9cf;
+  --fg:#16241e; --muted:#5b6e64; --chalk:#16241e;
+  --brass:#b5841c; --brass-ink:#ffffff; --good:#1f8a4c; --bad:#c43c30; color-scheme:light }
+:root[data-theme="dark"]{
+  --bg:#12201b; --panel:#192c25; --panel2:#213a31; --line:#2d4a3f;
+  --fg:#eef1e8; --muted:#9fb3a8; --chalk:#f6f3e6;
+  --brass:#e2b347; --brass-ink:#1a1405; --good:#5fcf8a; --bad:#ef6f62; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:calc(12px + env(safe-area-inset-top,0px)) calc(40px + env(safe-area-inset-bottom,0px));margin:0}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.hero{display:flex;align-items:center;gap:14px;padding:14px;border-radius:18px;background:var(--panel);border:1px solid var(--line)}
+.hero svg{flex:0 0 auto;width:84px;height:84px}
+.hero h1{font-size:1.75rem;line-height:1.05}
+.hero p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.who{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.who b{color:var(--fg)}
+.ghost{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.82rem;color:var(--muted)}
+.ghost:hover{color:var(--fg);border-color:var(--muted)}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.tabs button{border:0;background:none;padding:9px 6px;border-radius:10px;font-weight:600;color:var(--muted);font-size:.9rem}
+.tabs button[aria-selected="true"]{background:var(--panel2);color:var(--fg)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600}
+.prize{background:var(--panel2);border-color:transparent}
+.prize .big{font-family:var(--display);font-size:1.45rem;font-weight:800;color:var(--brass);line-height:1.15;overflow-wrap:anywhere}
+.btn{border:0;border-radius:12px;padding:13px 18px;font-weight:700;background:var(--brass);color:var(--brass-ink);font-size:1rem}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sec{background:var(--panel2);color:var(--fg)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.dots{display:grid;grid-template-columns:repeat(12,1fr);gap:4px}
+.dots i{height:8px;border-radius:4px;background:var(--line)}
+.dots i.ok{background:var(--good)} .dots i.no{background:var(--bad)} .dots i.now{background:var(--brass)}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat div{background:var(--panel2);border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-family:var(--display);font-size:1.5rem;font-variant-numeric:tabular-nums}
+.stat span{font-size:.75rem;color:var(--muted)}
+/* quiz */
+.qtop{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.topic{display:inline-block;background:var(--panel2);border-radius:999px;padding:3px 10px;font-size:.75rem;font-weight:600;color:var(--brass)}
+.qtext{font-family:var(--display);font-size:1.35rem;font-weight:600;line-height:1.25;color:var(--chalk)}
+.timer{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.timer i{display:block;height:100%;background:var(--brass);width:100%;transform-origin:left;transition:transform .2s linear}
+.ans{display:flex;flex-direction:column;gap:8px}
+.ans button{text-align:left;border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:13px 14px;font-weight:500;display:flex;gap:10px;align-items:baseline}
+.ans button span.k{font-weight:700;color:var(--muted);min-width:1.2em}
+.ans button:not(:disabled):hover{border-color:var(--brass)}
+.ans button.ok{background:color-mix(in srgb,var(--good) 22%,var(--panel2));border-color:var(--good)}
+.ans button.no{background:color-mix(in srgb,var(--bad) 22%,var(--panel2));border-color:var(--bad)}
+.ans button:disabled{cursor:default}
+.note{font-size:.88rem;color:var(--muted);background:var(--panel2);border-radius:10px;padding:10px 12px}
+/* board */
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line);background:none;border-radius:999px;padding:5px 12px;font-size:.85rem;color:var(--muted);font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:var(--brass-ink)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td,th{padding:9px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+td.n,th.n{text-align:right}
+td.r{width:2.2em;font-weight:700;color:var(--muted)}
+tr.me td{color:var(--brass)}
+tr.top1 td.r{color:var(--brass)}
+.nm{overflow-wrap:anywhere}
+/* prizes */
+.plist{display:flex;flex-direction:column;gap:8px}
+.pitem{display:flex;gap:10px;align-items:center;background:var(--panel2);border-radius:12px;padding:10px 12px;border:1px solid transparent}
+.pitem.mine{border-color:var(--brass)}
+.pitem .t{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:600}
+.pitem .c{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.85rem;white-space:nowrap}
+.pitem button{border:0;border-radius:9px;padding:7px 11px;font-weight:600;font-size:.85rem;background:var(--panel);color:var(--fg)}
+.pitem.mine button.v{background:var(--brass);color:var(--brass-ink)}
+.bar{height:4px;border-radius:2px;background:var(--brass);opacity:.8}
+input[type=text],input[type=password]{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+input::placeholder{color:var(--muted)}
+.gate{min-height:60vh;display:flex;flex-direction:column;justify-content:center;gap:14px}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:.9rem;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion: reduce){ .timer i{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="hero">
+    <svg viewBox="0 0 100 100" role="img" aria-label="Kvízová tabuľa s otáznikom">
+      <rect x="6" y="14" width="88" height="70" rx="10" stroke-width="3" style="fill:var(--panel2);stroke:var(--brass)"/>
+      <rect x="12" y="20" width="76" height="58" rx="6" style="fill:var(--bg)"/>
+      <g style="fill:var(--brass)">
+        <circle cx="20" cy="27" r="2.4"/><circle cx="27" cy="27" r="2.4"/><circle cx="34" cy="27" r="2.4"/>
+        <circle cx="66" cy="27" r="2.4" opacity=".35"/><circle cx="73" cy="27" r="2.4" opacity=".35"/><circle cx="80" cy="27" r="2.4" opacity=".35"/>
+      </g>
+      <path d="M40 44c0-7 4.6-11 10.4-11S61 36.6 61 42.6c0 5.6-4 7.4-6.8 9.4-2 1.4-2.8 2.8-2.8 5.4v1.6" fill="none" stroke-width="5.2" stroke-linecap="round" style="stroke:var(--chalk)"/>
+      <circle cx="51.4" cy="68" r="3.6" style="fill:var(--chalk)"/>
+      <path d="M22 92h56" stroke-width="3" stroke-linecap="round" style="stroke:var(--brass)"/>
+      <path d="M30 84l-6 8M70 84l6 8" stroke-width="3" stroke-linecap="round" style="stroke:var(--brass)"/>
+      <path d="M78 66l6-3M80 72l7 0M78 78l6 3" stroke-width="2.4" stroke-linecap="round" style="stroke:var(--good)"/>
+    </svg>
+    <div style="min-width:0;flex:1">
+      <h1>Kvíz partie</h1>
+      <p>12 otázok každý deň. Body sa sčítavajú do týždňa, mesiaca aj roka.</p>
+    </div>
+  </div>
+  <div id="view"></div>
+</div>
+<script>
+(function(){
+"use strict";
+const API = 'https://tjklas.v8kjgs4tmc.workers.dev';
+const PER_DAY = 12, SEC = 20;
+const view = document.getElementById('view');
+const S = { token:null, stav:null, tab:'dnes', period:'tyzden', quiz:null, err:'', busy:false, admin:false, adminMsg:'' };
+
+const ls = { get(k){ try{return localStorage.getItem(k)}catch(e){return null} }, set(k,v){ try{ v==null?localStorage.removeItem(k):localStorage.setItem(k,v) }catch(e){} } };
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MONTHS = ['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'];
+const hl = n => n===1?'hlas':(n>=2&&n<=4?'hlasy':'hlasov');
+const fmtD = d => { const [y,m,dd]=d.split('-').map(Number); return dd+'. '+m+'.'; };
+function toast(t){ const el=document.createElement('div'); el.className='toast'; el.setAttribute('role','status'); el.textContent=t; document.body.appendChild(el); setTimeout(()=>el.remove(),2600); }
+
+async function api(path, body){
+  const r = await fetch(API+'/kp/'+path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.assign({token:S.token}, body||{})) });
+  let j = {}; try{ j = await r.json(); }catch(e){}
+  if(j.odhlasit){ S.token=null; ls.set('kp_token',null); S.stav=null; S.quiz=null; render(); throw new Error(j.error||'Prihlás sa znova.'); }
+  if(!r.ok || j.error) throw new Error(j.error || 'Server neodpovedá ('+r.status+').');
+  return j;
+}
+async function nacitaj(){ try{ S.stav = await api('stav'); S.err=''; }catch(e){ S.err=e.message; } if(!S.quiz) render(); }
+
+/* ---------- render ---------- */
+function render(){
+  if(S.admin) return renderAdmin();
+  if(!S.token) return renderLogin();
+  if(S.quiz) return renderQuiz();
+  const st=S.stav;
+  const tabs = `<div class="tabs" role="tablist">${[['dnes','Dnes'],['rebricek','Rebríček'],['cena','O čo sa hrá']].map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.tab===k}">${l}</button>`).join('')}</div>`;
+  const who = `<div class="who">Hráš ako <b>${esc(st?st.meno:ls.get('kp_meno')||'')}</b> <button class="ghost" data-act="logout">Odhlásiť</button><button class="ghost" data-act="theme">${themeLabel()}</button></div>`;
+  let body;
+  if(!st) body = `<div class="card"><p class="muted" style="margin:0">${S.err?esc(S.err):'Načítavam…'}</p>${S.err?'<button class="btn sec" data-act="reload">Skúsiť znova</button>':''}</div>`;
+  else if(S.tab==='dnes') body = renderToday();
+  else if(S.tab==='rebricek') body = renderBoard();
+  else body = renderPrizes();
+  view.innerHTML = `<div class="wrap" style="margin:0">${who}${tabs}${body}</div>`;
+}
+function renderLogin(){
+  view.innerHTML = `<form class="card gate" id="loginForm"><h2>Vitaj v kvíze partie</h2>
+    <p class="muted small" style="margin:0">Zadaj heslo partie a meno, pod ktorým budeš v rebríčku. Na novom telefóne zadaj rovnaké meno a pokračuješ, kde si skončil.</p>
+    <label class="small muted" for="passIn">Heslo partie</label><input type="password" id="passIn" autocomplete="current-password">
+    <label class="small muted" for="nameIn">Tvoje meno</label><input type="text" id="nameIn" maxlength="24" placeholder="Napr. Majo" value="${esc(ls.get('kp_meno')||'')}">
+    <div class="err" id="loginErr"></div><button class="btn" type="submit">Vstúpiť</button>
+    <button class="ghost" type="button" data-act="admin" style="align-self:flex-start">Správca</button></form>`;
+}
+function renderAdmin(){
+  view.innerHTML = `<form class="card gate" id="adminForm"><span class="eyebrow">Správca</span><h2>Nastavenie kvízu</h2>
+    <p class="muted small" style="margin:0">Pri prvom použití sa zadaný PIN uloží ako správcovský. Potom ho budeš potrebovať na každú zmenu.</p>
+    <label class="small muted" for="pinIn">Správcovský PIN</label><input type="password" id="pinIn" autocomplete="off">
+    <label class="small muted" for="newPass">Nové heslo partie (nechaj prázdne, ak nemeníš)</label><input type="text" id="newPass" maxlength="40">
+    <label class="small muted" for="delName">Vymazať hráča (presné meno, nechaj prázdne)</label><input type="text" id="delName" maxlength="24">
+    <div class="err" id="adminErr">${esc(S.adminMsg)}</div>
+    <div class="row"><button class="btn" type="submit">Uložiť</button><button class="btn sec" type="button" data-act="adminClose">Späť</button></div></form>`;
+}
+function prizeCard(){
+  const c=S.stav.ceny, lead=c[0];
+  return `<div class="card prize"><span class="eyebrow">Tento týždeň sa hrá o</span>
+    <div class="big">${lead?esc(lead.text):'Zatiaľ nič navrhnuté'}</div>
+    <div class="small muted">${lead?`${lead.hlasy} ${hl(lead.hlasy)} · návrhov: ${c.length}`:'Navrhni cenu v záložke „O čo sa hrá“.'}</div></div>`;
+}
+function dotsHtml(r,cur){ let h=''; for(let i=0;i<PER_DAY;i++){ const c=(r||'')[i]; h+=`<i class="${c==='1'?'ok':c==='0'?'no':(i===cur?'now':'')}"></i>`; } return h; }
+function renderToday(){
+  const st=S.stav, d=st.dnes, done=d&&d.i>=PER_DAY&&!d.pend, started=d&&d.i>0;
+  let main;
+  if(done){
+    const rank = st.rebricek.tyzden.findIndex(r=>r.meno===st.meno)+1;
+    main = `<div class="card"><span class="eyebrow">Dnešný kvíz · ${fmtD(st.den)}</span><h2>Hotovo na dnes</h2>
+      <div class="dots">${dotsHtml(d.r,-1)}</div>
+      <div class="stat"><div><b>${d.s}</b><span>bodov</span></div><div><b>${d.c}/12</b><span>správne</span></div><div><b>${rank||'–'}.</b><span>v týždni</span></div></div>
+      <p class="muted small" style="margin:0">Nová séria 12 otázok naskočí zajtra o polnoci.</p></div>`;
+  } else {
+    main = `<div class="card"><span class="eyebrow">Dnešný kvíz · ${fmtD(st.den)}</span><h2>${started?'Rozohraný kvíz':'12 nových otázok'}</h2>
+      <p class="muted small" style="margin:0">Na každú otázku máš ${SEC} sekúnd. Správna odpoveď = 10 bodov a bonus za rýchlosť (najviac 10). Hrá sa raz za deň, otvorená otázka sa po zatvorení appky počíta ako zlá.</p>
+      ${started?`<div class="dots">${dotsHtml(d.r,d.r.length)}</div>`:''}
+      <button class="btn" data-act="start" ${S.busy?'disabled':''}>${started?`Pokračovať (otázka ${d.r.length+1})`:'Začať kvíz'}</button>
+      <span class="small muted">Dnešné témy: ${st.temy.map(esc).join(', ')}</span></div>`;
+  }
+  const wk = st.rebricek.tyzden.slice(0,5);
+  const mini = `<div class="card"><div class="row" style="justify-content:space-between"><span class="eyebrow">Týždeň ${fmtD(st.tyzden)} – ${fmtD(st.tyzdenDo)} · top 5</span><button class="ghost" data-tab="rebricek">Celý rebríček</button></div>
+    ${wk.length?tableHtml(wk):'<p class="muted small" style="margin:0">Tento týždeň ešte nikto nehral. Buď prvý.</p>'}</div>`;
+  const m = st.minuly;
+  const last = m?`<div class="card"><span class="eyebrow">Minulý týždeň vyhral</span><div class="row"><h3 class="nm">${esc(m.meno)}</h3><span class="muted small">${m.body} bodov${m.cena?` · hralo sa o: ${esc(m.cena)}`:''}</span></div></div>`:'';
+  return prizeCard()+main+mini+last;
+}
+function tableHtml(rows){
+  return `<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Hráč</th><th class="n">Dni</th><th class="n">Správne</th><th class="n">Body</th></tr></thead><tbody>${
+    rows.map((r,i)=>`<tr class="${r.meno===S.stav.meno?'me':''} ${i===0?'top1':''}"><td class="r">${i+1}.</td><td class="nm">${esc(r.meno)}</td><td class="n">${r.dni}</td><td class="n">${r.odp?Math.round(r.spravne/r.odp*100):0} %</td><td class="n"><b>${r.body}</b></td></tr>`).join('')}</tbody></table></div>`;
+}
+function renderBoard(){
+  const st=S.stav, y=st.den.slice(0,4), mo=+st.den.slice(5,7)-1;
+  const label = {dnes:'Dnes '+fmtD(st.den), tyzden:'Týždeň '+fmtD(st.tyzden)+' – '+fmtD(st.tyzdenDo), mesiac:MONTHS[mo]+' '+y, rok:'Rok '+y}[S.period];
+  const rows = st.rebricek[S.period];
+  return `<div class="card"><div class="seg">${[['dnes','Dnes'],['tyzden','Týždeň'],['mesiac','Mesiac'],['rok','Rok']].map(([k,l])=>`<button data-period="${k}" aria-pressed="${S.period===k}">${l}</button>`).join('')}</div>
+    <span class="eyebrow">${esc(label)}</span>
+    ${rows.length?tableHtml(rows):'<p class="muted small" style="margin:0">V tomto období ešte nikto nehral.</p>'}
+    <p class="muted small" style="margin:0">Pri rovnosti bodov rozhoduje počet správnych odpovedí.</p></div>`;
+}
+function renderPrizes(){
+  const st=S.stav, list=st.ceny, max=Math.max(1,...list.map(p=>p.hlasy));
+  return `<div class="card"><span class="eyebrow">Týždeň ${fmtD(st.tyzden)} – ${fmtD(st.tyzdenDo)}</span>
+    <h2>O čo sa hrá tento týždeň?</h2>
+    <p class="muted small" style="margin:0">Každý môže pridať návrh a hlasovať počas celého týždňa. Vyhráva návrh s najviac hlasmi a cenu získa víťaz týždenného rebríčka.</p>
+    <div class="plist">${list.length?list.map(p=>`<div class="pitem ${st.mojHlas===p.id?'mine':''}"><div class="t">${esc(p.text)}<div class="bar" style="width:${Math.round(p.hlasy/max*100)}%;margin-top:6px"></div></div>
+      <span class="c">${p.hlasy} ${hl(p.hlasy)}</span>
+      <button class="v" data-vote="${p.id}">${st.mojHlas===p.id?'Tvoj hlas':'Hlasovať'}</button>
+      ${p.moja?`<button data-del="${p.id}" aria-label="Zmazať návrh">✕</button>`:''}</div>`).join(''):'<p class="muted small" style="margin:0">Zatiaľ žiadny návrh. Pridaj prvý.</p>'}</div>
+    <form class="row" id="propForm" style="flex-wrap:nowrap"><input type="text" id="propIn" maxlength="60" placeholder="Napr. pivo pre víťaza" aria-label="Návrh ceny"><button class="btn" type="submit">Pridať</button></form></div>`;
+}
+function themeLabel(){ return document.documentElement.getAttribute('data-theme')==='light'?'Tmavý režim':'Svetlý režim'; }
+
+/* ---------- quiz ---------- */
+let tick=null;
+async function dalsia(){
+  if(S.busy) return; S.busy=true;
+  try{
+    const q = await api('otazka');
+    if(q.koniec){ S.quiz=null; S.busy=false; await nacitaj(); return; }
+    S.quiz = { q, t0: Date.now() - (SEC - q.zostava)*1000, ans:null, r:q.r, s:q.s };
+    render(); clearInterval(tick);
+    tick=setInterval(()=>{ if(!S.quiz||S.quiz.ans) return; const left=SEC-(Date.now()-S.quiz.t0)/1000;
+      const bar=document.querySelector('.timer i'), lab=document.getElementById('secLeft');
+      if(bar) bar.style.transform=`scaleX(${Math.max(0,left/SEC)})`; if(lab) lab.textContent=Math.max(0,Math.ceil(left))+' s';
+      if(left<=0) odpovedz(-1); },200);
+  }catch(e){ toast(e.message); S.quiz=null; render(); }
+  S.busy=false;
+}
+async function odpovedz(k){
+  const Q=S.quiz; if(!Q||Q.ans||Q.sending) return; Q.sending=true; clearInterval(tick);
+  document.querySelectorAll('.ans button').forEach(b=>b.disabled=true);
+  try{ const a = await api('odpoved',{k}); Q.ans=Object.assign({k},a); Q.r=a.r; Q.s=a.s; }
+  catch(e){ toast(e.message); Q.ans={k,ok:false,body:0,spravna:-1,pozn:'',koniec:false,chyba:true}; }
+  render();
+}
+function renderQuiz(){
+  const Q=S.quiz, q=Q.q, A=Q.ans;
+  view.innerHTML = `<div class="card"><div class="qtop"><span>Otázka ${q.n} / ${PER_DAY}</span><span>${Q.s} bodov</span><span id="secLeft">${A?'':Math.ceil(q.zostava)+' s'}</span></div>
+    <div class="dots">${dotsHtml(Q.r, A?-1:Q.r.length)}</div>
+    ${A?'':'<div class="timer"><i></i></div>'}
+    <span class="topic" style="align-self:flex-start">${esc(q.tema)}</span>
+    <div class="qtext">${esc(q.text)}</div>
+    <div class="ans">${q.opts.map((o,j)=>{ let c=''; if(A){ if(j===A.spravna) c='ok'; else if(j===A.k) c='no'; }
+      return `<button data-ans="${j}" class="${c}" ${A?'disabled':''}><span class="k">${'ABCD'[j]}</span><span>${esc(o)}</span></button>`; }).join('')}</div>
+    ${A?`<div class="note" role="status">${A.chyba?'Odpoveď sa nepodarilo odoslať.':A.ok?`Správne! +${A.body} bodov.`:(A.k<0||!A.vcas?'Čas vypršal.':'Nesprávne.')+(A.spravna>=0?` Správna odpoveď: <b>${esc(q.opts[A.spravna])}</b>.`:'')}${A.pozn?' '+esc(A.pozn):''}</div>
+      <button class="btn" data-act="next">${A.koniec?'Zobraziť výsledok':'Ďalšia otázka'}</button>`:''}</div>`;
+}
+
+/* ---------- events ---------- */
+view.addEventListener('click', async e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.tab){ S.tab=b.dataset.tab; render(); return; }
+  if(b.dataset.period){ S.period=b.dataset.period; render(); return; }
+  if(b.dataset.ans!==undefined){ odpovedz(+b.dataset.ans); return; }
+  if(b.dataset.vote){ try{ S.stav=await api('hlas',{cena:+b.dataset.vote}); toast('Hlas uložený'); render(); }catch(err){ toast(err.message); } return; }
+  if(b.dataset.del){ if(!b.dataset.confirm){ b.dataset.confirm='1'; b.textContent='Naozaj?'; return; }
+    try{ S.stav=await api('zmaz',{cena:+b.dataset.del}); render(); }catch(err){ toast(err.message); } return; }
+  const a=b.dataset.act;
+  if(a==='start') dalsia();
+  else if(a==='next'){ if(S.quiz&&S.quiz.ans&&S.quiz.ans.koniec){ S.quiz=null; S.tab='dnes'; S.stav=null; render(); nacitaj(); } else dalsia(); }
+  else if(a==='reload') nacitaj();
+  else if(a==='logout'){ S.token=null; ls.set('kp_token',null); S.stav=null; render(); }
+  else if(a==='admin'){ S.admin=true; S.adminMsg=''; render(); }
+  else if(a==='adminClose'){ S.admin=false; render(); }
+  else if(a==='theme'){ const r=document.documentElement; const nxt=r.getAttribute('data-theme')==='light'?'dark':'light'; r.setAttribute('data-theme',nxt); ls.set('kp_theme',nxt); render(); }
+});
+view.addEventListener('submit', async e=>{
+  e.preventDefault(); const f=e.target, btn=f.querySelector('[type=submit]');
+  if(f.id==='loginForm'){
+    const heslo=document.getElementById('passIn').value, meno=document.getElementById('nameIn').value.trim(), err=document.getElementById('loginErr');
+    if(meno.length<2){ err.textContent='Meno musí mať aspoň 2 znaky.'; return; }
+    btn.disabled=true; err.textContent='';
+    try{ const r=await api('login',{heslo,meno}); S.token=r.token; ls.set('kp_token',r.token); ls.set('kp_meno',r.meno); render(); nacitaj(); }
+    catch(x){ err.textContent=x.message; btn.disabled=false; }
+  }
+  if(f.id==='propForm'){
+    const i=document.getElementById('propIn'), v=i.value.trim(); if(v.length<2) return; btn.disabled=true;
+    try{ S.stav=await api('navrh',{text:v}); toast('Návrh pridaný'); render(); }catch(x){ toast(x.message); btn.disabled=false; }
+  }
+  if(f.id==='adminForm'){
+    const body={pin:document.getElementById('pinIn').value, heslo:document.getElementById('newPass').value.trim()||undefined, zmazHraca:document.getElementById('delName').value.trim()||undefined};
+    btn.disabled=true;
+    try{ const r=await api('admin',body); S.adminMsg='Uložené. Hráči: '+(r.hraci.join(', ')||'zatiaľ nikto'); }catch(x){ S.adminMsg=x.message; }
+    render();
+  }
+});
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.token && !S.quiz) nacitaj(); });
+setInterval(()=>{ if(!document.hidden && S.token && !S.quiz) nacitaj(); }, 60000);
+
+/* ---------- start ---------- */
+document.documentElement.setAttribute('data-theme', ls.get('kp_theme')||'dark');
+S.token = ls.get('kp_token');
+render(); if(S.token) nacitaj();
+})();
+</script>
+
+</body>
+</html>
