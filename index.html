@@ -1950,7 +1950,7 @@ async function kvAnswer(i){
   setTimeout(()=>{ if(f.koniec){ KV.st='start'; KV.q=null; clearInterval(KV.timer); KV.stav=null; delete BOARDS.kq; kqStav(); } else kvNext(); }, f.pozn?(f.ok?2600:3800):(f.ok?1000:2000));
 }
 function vKviz(){
-  const intro=`<p class="note" style="margin-top:0">Každý deň 12 nových otázok z rôznych oblastí, na každú 20 sekúnd. Správne = 10 bodov + až 10 bodov za rýchlosť. Body sa sčítavajú za mesiac a za rok. <b>Víťaz mesiaca dostane ${BONUS.kviz} € k výplate.</b></p>`;
+  const intro=`<p class="note" style="margin-top:0">Každý deň 12 otázok a každý hráč má svoje vlastné – v ten istý deň nikto nedostane rovnakú otázku, takže si nemáte čo poradiť. Obťažnosť je pre všetkých rovnaká (4 ľahšie, 3 stredné, 3 ťažké a 2 príklady). Na otázku je 20 sekúnd. Správne = 10 bodov + až 10 bodov za rýchlosť. Body sa sčítavajú za mesiac a za rok. <b>Víťaz mesiaca dostane ${BONUS.kviz} € k výplate.</b></p>`;
   const g=hryGate(intro); if(g) return g;
   if(KV.st==='q'&&KV.q){
     const q=KV.q, f=KV.fb, left=Math.max(0,KV.left-(Date.now()-KV.t0)/1000);
