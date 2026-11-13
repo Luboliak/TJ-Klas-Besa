@@ -329,6 +329,7 @@ body.gated>*:not(#gate){display:none!important}
 .kvo button.ok{background:#1e7e34;border-color:#1e7e34;color:#fff}
 .kvo button.bad{background:#b02a37;border-color:#b02a37;color:#fff}
 .kvo button:disabled{opacity:1}
+.kvo button.sel{border-color:var(--ink)}
 .fanl{display:flex;flex-direction:column;gap:6px}
 .fanr{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:inherit;text-align:left}
 .fanr.add{justify-content:center;border-style:dashed;color:var(--mute);padding:14px}
@@ -767,7 +768,7 @@ async function pollLive(){
   if(!hraBezi()) render();
 }
 // počas rozohranej hry neprekresľujeme stránku na pozadí (stratil by sa dotyk)
-function hraBezi(){ return tab==='hry'&&((hsub==='kos'&&KO.st==='play')||(hsub==='pk'&&PK.st!=='aim'&&PK.st!=='over')||(hsub==='kviz'&&KV.st==='q')||(hsub==='beh'&&RUN.st==='play')||(hsub==='bloky'&&BL.st==='play')); }
+function hraBezi(){ return tab==='hry'&&((hsub==='kos'&&KO.st==='play')||(hsub==='pk'&&PK.st!=='aim'&&PK.st!=='over')||(hsub==='kviz'&&KV.st==='q'&&KV.picked==null)||(hsub==='beh'&&RUN.st==='play')||(hsub==='bloky'&&BL.st==='play')); }
 
 function vMatches(){
   const l=L(), isHome=!!l.home, mode=isHome?zapMode:'liga';
@@ -1228,7 +1229,7 @@ function mvpSlots(){ return mvpPolls().map(m=>`<div data-mvpslot="${esc(m.id)}">
 async function openMvp(id){
   const m=findMatch(id); if(!m) return;
   const close=`<button class="ibtn" data-close="1" aria-label="Zavrieť"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
-  const w=mvpWin(m), head=`<h3><span>Hráč zápasu</span>${close}</h3><p class="note" style="margin-top:-6px">${esc(mvpTitle(m))}${m.hs!=null?' '+m.hs+':'+m.as:''}, ${dLabel(m.date)}</p>`;
+  const w=mvpWin(m), head=`<h3><span>Hráč zápasu</span>${close}</h3><p class="note" style="margin-top:-6px">${esc(mvpTitle(m))}${m.hs!=null?' '+m.hs+':'+m.as:''}, ${dLabel(m.date)}. Víťaz hlasovania dostane ${BONUS.mvp} € k výplate.</p>`;
   if(!CHPIN){ openSheet(head+`<p>Hlasovať môžu len hráči klubu. Zadaj klubový PIN, ten istý ako do chatu.</p>
       <div class="acts"><input type="text" id="mvpPin" inputmode="numeric" autocomplete="off" placeholder="PIN" style="flex:1"><button class="btn pri" data-mvppin="${esc(id)}">Pokračovať</button></div>`); return; }
   if(!JA){ pickName(); return; }
@@ -1391,11 +1392,25 @@ async function vedSync(manual){
     if(PROXY&&TREN_TXT){
       const tr=parseTren(TREN_TXT,new Date(od+'T12:00'),new Date(Date.now()-864e5)).filter(r=>!r[4]&&r[0]>=od&&r[0]<t);
       for(let i=0;i<tr.length;i+=25){
-        const part=tr.slice(i,i+25), r=await fetch(PROXY+'/dochadzka?ids='+part.map(x=>'tren-'+x[0]).join(','),{cache:'no-store'});
-        if(!r.ok){ err++; continue; } const j=await r.json();
+        const part=tr.slice(i,i+25); let j;
+        try{ const r=await fetch(PROXY+'/dochadzka?ids='+part.map(x=>'tren-'+x[0]).join(','),{cache:'no-store'}); if(!r.ok) throw 0; j=await r.json(); }catch(e){ err++; continue; }
         part.forEach(x=>{ const a=j['tren-'+x[0]]||{}; put('tr:'+x[0],'trening',x[0],x[1],'',null,ids(Object.keys(a).filter(n=>a[n].o==='ano'))); });
       }
     }
+    // bonusy: víťaz mesiaca v kvíze a v penaltách, hráč zápasu
+    if(PROXY){ try{
+      const V=await fetch(PROXY+'/hra/vitazi',{cache:'no-store'}).then(r=>r.ok?r.json():null);
+      if(V){ D.bonDone=D.bonDone||[]; const done=new Set(D.bonDone);
+        const last=m=>{ const [y,mo]=m.split('-').map(Number); return iso(new Date(y,mo,0)); };
+        const give=(src,names,amt,date,note)=>{ if(done.has(src)||date<od||!amt) return; let any=false;
+          names.forEach(n=>{ const p=byName.get(normN(n)); if(!p){ miss.add(n); return; } any=true;
+            const dd=Object.keys(D.paid).some(k=>k===ym(date)+'|'+p.id)?iso(new Date(new Date(last(ym(date))+'T12:00').getTime()+864e5)):date;
+            (D.fines=D.fines||[]).push({id:uid(),pid:p.id,date:dd,amount:amt,note,bonus:true,src}); nNew++; });
+          if(any||!names.length){ done.add(src); D.bonDone.push(src); } };
+        Object.entries(V.kq||{}).forEach(([m,ns])=>give('kq:'+m,ns,BONUS.kviz,last(m),'víťaz kvízu za '+MESF[+m.slice(5)-1]));
+        Object.entries(V.pk||{}).forEach(([m,ns])=>give('pk:'+m,ns,BONUS.pk,last(m),'víťaz penált za '+MESF[+m.slice(5)-1]));
+        (V.mvp||[]).forEach(p=>{ const mt=findMatch(p.id), d=(mt&&mt.date)||iso(new Date(p.closes)); give('mvp:'+p.id,p.mena||[],BONUS.mvp,d,'hráč zápasu'+(mt?' – '+(mt.home===US?mt.away:mt.home):'')); });
+      } }catch(e){ err++; } }
     D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save(); if(!nNew&&!nUpd) profSchedule();
     SYNC.msg=(err?'Časť údajov sa nenačítala. ':'')+(nNew||nUpd?`Zapísané: ${nNew} nových, ${nUpd} upravených.`:'Všetko je aktuálne.');
     if(manual) toast(SYNC.msg);
@@ -1874,9 +1889,9 @@ function hryGate(intro){
   if(!JA) return intro+'<div class="empty">Najprv si vyber, kto si.<br><br><button class="btn pri" data-ja="1">Vybrať meno</button></div>';
   return '';
 }
-function boardTable(rows,col,col2){
+function boardTable(rows,col,col2,me){ me=me||JA;
   return `<table class="lt tipb"><thead><tr><th></th><th class="l">Meno</th>${col2?`<th>${col2}</th>`:''}<th>${col}</th></tr></thead><tbody>`+
-    rows.map((r,i)=>`<tr class="${r[0]===JA?'us':''}"><td class="pos">${i+1}</td><td class="tm">${esc(r[0])}</td>${col2?`<td>${r[2]}</td>`:''}<td class="pts">${r[1]}</td></tr>`).join('')+'</tbody></table>';
+    rows.map((r,i)=>`<tr class="${normN(r[0])===normN(me)?'us':''}"><td class="pos">${i+1}</td><td class="tm">${esc(r[0])}</td>${col2?`<td>${r[2]}</td>`:''}<td class="pts">${r[1]}</td></tr>`).join('')+'</tbody></table>';
 }
 const golov=n=>n+(n===1?' gól':n>=2&&n<=4?' góly':' gólov');
 const hnorm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
@@ -1907,121 +1922,60 @@ function board(key,sub){
   return (BOARDS[key]||{}).d;
 }
 const boardErr=key=>BOARDS[key]&&BOARDS[key].err&&!BOARDS[key].d?'<p class="note">Poradie sa nepodarilo načítať, skúsim znova o chvíľu.</p>':'';
-/* --- KVÍZ --- */
-const KV_LIGA=3, KV_VSEOB=5, KV_N=KV_LIGA+KV_VSEOB, KV_T=20;
-let OTAZKY=null; // banka všeobecných otázok (otazky.json)
-async function otLoad(){ if(OTAZKY||otLoad.on) return; otLoad.on=true; OTAZKY=await getJson(BASE+'otazky.json')||[]; otLoad.on=false; hr('kviz'); }
-let KV={st:'start', qs:null, i:0, score:0, ok:0, t0:0, timer:null, picked:null, ranked:false, day:'', board:null, res:null};
-function kvShuffle(a,r){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(r()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
-function kvNear(c,min,max,r,spread){ spread=spread||2; const s=new Set(); let k=0; while(s.size<3&&k++<200){ const x=c+(Math.floor(r()*(spread*2+1))-spread); if(x!==c&&x>=min&&x<=max) s.add(x); } return [...s]; }
-function kvQuestions(seed){
-  const r=rngSeed(seed), l=home(), T=(l.teams||[]), ms=(l.matches||[]).filter(m=>realM(m)&&m.hs!=null);
-  const pickR=a=>a.length?a[Math.floor(r()*a.length)]:null;
-  const team=()=>(r()<.45&&T.some(t=>t.name===US))?US:(pickR(T)||{}).name;
-  const ours=ms.filter(m=>m.home===US||m.away===US), names=T.map(t=>t.name);
-  const G=[
-    ()=>{ const m=pickR(r()<.6&&ours.length?ours:ms); if(!m) return null; const c=m.hs+':'+m.as, w=new Set(); let k=0;
-      while(w.size<3&&k++<60){ const x=Math.max(0,m.hs+Math.floor(r()*5)-2)+':'+Math.max(0,m.as+Math.floor(r()*5)-2); if(x!==c) w.add(x); }
-      return {q:`Ako sa skončil zápas ${m.home} – ${m.away} (${m.round}. kolo)?`, a:c, o:[...w]}; },
-    ()=>{ const t=team(), s=SUP&&SUP[t]; if(!s) return null; const g=Object.entries(s.goly||{}).sort((a,b)=>b[1]-a[1]);
-      if(g.length<2||g[0][1]===g[1][1]) return null;
-      const others=kvShuffle([...new Set(g.slice(1).map(x=>x[0]).concat((s.last||[]).filter(p=>!p.gk).map(p=>p.n)))].filter(n=>n!==g[0][0]),r).slice(0,3);
-      return {q:`Kto strelil najviac gólov za ${t} v tejto sezóne?`, a:g[0][0], o:others}; },
-    ()=>{ const t=T.find(x=>x.name===team()); if(!t||!t.pos) return null; return {q:`Na ktorom mieste v tabuľke je ${t.name}?`, a:t.pos+'.', o:kvNear(+t.pos,1,T.length,r).map(x=>x+'.')}; },
-    ()=>{ const t=T.find(x=>x.name===team()); if(!t) return null; return {q:`Koľko bodov má ${t.name}?`, a:String(t.b), o:kvNear(+t.b,0,99,r,3).map(String)}; },
-    ()=>{ const m=pickR(ms.filter(m=>m.ref&&(m.home===US||m.away===US))); if(!m) return null; const refs=[...new Set(ms.map(x=>x.ref).filter(x=>x&&x!==m.ref))];
-      if(refs.length<3) return null; return {q:`Kto rozhodoval zápas ${m.home} – ${m.away} (${m.round}. kolo)?`, a:m.ref, o:kvShuffle(refs,r).slice(0,3)}; },
-    ()=>{ const gf=t=>+(t.g||'0:0').split(':')[0], s=[...T].sort((a,b)=>gf(b)-gf(a)); if(s.length<4||gf(s[0])===gf(s[1])) return null;
-      return {q:'Ktorý tím strelil v lige najviac gólov?', a:s[0].name, o:kvShuffle(s.slice(1,7),r).slice(0,3).map(t=>t.name)}; },
-    ()=>{ const ga=t=>+(t.g||'0:0').split(':')[1], s=[...T].sort((a,b)=>ga(a)-ga(b)); if(s.length<4||ga(s[0])===ga(s[1])) return null;
-      return {q:'Ktorý tím dostal v lige najmenej gólov?', a:s[0].name, o:kvShuffle(s.slice(1,7),r).slice(0,3).map(t=>t.name)}; },
-    ()=>{ const t=team(), s=SUP&&SUP[t]; if(!s) return null; const g=Object.entries(s.goly||{}).filter(x=>x[1]>=2); const p=pickR(g); if(!p) return null;
-      return {q:`Koľko gólov strelil ${p[0]} za ${t} v tejto sezóne?`, a:String(p[1]), o:kvNear(p[1],0,60,r,3).map(String)}; },
-    ()=>{ const m=pickR(ours); if(!m) return null; const opp=m.home===US?m.away:m.home;
-      return {q:`S kým hrala Beša v ${m.round}. kole?`, a:opp, o:kvShuffle(names.filter(n=>n!==opp&&n!==US),r).slice(0,3)}; },
-    ()=>{ const w=ours.filter(m=>(m.home===US?m.hs-m.as:m.as-m.hs)>0).map(m=>({d:Math.abs(m.hs-m.as),o:m.home===US?m.away:m.home})).sort((a,b)=>b.d-a.d);
-      if(w.length<2||w[0].d===w[1].d) return null; return {q:'Proti komu vyhrala Beša v tejto sezóne najvyšším rozdielom?', a:w[0].o, o:kvShuffle(names.filter(n=>n!==w[0].o&&n!==US),r).slice(0,3)}; },
-  ];
-  const out=[], seen=new Set(); let k=0;
-  while(out.length<KV_LIGA&&k++<300){
-    const gi=Math.floor(r()*G.length); let q=null; try{ q=G[gi](); }catch(e){}
-    if(!q||q.o.length<3||seen.has(q.q)||out.filter(x=>x.g===gi).length>=2) continue;
-    seen.add(q.q); q.g=gi; q.t='Naša liga'; q.opts=kvShuffle([q.a,...q.o.slice(0,3)],r); out.push(q);
-  }
-  // všeobecné otázky: v dennom kvíze idú po poradí zamiešanej banky, takže sa dlho neopakujú
-  const B=OTAZKY||[]; let gen=[];
-  if(B.length){
-    // poradie: témy sa striedajú dokola, každá téma zamiešaná, aby v jeden deň neboli dve otázky z rovnakej témy
-    const rs=rngSeed('otazky-v1'), T={}; B.forEach((x,i)=>(T[x.t]||(T[x.t]=[])).push(i));
-    const L=kvShuffle(Object.keys(T).sort(),rs).map(t=>kvShuffle(T[t],rs)), order=[];
-    for(let i=0;order.length<B.length;i++) L.forEach(l=>{ if(i<l.length) order.push(l[i]); });
-    const m=/^kviz-(\d{4}-\d{2}-\d{2})$/.exec(seed);
-    if(m){ const day=Math.floor(Date.parse(m[1])/86400000); for(let i=0;i<KV_VSEOB;i++) gen.push(B[order[(day*KV_VSEOB+i)%B.length]]); }
-    else gen=kvShuffle(B,r).slice(0,KV_VSEOB);
-  }
-  gen.forEach(x=>out.push({q:x.q, a:x.a, o:x.o, t:x.t, e:x.e||'', opts:kvShuffle([x.a,...x.o.slice(0,3)],r)}));
-  return kvShuffle(out,r);
+/* --- KVÍZ (12 otázok denne, vyhodnocuje server – víťaz mesiaca dostane bonus k výplate) --- */
+const BONUS={kviz:40, pk:20, mvp:15}; // € k výplate: víťaz mesiaca v kvíze, víťaz mesiaca v penaltách, hráč zápasu
+let KV={st:'start', stav:null, q:null, fb:null, picked:null, t0:0, left:0, timer:null, busy:false, err:''};
+async function kqApi(p,b){ return chatApi('/hra/kq/'+p,Object.assign({pin:CHPIN,meno:JA},b||{})); }
+async function kqStav(){ if(KV.busy) return; KV.busy=true;
+  try{ KV.stav=await kqApi('stav'); KV.err=''; }catch(e){ KV.err=e.message; }
+  finally{ KV.busy=false; if(!hraBezi()) hr('kviz'); } }
+async function kvNext(){
+  try{ const q=await kqApi('otazka');
+    if(q.koniec){ KV.st='start'; KV.q=null; clearInterval(KV.timer); KV.stav=null; kqStav(); return; }
+    KV.q=q; KV.fb=null; KV.picked=null; KV.st='q'; KV.t0=Date.now(); KV.left=q.zostava;
+    clearInterval(KV.timer);
+    KV.timer=setInterval(()=>{ if(KV.st!=='q'||KV.picked!=null) return;
+      const left=KV.left-(Date.now()-KV.t0)/1000, bar=$('#kvbar'), sc=$('#kvsec');
+      if(bar) bar.style.width=Math.max(0,left/20*100)+'%'; if(sc) sc.textContent=Math.ceil(Math.max(0,left));
+      if(left<=0) kvAnswer(-1); },200);
+    hr('kviz'); scrollTo(0,0);
+  }catch(e){ toast(e.message); KV.st='start'; hr('kviz'); }
 }
-function kvStart(ranked){
-  KV.day=skToday(); KV.ranked=ranked; KV.res=null;
-  KV.qs=kvQuestions(ranked?'kviz-'+KV.day:'cvik-'+Math.random());
-  if(KV.qs.length<KV_N){ toast('Na kvíz zatiaľ nie je dosť údajov'); return; }
-  KV.st='q'; KV.i=0; KV.score=0; KV.ok=0; KV.picked=null; KV.t0=Date.now();
-  if(ranked) lsSet('kviz_'+KV.day,'0'); // pokus sa ráta hneď po spustení
-  clearInterval(KV.timer);
-  KV.timer=setInterval(()=>{ if(KV.st!=='q'||KV.picked!=null) return;
-    const left=KV_T-(Date.now()-KV.t0)/1000, b=$('#kvbar'), s=$('#kvsec');
-    if(b) b.style.width=Math.max(0,left/KV_T*100)+'%'; if(s) s.textContent=Math.ceil(Math.max(0,left));
-    if(left<=0) kvAnswer(-1); },200);
-  render(); scrollTo(0,0);
-}
-function kvAnswer(i){
+async function kvAnswer(i){
   if(KV.st!=='q'||KV.picked!=null) return;
-  const q=KV.qs[KV.i], left=Math.max(0,KV_T-(Date.now()-KV.t0)/1000), ok=i>=0&&q.opts[i]===q.a;
-  KV.picked=i; if(ok){ KV.ok++; KV.score+=100+Math.round(left*2.5); }
+  KV.picked=i; hr('kviz');
+  try{ KV.fb=await kqApi('odpoved',{k:i}); }catch(e){ KV.fb={error:e.message}; }
   hr('kviz');
-  setTimeout(()=>{ KV.i++; KV.picked=null;
-    if(KV.i>=KV.qs.length){ clearInterval(KV.timer); KV.st='end'; kvFinish(); } else { KV.t0=Date.now(); hr('kviz'); } }, q.e?(ok?2600:3600):(ok?900:1800));
+  const f=KV.fb||{};
+  setTimeout(()=>{ if(f.koniec){ KV.st='start'; KV.q=null; clearInterval(KV.timer); KV.stav=null; delete BOARDS.kq; kqStav(); } else kvNext(); }, f.pozn?(f.ok?2600:3800):(f.ok?1000:2000));
 }
-async function kvFinish(){
-  if(KV.ranked){ lsSet('kviz_'+KV.day,String(KV.score));
-    if(PROXY&&CHPIN&&JA){ try{ KV.res=await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra:'kviz',k:KV.day,score:KV.score}); }catch(e){ toast(e.message); } }
-    delete BOARDS.kviz; }
-  hr('kviz');
-}
-async function kvBoard(){ if(!PROXY||KV.bl) return; KV.bl=true; try{ KV.board=await fetch(PROXY+'/hra/board?hra=kviz',{cache:'no-store'}).then(r=>r.json()); }catch(e){ KV.board={}; } KV.bl=false; hr('kviz'); }
 function vKviz(){
-  if(!SUP) supLoad(); if(!OTAZKY) otLoad();
-  if(!SUP||!OTAZKY) return '<p class="note">Načítavam…</p>';
-  if(KV.st==='q'){
-    const q=KV.qs[KV.i], left=Math.max(0,KV_T-(Date.now()-KV.t0)/1000);
-    let h=`<div class="kvh"><span>Otázka ${KV.i+1}/${KV.qs.length}</span><span>${KV.score} b</span></div><div class="kvt"><i id="kvbar" style="width:${left/KV_T*100}%"></i></div><p class="kvtema">${esc(q.t||'')}</p><p class="kvq">${esc(q.q)}</p><div class="kvo">`;
-    q.opts.forEach((o,i)=>{ let c=''; if(KV.picked!=null){ if(o===q.a) c='ok'; else if(i===KV.picked) c='bad'; }
+  const intro=`<p class="note" style="margin-top:0">Každý deň 12 nových otázok z rôznych oblastí, na každú 20 sekúnd. Správne = 10 bodov + až 10 bodov za rýchlosť. Body sa sčítavajú za mesiac a za rok. <b>Víťaz mesiaca dostane ${BONUS.kviz} € k výplate.</b></p>`;
+  const g=hryGate(intro); if(g) return g;
+  if(KV.st==='q'&&KV.q){
+    const q=KV.q, f=KV.fb, left=Math.max(0,KV.left-(Date.now()-KV.t0)/1000);
+    let h=`<div class="kvh"><span>Otázka ${q.n}/${q.z}</span><span>${f&&f.s!=null?f.s:q.s} b</span></div><div class="kvt"><i id="kvbar" style="width:${KV.picked!=null?0:left/20*100}%"></i></div><p class="kvtema">${esc(q.tema||'')}</p><p class="kvq">${esc(q.text)}</p><div class="kvo">`;
+    q.opts.forEach((o,i)=>{ let c=''; if(f&&f.spravna!=null){ if(i===f.spravna) c='ok'; else if(i===KV.picked) c='bad'; } else if(i===KV.picked) c='sel';
       h+=`<button data-kva="${i}" class="${c}"${KV.picked!=null?' disabled':''}>${esc(o)}</button>`; });
-    return h+`</div>${KV.picked!=null&&q.e?`<p class="kve">${esc(q.e)}</p>`:''}<p class="note" style="text-align:center">${KV.picked===-1?'Čas vypršal':KV.picked!=null?'&nbsp;':`<span id="kvsec">${Math.ceil(left)}</span> s`}</p>`;
+    h+='</div>';
+    if(f&&f.pozn) h+=`<p class="kve">${esc(f.pozn)}</p>`;
+    return h+`<p class="note" style="text-align:center">${f?(f.error?esc(f.error):f.ok?'Správne, +'+f.body+' b':KV.picked===-1||!f.vcas?'Čas vypršal':'Nesprávne'):KV.picked!=null?'…':`<span id="kvsec">${Math.ceil(left)}</span> s`}</p>`;
   }
-  let h='<p class="note" style="margin-top:0">Každý deň nový kvíz: 3 otázky o našej lige a 5 všeobecných (prvá pomoc, futbal, Slovensko, šport, prehľad, zdravie, auto a doprava, zábava). Na každú je 20 sekúnd. Správna odpoveď = 100 bodov, čím rýchlejšie, tým väčší bonus. Do poradia sa ráta len prvý pokus dňa. Body sa sčítavajú za týždeň (pondelok – nedeľa) a najlepší traja dostanú medailu.</p>';
-  if(KV.st==='end'){
-    const st=!KV.ranked?'cvičný':KV.res?(KV.res.prvy?'zapísané':'už bolo'):'nezapísané';
-    h+=`<div class="tiles"><div><small>Správne</small><b>${KV.ok}/${KV.qs.length}</b></div><div><small>Body</small><b>${KV.score}</b></div><div><small>Poradie</small><b style="font-size:17px">${st}</b></div></div>`;
-    if(KV.ranked&&!(CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíše, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
-  }
-  const done=lsGet('kviz_'+skToday());
-  h+= done!=='' ? `<p>Dnešný kvíz máš za sebou (${esc(done)} b). Zajtra bude nový.</p><button class="btn" data-kvgo="0" style="width:100%">Cvičné kolo (nepočíta sa)</button>`
-               : `<button class="btn pri" data-kvgo="1" style="width:100%">Spustiť dnešný kvíz</button>`;
-  if(PROXY){ KV.board=board('kviz','kviz'); const B=KV.board||{}; h+=boardErr('kviz');
-    const dm=d=>{ const x=new Date(d+'T12:00:00'); return x.getDate()+'. '+(x.getMonth()+1)+'.'; };
-    const top3=L=>'<div class="kvtop">'+L.map((p,i)=>`<div class="${p.meno===JA?'us':''}"><span>${['🥇','🥈','🥉'][i]}</span><b>${esc(p.meno)}</b><small class="mute">${p.score} b</small></div>`).join('')+'</div>';
-    if(B.tyzdenOd){ const ne=new Date(B.tyzdenOd+'T12:00:00'); ne.setDate(ne.getDate()+6);
-      h+=`<h2>Tento týždeň <small class="mute">${dm(B.tyzdenOd)} – ${ne.getDate()}. ${ne.getMonth()+1}.</small></h2>`;
-      h+=(B.tyzden||[]).length?boardTable(B.tyzden.map(x=>[x.meno,x.score,x.dni]),'Body','Dní'):'<p class="note">Tento týždeň ešte nikto nehral.</p>';
-      h+='<p class="note">Poradie sa po nedeli vynuluje. Prví traja v týždni dostanú medailu.</p>'; }
-    if(B.minuly&&B.minuly.top.length) h+=`<h2>Minulý týždeň <small class="mute">od ${dm(B.minuly.od)}</small></h2>`+top3(B.minuly.top);
-    if((B.medaily||[]).length) h+='<h2>Medaily</h2><table class="lt tipb"><thead><tr><th></th><th class="l">Meno</th><th>🥇</th><th>🥈</th><th>🥉</th></tr></thead><tbody>'+
-      B.medaily.map((m,i)=>`<tr class="${m.meno===JA?'us':''}"><td class="pos">${i+1}</td><td class="tm">${esc(m.meno)}</td><td>${m.z}</td><td>${m.s}</td><td>${m.b}</td></tr>`).join('')+'</tbody></table>';
-    if((B.mesiac||[]).length) h+='<h2>Najlepší v mesiaci</h2>'+top3(B.mesiac);
-    if((B.spolu||[]).length) h+='<h2>Najlepší celkovo</h2>'+top3(B.spolu);
-    else if(KV.board) h+='<p class="note">Poradie je zatiaľ prázdne.</p>'; }
+  if(!KV.stav&&!KV.busy) kqStav();
+  let h=intro;
+  const S=KV.stav;
+  if(!S) return h+(KV.err?`<div class="empty">${esc(KV.err)}</div>`:'<p class="note">Načítavam…</p>');
+  const d=S.dnes;
+  if(d&&d.i>=S.n&&!d.pend) h+=`<div class="tiles"><div><small>Dnes správne</small><b>${d.c}/${S.n}</b></div><div><small>Dnes body</small><b>${d.s}</b></div></div><p>Dnešný kvíz máš za sebou. Zajtra bude nový.</p>`;
+  else if(d&&d.i>0) h+=`<button class="btn pri" data-kvgo="1" style="width:100%">Pokračovať (otázka ${Math.min(S.n,d.i+(d.pend?0:1))}/${S.n})</button><p class="note">Rozohraný kvíz – otázka, z ktorej si odišiel, sa počíta podľa času.</p>`;
+  else h+=`<button class="btn pri" data-kvgo="1" style="width:100%">Spustiť dnešný kvíz (${S.n} otázok)</button>`;
+  const me=S.meno, mn=new Date(S.den+'T12:00'), MF=['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'];
+  const tab=(L,empty)=>L.length?boardTable(L.map(x=>[x.meno,x.body,x.dni]),'Body','Dní',me):`<p class="note">${empty}</p>`;
+  h+=`<h2>${MF[mn.getMonth()]} ${mn.getFullYear()} <small class="mute">víťaz +${BONUS.kviz} €</small></h2>`+tab(S.rebricek.mesiac,'Tento mesiac ešte nikto nehral.');
+  if(S.minulyMesiac&&S.minulyMesiac.top.length){ const pm=new Date(S.minulyMesiac.m+'-15T12:00');
+    h+=`<h2>Minulý mesiac <small class="mute">${MF[pm.getMonth()]}</small></h2><div class="kvtop">`+S.minulyMesiac.top.map((p,i)=>`<div class="${p.meno===me?'us':''}"><span>${['🥇','🥈','🥉'][i]}</span><b>${esc(p.meno)}</b><small class="mute">${p.body} b${i===0?' · +'+BONUS.kviz+' €':''}</small></div>`).join('')+'</div>'; }
+  h+='<h2>Dnes</h2>'+tab(S.rebricek.dnes,'Dnes ešte nikto nehral.');
+  h+=`<h2>Rok ${mn.getFullYear()}</h2>`+tab(S.rebricek.rok,'Zatiaľ prázdne.');
   return h;
 }
 
@@ -2377,8 +2331,14 @@ function vPK(){
   h+='<div class="pkw"><canvas id="pkc" aria-label="Pokutové kopy, hra"></canvas></div>';
   if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
   else if(PK.st==='over'&&PK.saved) h+='<p class="note">Séria zapísaná do poradia.</p>';
-  if(PROXY){ const B=(board(PK.mode,'pk')||{}).best||[]; h+=boardErr(PK.mode);
-    h+=`<h2>${pv?'Najviac gólov z '+PV_N:'Najdlhšie série'}</h2>`+(B.length?boardTable(B.map(x=>[x.meno,x.score]),'Góly'):'<p class="note">Zatiaľ nikto. Buď prvý.</p>'); }
+  if(PROXY){ const D0=board(PK.mode,'pk')||{}, B=D0.best||[]; h+=boardErr(PK.mode);
+    const t=(L,e)=>L.length?boardTable(L.map(x=>[x.meno,x.score]),'Góly'):`<p class="note">${e}</p>`;
+    if(!pv){ const MF=['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'], m=D0.m||skToday().slice(0,7);
+      h+=`<h2>${MF[+m.slice(5)-1]} ${m.slice(0,4)} <small class="mute">víťaz +${BONUS.pk} €</small></h2>`+t(D0.mesiac||[],'Tento mesiac ešte nikto nekopal.');
+      h+=`<p class="note">Ráta sa najdlhšia séria v mesiaci. Víťaz mesiaca dostane ${BONUS.pk} € k výplate.</p>`;
+      h+=`<h2>Rok ${m.slice(0,4)}</h2>`+t(D0.rok||[],'Zatiaľ prázdne.');
+      h+='<h2>Rekordy – najdlhšie série</h2>'+t(B,'Zatiaľ nikto.'); }
+    else h+=`<h2>Najviac gólov z ${PV_N}</h2>`+t(B,'Zatiaľ nikto. Buď prvý.'); }
   return h;
 }
 
@@ -2637,8 +2597,14 @@ async function arkSave(hra,score){ if(!(PROXY&&CHPIN&&JA&&score>0)) return false
 function arkHtml(hra,title,col){
   let h='';
   if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
-  if(PROXY){ const B=(board(hra,hra)||{}).best||[]; h+=boardErr(hra);
-    h+=`<h2>${title}</h2>`+(B.length?boardTable(B.map(x=>[x.meno,x.score]),col):'<p class="note">Zatiaľ nikto. Buď prvý.</p>'); }
+  if(PROXY){ const D0=board(hra,hra)||{}, B=D0.best||[]; h+=boardErr(hra);
+    const t=(L,e)=>L.length?boardTable(L.map(x=>[x.meno,x.score]),col):`<p class="note">${e}</p>`;
+    if(hra==='pk'){ const MF=['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'], m=D0.m||skToday().slice(0,7);
+      h+=`<h2>${MF[+m.slice(5)-1]} ${m.slice(0,4)} <small class="mute">víťaz +${BONUS.pk} €</small></h2>`+t(D0.mesiac||[],'Tento mesiac ešte nikto nekopal.');
+      h+='<p class="note">Ráta sa najlepší výsledok v mesiaci. Víťaz mesiaca dostane '+BONUS.pk+' € k výplate.</p>';
+      h+=`<h2>Rok ${m.slice(0,4)}</h2>`+t(D0.rok||[],'Zatiaľ prázdne.');
+      h+='<h2>Rekordy</h2>'+t(B,'Zatiaľ nikto.'); }
+    else h+=`<h2>${title}</h2>`+t(B,'Zatiaľ nikto. Buď prvý.'); }
   return h;
 }
 function arkCanvas(id,ratio){
@@ -2887,7 +2853,7 @@ function hryClick(b){
     chatApi('/chat/history?pin='+encodeURIComponent(p)).then(()=>{ CHPIN=p; lsSet('chatPin',p); TIP.mine=null; FAN.mine=null; render(); }).catch(e=>toast(e.status===429?e.message:'Zlý PIN')); return true; }
   if(d.sezagain!==undefined){ SEZ.key=''; render(); return true; }
   if(d.sezone!==undefined){ const l=hryLeague(); SEZ.one=playOnce(l); SEZ.oneKey=l.id+'|'+(l.at||''); render(); return true; }
-  if(d.kvgo!==undefined){ kvStart(d.kvgo==='1'); return true; }
+  if(d.kvgo!==undefined){ kvNext(); return true; }
   if(d.kva!==undefined){ kvAnswer(+d.kva); return true; }
   if(d.fadd){ fanPicker(); return true; }
   if(d.fpick){ const E=FAN.edit; if(E&&E.picks.length<FAN_N&&!E.picks.includes(d.fpick)){ E.picks.push(d.fpick); if(!E.cap) E.cap=d.fpick; } closeSheet(); render(); return true; }

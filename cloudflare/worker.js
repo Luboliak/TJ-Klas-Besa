@@ -6,6 +6,7 @@
 //  4) Kvíz partie: /kp/... (samostatná inštancia ChatRoom 'kviz-partia', logika v kviz.js)
 
 import { kviz } from './kviz.js';
+import { klubKviz, kqInit, kqBoard } from './kviz-klub.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -178,6 +179,7 @@ export class ChatRoom {
       this.cfg = (await ctx.storage.get('cfg')) || null;
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fails (t INTEGER)`);
       // osobné heslá na web: jedno heslo = jeden telefón
+      kqInit((q, ...a) => ctx.storage.sql.exec(q, ...a));
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS profil (mn TEXT PRIMARY KEY, meno TEXT, data TEXT, at INTEGER)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pristup (kod TEXT PRIMARY KEY, meno TEXT, dev TEXT, vytvor INTEGER, prve INTEGER, posledne INTEGER, blok INTEGER DEFAULT 0)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pfails (t INTEGER)`);
@@ -239,6 +241,16 @@ export class ChatRoom {
     if (path === '/fan/board') return json(await this.fanBoard(), 200, { 'Cache-Control': 'public, max-age=120' });
     if (path === '/hra/board') return json(this.hraBoard(url.searchParams.get('hra') || ''), 200, { 'Cache-Control': 'public, max-age=60' });
     if (path === '/mvp/summary') return json({ polls: this.mvpSummary() }, 200, { 'Cache-Control': 'public, max-age=300' });
+    // víťazi ukončených mesiacov (kvíz, penalty) a hráči zápasu – podľa toho appka správcu pridá bonusy k výplate
+    if (path === '/hra/vitazi') {
+      const rows = (q, ...a) => this.rows(q, ...a), cur = skDate(0).slice(0, 7), top = L => L.length ? L.filter(x => x.v === L[0].v).map(x => x.meno) : [];
+      const kq = {}, pk = {};
+      for (const r of rows(`SELECT DISTINCT substr(den,1,7) AS m FROM kq_dni WHERE den < ?`, cur + '-01'))
+        kq[r.m] = top(kqBoard(rows, r.m + '-01', r.m + '-31').filter(x => x.body > 0).map(x => ({ meno: x.meno, v: x.body * 1000 + x.spravne })));
+      for (const r of rows(`SELECT DISTINCT k FROM hry WHERE hra='pk' AND k LIKE 'm:%' AND k < ?`, 'm:' + cur))
+        pk[r.k.slice(2)] = top(rows(`SELECT meno, score AS v FROM hry WHERE hra='pk' AND k=? AND score > 0 ORDER BY score DESC`, r.k));
+      return json({ kq, pk, mvp: this.mvpSummary().map(p => ({ id: p.id, title: p.title, closes: p.closes, mena: p.winners })) }, 200, { 'Cache-Control': 'no-store' });
+    }
 
     if (path === '/chat/setup' && request.method === 'POST') {
       if (this.cfg) return json({ error: 'Chat je už nastavený' }, 409);
@@ -318,6 +330,14 @@ export class ChatRoom {
     const ok = admin || await this.checkPin(pin, false);
     if (ok === 'locked') return json({ error: 'Príliš veľa pokusov, skús o 10 minút' }, 429);
     if (!ok) return json({ error: this.cfg ? 'Zlý PIN' : 'Chat ešte nie je nastavený' }, this.cfg ? 403 : 409);
+    // s osobným heslom určuje meno server – nikto sa nemôže zapísať (hlasovať, hrať) za iného
+    if (typeof pin === 'string' && pin.startsWith('P:')) {
+      const pr = this.rows('SELECT meno FROM pristup WHERE kod=?', pin.split(':')[1] || '')[0];
+      if (!pr) return json({ error: 'Heslo neplatí' }, 403);
+      body.meno = pr.meno;
+      if (url.searchParams.has('meno')) url.searchParams.set('meno', pr.meno);
+    }
+    if (path.startsWith('/hra/kq/')) return klubKviz(this, path, body, String(body.meno || '').trim().replace(/\s+/g, ' ').slice(0, 60), skDate);
 
     if (path === '/tip/mine') {
       const meno = url.searchParams.get('meno') || '';
@@ -409,6 +429,9 @@ export class ChatRoom {
         if (score > ARK_MAX[hra]) return json({ error: 'Zlé skóre' }, 400);
         this.ctx.storage.sql.exec(`INSERT INTO hry (meno, hra, k, score, t) VALUES (?, ?, 'best', ?, ?)
           ON CONFLICT (meno, hra, k) DO UPDATE SET score = excluded.score, t = excluded.t WHERE excluded.score > hry.score`, meno, hra, score, Date.now());
+        for (const k of ['m:' + skDate(0).slice(0, 7), 'r:' + skDate(0).slice(0, 4)])
+          this.ctx.storage.sql.exec(`INSERT INTO hry (meno, hra, k, score, t) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (meno, hra, k) DO UPDATE SET score = excluded.score, t = excluded.t WHERE excluded.score > hry.score`, meno, hra, k, score, Date.now());
         const best = this.rows(`SELECT score FROM hry WHERE meno=? AND hra=? AND k='best'`, meno, hra)[0].score;
         return json({ ok: true, best });
       }
@@ -552,7 +575,10 @@ export class ChatRoom {
         spolu: sum(() => true).slice(0, 3),
       };
     }
-    if (['pk', 'pv', 'beh', 'bloky'].includes(hra)) return { best: this.rows(`SELECT meno, score, t FROM hry WHERE hra=? AND k='best' ORDER BY score DESC, t LIMIT 50`, hra) };
+    if (['pk', 'pv', 'beh', 'bloky'].includes(hra)) {
+      const q = k => this.rows(`SELECT meno, score, t FROM hry WHERE hra=? AND k=? ORDER BY score DESC, t LIMIT 50`, hra, k), d = skDate(0);
+      return { best: q('best'), mesiac: q('m:' + d.slice(0, 7)), rok: q('r:' + d.slice(0, 4)), m: d.slice(0, 7) };
+    }
     return {};
   }
 
