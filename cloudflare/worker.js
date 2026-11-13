@@ -87,6 +87,7 @@ async function live(request, ctx) {
 }
 
 const ID = /^[\w.:-]{1,80}$/;
+const normMeno = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 async function readEvent(kv, id) {
   try { return (await kv.get('u:' + id, 'json')) || {}; } catch (e) { return {}; }
 }
@@ -177,6 +178,7 @@ export class ChatRoom {
       this.cfg = (await ctx.storage.get('cfg')) || null;
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fails (t INTEGER)`);
       // osobné heslá na web: jedno heslo = jeden telefón
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS profil (mn TEXT PRIMARY KEY, meno TEXT, data TEXT, at INTEGER)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pristup (kod TEXT PRIMARY KEY, meno TEXT, dev TEXT, vytvor INTEGER, prve INTEGER, posledne INTEGER, blok INTEGER DEFAULT 0)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pfails (t INTEGER)`);
     });
@@ -276,6 +278,23 @@ export class ChatRoom {
       this.ctx.storage.sql.exec('UPDATE pristup SET posledne=? WHERE kod=?', now, kod);
       return json({ ok: true, meno: r.meno });
     }
+    // Môj profil: výpočty peňazí nahrá správca zo svojej apky, každý hráč vidí len svoj (s osobným heslom)
+    if (path === '/profil/admin' && request.method === 'POST') {
+      const ok = await this.checkPin(body.pin, true);
+      if (ok === 'locked') return json({ error: 'Príliš veľa pokusov, skús o 10 minút' }, 429);
+      if (ok !== true) return json({ error: 'Nesprávny správcovský PIN' }, 403);
+      const list = Array.isArray(body.list) ? body.list.slice(0, 150) : null;
+      if (!list) return json({ error: 'Zlé údaje' }, 400);
+      this.ctx.storage.sql.exec('DELETE FROM profil');
+      let n = 0;
+      for (const x of list) {
+        const meno = String(x.meno || '').trim().slice(0, 60), data = JSON.stringify(x.data || {});
+        if (!meno || data.length > 40000) continue;
+        this.ctx.storage.sql.exec('INSERT OR REPLACE INTO profil (mn, meno, data, at) VALUES (?, ?, ?, ?)', normMeno(meno), meno, data, Date.now());
+        n++;
+      }
+      return json({ ok: true, n });
+    }
     if (path === '/pristup/admin' && request.method === 'POST') {
       const ok = await this.checkPin(body.pin, true);
       if (ok === 'locked') return json({ error: 'Príliš veľa pokusov, skús o 10 minút' }, 429);
@@ -334,6 +353,14 @@ export class ChatRoom {
         saved[mid] = s ? [h, a, s] : [h, a];
       }
       return json({ saved, late });
+    }
+    if (path === '/profil/moj' && request.method === 'POST') {
+      const pin = String(body.pin || '');
+      if (!pin.startsWith('P:')) return json({ error: 'Profil je dostupný len s osobným heslom' }, 403);
+      const r = this.rows('SELECT meno FROM pristup WHERE kod=?', pin.split(':')[1] || '')[0];
+      if (!r) return json({ error: 'Heslo neplatí' }, 403);
+      const p = this.rows('SELECT meno, data, at FROM profil WHERE mn=?', normMeno(r.meno))[0];
+      return json({ meno: r.meno, data: p ? JSON.parse(p.data) : null, at: p ? p.at : null });
     }
     if (path === '/fan/mine') {
       const meno = url.searchParams.get('meno') || '', out = {};
@@ -565,7 +592,7 @@ export default {
         if (!env.CHAT) return json({ error: 'Kvíz nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('kviz-partia')).fetch(request);
       }
-      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/') || path.startsWith('/pristup/')) {
+      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/') || path.startsWith('/pristup/') || path.startsWith('/profil/')) {
         if (!env.CHAT) return json({ error: 'Chat nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('klub')).fetch(request);
       }

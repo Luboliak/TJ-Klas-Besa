@@ -93,6 +93,11 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .kolo{font-family:var(--cond);color:var(--mute);margin:14px 4px 2px;font-size:14px}
 
 /* dochádzka / výplata */
+.jaw{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 14px}
+.jr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:baseline;padding:10px 0;border-top:1px solid var(--line)}
+.jr:first-child{border-top:0}.jr small{color:var(--mute);font-size:12.5px;text-align:right}.jr b{grid-column:3;font-family:var(--cond);font-size:17px;font-weight:500;min-width:64px;text-align:right}
+.jr.neg b{color:#e06666}.jr.jsum{border-top:2px solid var(--ink)}.jr.jsum b{font-size:21px;font-weight:700}
+
 .ev .n small.auto{display:block;font-size:10px;color:var(--mute);font-family:inherit;line-height:1}
 .sync{font-size:13px;color:var(--mute);margin:-4px 0 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sync .btn{margin-left:auto}
 .mbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
@@ -111,7 +116,7 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .ev .n{font-family:var(--cond);font-size:18px}
 .empty{border:1px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--mute)}
 
-.pay{display:grid;grid-template-columns:1fr auto auto auto auto;gap:0 10px;align-items:stretch}
+.pay{display:grid;grid-template-columns:1fr auto auto auto auto auto;gap:0 10px;align-items:stretch}
 .pay .c{display:flex;align-items:center;justify-content:flex-end}
 .pay .h{color:var(--mute);font-size:12px;text-align:right}
 .pay .h.l{text-align:left}
@@ -538,7 +543,7 @@ function render(){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   const v=$('#view');
   const draft=$('#chText'), dv=draft?draft.value:null, df=draft&&document.activeElement===draft;
-  v.innerHTML=(tab==='chat'?'':hint())+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():tab==='chat'?vChat():tab==='ved'&&APP?vVedenie():tab==='hry'?vHry():vKlub())
+  v.innerHTML=(tab==='chat'?'':hint())+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():tab==='chat'?vChat():tab==='ved'&&APP?vVedenie():tab==='hry'?vHry():tab==='ja'&&PPIN?vJa():vKlub())
     +(['tab','zap','live'].includes(tab)?'<p class="src">Zdroj údajov: <a href="https://sportnet.sme.sk/futbalnet/" target="_blank" rel="noopener">Sportnet / Futbalnet</a> (SFZ). Neoficiálna klubová appka TJ Klas Beša.</p>':'');
   navBadge(); fillWx(v); fillRsvp(v); fillMvp(v);
   if(tab==='hry') hryAfterRender(v);
@@ -1019,7 +1024,7 @@ const CH={state:'init', msgs:[], topic:'', err:'', ws:null, wsOk:false, retry:0,
 const lsGet=k=>{ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } };
 const lsSet=(k,v)=>{ try{ v?localStorage.setItem(k,v):localStorage.removeItem(k); }catch(e){} };
 let CHPIN=lsGet('chatPin'), CHADMIN=lsGet('chatAdmin'), PPIN='';
-function pristupPin(){ try{ const P=JSON.parse(lsGet('pristup')||'null'); if(P&&P.kod&&!APP){ PPIN='P:'+P.kod+':'+devId(); CHPIN=PPIN; } }catch(e){} }
+function pristupPin(){ try{ const P=JSON.parse(lsGet('pristup')||'null'); if(P&&P.kod&&!APP){ PPIN='P:'+P.kod+':'+devId(); CHPIN=PPIN; if(typeof jaNav==='function') jaNav(); } }catch(e){} }
 async function chatApi(path, body){
   const r=await fetch(PROXY+path, body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
   let j={}; try{ j=await r.json(); }catch(e){}
@@ -1261,7 +1266,25 @@ async function mvpPinSubmit(id){
 const K_DATA='tjklas.data.v1';
 let D=(()=>{ try{ return JSON.parse(localStorage.getItem(K_DATA)); }catch(e){ return null; } })() || {players:[], events:[], rates:{trening:0, zapas:0}, paid:{}};
 const SYNC_OD_DEF='2027-01-01';
-function save(){ try{ localStorage.setItem(K_DATA, JSON.stringify(D)); }catch(e){ toast('Uloženie zlyhalo'); } }
+function save(){ try{ localStorage.setItem(K_DATA, JSON.stringify(D)); }catch(e){ toast('Uloženie zlyhalo'); } profSchedule(); }
+/* Môj profil: výpočty sa posielajú na server, každý hráč vidí len svoj (cez osobné heslo) */
+const PROF={t:0, err:'', pin:()=>lsGet('admPin')||CHADMIN||''};
+function profSchedule(){ if(!APP||!PROXY) return; clearTimeout(PROF.t); PROF.t=setTimeout(profPublish,2500); }
+function profData(){
+  const months=[...new Set(D.events.map(e=>ym(e.date)).concat((D.fines||[]).map(f=>ym(f.date))))].sort().slice(-12);
+  const by=new Map();
+  months.forEach(m=>monthCalc(m).forEach(r=>{
+    if(!by.has(r.p.id)) by.set(r.p.id,{meno:r.p.name,data:{mesiace:[]}});
+    by.get(r.p.id).data.mesiace.push({m, t:r.t, z:r.z, rt:rateOf(r.p,'trening'), rz:rateOf(r.p,'zapas'), km:r.km, kmR:+D.rates.km||0, cest:r.cest,
+      abs:r.abs, volno:r.volno, strhN:r.strhN, strhR:r.strhRate, strh:r.strh, fines:r.fines.map(f=>({d:f.date,a:+f.amount,n:f.note||''})), fine:r.fine, zaklad:r.zaklad, sum:r.sum, paid:r.paid?r.paid.date:null});
+  }));
+  return [...by.values()];
+}
+async function profPublish(){
+  const pin=PROF.pin(); if(!pin) return;
+  try{ await chatApi('/profil/admin',{pin,list:profData()}); PROF.err=''; }
+  catch(e){ PROF.err=e.message; if(e.status===403){ lsSet('admPin',''); } }
+}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const eur=n=>(Math.round(n*100)/100).toLocaleString('sk-SK',{minimumFractionDigits:0,maximumFractionDigits:2})+' €';
 const ym=ds=>ds.slice(0,7);
@@ -1296,24 +1319,30 @@ function vAttend(){
 }
 function rateOf(p,type){ const own=type==='trening'?p.rt:p.rz; return (own!=null&&own!=='')?+own:(+D.rates[type]||0); }
 function monthCalc(month){
-  const evs=D.events.filter(e=>ym(e.date)===month);
+  const evs=D.events.filter(e=>ym(e.date)===month), td=today(), trs=evs.filter(e=>e.type==='trening'&&e.date<=td);
+  const volno=D.rates.volno??1, sr=+D.rates.strh||0;
   return D.players.map(p=>{
     const t=evs.filter(e=>e.type==='trening'&&e.present.includes(p.id)).length;
     const z=evs.filter(e=>e.type==='zapas'&&e.present.includes(p.id)).length;
+    const abs=p.active===false?0:trs.filter(e=>!e.present.includes(p.id)).length, strhN=Math.max(0,abs-volno), strh=strhN*sr;
+    const fines=(D.fines||[]).filter(f=>f.pid===p.id&&ym(f.date)===month), fine=fines.reduce((a,f)=>a+(+f.amount||0),0);
     const pd=D.paid[month+'|'+p.id], km=(+p.km||0)*(t+z), cest=km*(+D.rates.km||0);
-    return {p,t,z,km,cest,sum:pd?pd.amount:t*rateOf(p,'trening')+z*rateOf(p,'zapas')+cest,paid:pd};
-  }).filter(r=>r.t||r.z||r.paid);
+    const zaklad=t*rateOf(p,'trening')+z*rateOf(p,'zapas')+cest;
+    return {p,t,z,km,cest,abs,volno,strhN,strhRate:sr,strh,fines,fine,zaklad,sum:pd?pd.amount:Math.max(0,zaklad-strh-fine),paid:pd};
+  }).filter(r=>r.t||r.z||r.paid||r.fine||(r.strh&&(r.t||r.z)));
 }
 function vPay(){
   let h=monthNav();
   const rows=monthCalc(curMonth);
   if(!(+D.rates.trening)&&!(+D.rates.zapas)&&!D.players.some(p=>(p.rt!=null&&p.rt!=='')||(p.rz!=null&&p.rz!==''))) h+='<div class="empty" style="margin-bottom:12px">Sadzby sú nastavené na 0 €.<br><br><button class="btn" data-vs="nast">Nastaviť sadzby</button></div>';
   if(!rows.length) return h+'<div class="empty">V tomto mesiaci nemá nikto zapísanú dochádzku.</div>';
-  h+='<p class="note">Pod menom je sadzba hráča za tréning a zápas a jeho km na jeden príchod. Suma obsahuje aj cestovné. Vyplatené mesiace si držia sumu z dňa výplaty.</p>';
-  h+='<div class="pay"><div class="h l">Hráč</div><div class="h">T</div><div class="h">Z</div><div class="h">Cest.</div><div class="h">Suma</div>';
+  h+=`<p class="note">Suma = tréningy + zápasy + cestovné − zrážky. Zrážka je za každú neúčasť na tréningu nad ${D.rates.volno??1} ospravedlnenú v mesiaci (${eur(+D.rates.strh||0)}) a ručné pokuty. Vyplatené mesiace si držia sumu z dňa výplaty.</p>`;
+  if(!PROF.pin()) h+='<p class="note" style="color:#e0a040">Hráči zatiaľ svoj výpočet nevidia. Zadaj správcovský PIN v záložke Heslá a appka im ho bude posielať sama.</p>';
+  else if(PROF.err) h+=`<p class="note" style="color:#e0a040">Posielanie výpočtov hráčom zlyhalo: ${esc(PROF.err)}</p>`;
+  h+='<div class="pay"><div class="h l">Hráč</div><div class="h">T</div><div class="h">Z</div><div class="h">Cest.</div><div class="h">Zráž.</div><div class="h">Suma</div>';
   rows.forEach(r=>{
-    h+=`<div class="nm">${esc(r.p.name)}<br><span class="note" style="margin:0">T ${eur(rateOf(r.p,'trening'))}, Z ${eur(rateOf(r.p,'zapas'))}${+r.p.km?`, ${r.p.km} km`:''}</span><br>${r.paid?`<span class="paid">vyplatené ${dLabel(r.paid.date)}</span> <button class="btn sm" data-unpay="${r.p.id}">Zrušiť</button>`:`<button class="btn sm pri" data-pay="${r.p.id}">Vyplatiť</button>`}</div>
-      <div class="c">${r.t}</div><div class="c">${r.z}</div><div class="c">${r.cest?eur(r.cest):'–'}</div><div class="c sum">${eur(r.sum)}</div>`;
+    h+=`<div class="nm">${esc(r.p.name)}<br><span class="note" style="margin:0">T ${eur(rateOf(r.p,'trening'))}, Z ${eur(rateOf(r.p,'zapas'))}${+r.p.km?`, ${r.p.km} km`:''}</span><br>${r.paid?`<span class="paid">vyplatené ${dLabel(r.paid.date)}</span> <button class="btn sm" data-unpay="${r.p.id}">Zrušiť</button>`:`<button class="btn sm pri" data-pay="${r.p.id}">Vyplatiť</button> <button class="btn sm" data-fine="${r.p.id}">Pokuta</button>`}${r.strhN?`<br><span class="note" style="margin:0">neúčasť ${r.abs}× (${r.volno} ospr.)</span>`:''}${r.fines.map(f=>`<br><span class="note" style="margin:0">pokuta ${eur(+f.amount)}${f.note?' – '+esc(f.note):''} <button class="btn sm" data-delfine="${f.id}" aria-label="Zmazať pokutu">×</button></span>`).join('')}</div>
+      <div class="c">${r.t}</div><div class="c">${r.z}</div><div class="c">${r.cest?eur(r.cest):'–'}</div><div class="c">${r.strh+r.fine?'−'+eur(r.strh+r.fine):'–'}</div><div class="c sum">${eur(r.sum)}</div>`;
   });
   h+='</div>';
   const tot=rows.reduce((s,r)=>s+r.sum,0), open=rows.filter(r=>!r.paid).reduce((s,r)=>s+r.sum,0);
@@ -1367,7 +1396,7 @@ async function vedSync(manual){
         part.forEach(x=>{ const a=j['tren-'+x[0]]||{}; put('tr:'+x[0],'trening',x[0],x[1],'',null,ids(Object.keys(a).filter(n=>a[n].o==='ano'))); });
       }
     }
-    D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save();
+    D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save(); if(!nNew&&!nUpd) profSchedule();
     SYNC.msg=(err?'Časť údajov sa nenačítala. ':'')+(nNew||nUpd?`Zapísané: ${nNew} nových, ${nUpd} upravených.`:'Všetko je aktuálne.');
     if(manual) toast(SYNC.msg);
   }catch(e){ SYNC.msg='Synchronizácia zlyhala, skús neskôr.'; if(manual) toast(SYNC.msg); }
@@ -1425,7 +1454,8 @@ function ratesSheet(){
   openSheet(`<h3><span>Sadzby</span>${closeBtn}</h3>
     <h2 style="margin-top:0">Predvolená sadzba</h2>
     <div class="row2"><label class="f"><span>Tréning (€)</span><input type="number" step="0.5" min="0" id="rT" value="${D.rates.trening}"></label><label class="f"><span>Zápas (€)</span><input type="number" step="0.5" min="0" id="rZ" value="${D.rates.zapas}"></label></div>
-    <div class="row2"><label class="f"><span>Cestovné (€ za 1 km)</span><input type="number" step="0.001" min="0" id="rKm" value="${D.rates.km||''}" placeholder="napr. 0,313"></label><label class="f"><span>Automaticky od</span><input type="date" id="rOd" value="${D.syncOd||SYNC_OD_DEF}"></label></div>
+    <div class="row2"><label class="f"><span>Cestovné (€ za 1 km)</span><input type="number" step="0.001" min="0" id="rKm" value="${D.rates.km||''}" placeholder="napr. 0,313"></label><label class="f"><span>Zrážka za neúčasť (€)</span><input type="number" step="0.5" min="0" id="rS" value="${D.rates.strh||''}" placeholder="0"></label></div>
+    <div class="row2"><label class="f"><span>Ospravedlnené tréningy za mesiac</span><input type="number" step="1" min="0" id="rV" value="${D.rates.volno??1}"></label><label class="f"><span>Automaticky od</span><input type="date" id="rOd" value="${D.syncOd||SYNC_OD_DEF}"></label></div>
     <p class="note">Od tohto dátumu appka sama zapisuje zápasy zo Sportnetu (celá zápisnica) a tréningy podľa tlačidla Prídem.</p>
     <h2>Sadzby hráčov</h2><p class="note">Prázdne pole znamená predvolenú sadzbu. Km je vzdialenosť na jeden príchod, tam aj späť.</p>
     <div class="row2 note" style="margin:0 0 4px"><div style="flex:1.4"></div><div style="flex:1">Tréning €</div><div style="flex:1">Zápas €</div><div style="flex:1">Km</div></div>
@@ -1442,8 +1472,8 @@ async function writeFile(name,text,mime){
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:mime})); a.download=name; a.click();
 }
 function exportCsv(){
-  const rows=monthCalc(curMonth), lines=['Hráč;Tréningy;Zápasy;Km;Cestovné €;Suma €;Vyplatené'], c=n=>String(Math.round(n*100)/100).replace('.',',');
-  rows.forEach(r=>lines.push([r.p.name,r.t,r.z,r.km,c(r.cest),c(r.sum),r.paid?r.paid.date:''].join(';')));
+  const rows=monthCalc(curMonth), lines=['Hráč;Tréningy;Zápasy;Km;Cestovné €;Neúčasti;Zrážky €;Pokuty €;Suma €;Vyplatené'], c=n=>String(Math.round(n*100)/100).replace('.',',');
+  rows.forEach(r=>lines.push([r.p.name,r.t,r.z,r.km,c(r.cest),r.abs,c(r.strh),c(r.fine),c(r.sum),r.paid?r.paid.date:''].join(';')));
   writeFile('vyplata-'+curMonth+'.csv','﻿'+lines.join('\r\n'),'text/csv');
 }
 function restoreFile(){
@@ -1451,7 +1481,7 @@ function restoreFile(){
   inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return;
     try{ const j=JSON.parse(await f.text()); if(!Array.isArray(j.players)||!Array.isArray(j.events)) throw new Error('nie je to záloha tejto appky');
       if(!confirm('Nahradiť súčasné údaje zálohou? ('+j.players.length+' hráčov, '+j.events.length+' záznamov)')) return;
-      D={players:j.players,events:j.events,rates:j.rates||{trening:0,zapas:0},paid:j.paid||{},syncOd:j.syncOd,miss:j.miss}; save(); render(); toast('Záloha načítaná');
+      D={players:j.players,events:j.events,rates:j.rates||{trening:0,zapas:0},paid:j.paid||{},syncOd:j.syncOd,miss:j.miss,fines:j.fines||[]}; save(); render(); toast('Záloha načítaná');
     }catch(err){ toast('Súbor sa nedá načítať: '+err.message); } };
   inp.click();
 }
@@ -1487,7 +1517,7 @@ function vHesla(){
 }
 function vedClick(b){
   const ds=b.dataset;
-  if(ds.pspin){ const v=(($('#psPin')||{}).value||'').trim(); if(!v) return true; PS.pin=v; lsSet('admPin',v); PS.list=null; render(); return true; }
+  if(ds.pspin){ const v=(($('#psPin')||{}).value||'').trim(); if(!v) return true; PS.pin=v; lsSet('admPin',v); PS.list=null; render(); profSchedule(); return true; }
   if(ds.psnew){ const m=(($('#psIne')||{}).value||'').trim()||(($('#psMeno')||{}).value||''); if(!m){ toast('Vyber hráča'); return true; }
     psApi('novy',{meno:m}).then(j=>{ if(j){ toast('Heslo pre '+m+': '+fmtKod(j.kod)); psApi('list'); } }); return true; }
   if(ds.psall){ const have=new Set(PS.list.map(p=>p.meno)), cand=D.players.filter(p=>p.active!==false&&!have.has(p.name)).map(p=>p.name);
@@ -1506,6 +1536,11 @@ function vedClick(b){
   if(ds.all!=null){ editEv.present=ds.all==='1'?[...document.querySelectorAll('#eList [data-pid]')].map(x=>x.dataset.pid):[]; document.querySelectorAll('#eList [data-pid]').forEach(x=>x.classList.toggle('on',ds.all==='1')); $('#eCnt').textContent=editEv.present.length; return true; }
   if(ds.fromrsvp){ presentFromRsvp(); return true; }
   if(ds.sync){ vedSync(true); return true; }
+  if(ds.fine){ const p=D.players.find(x=>x.id===ds.fine); const d=curMonth===ym(today())?today():curMonth+'-01';
+    openSheet(`<h3><span>Pokuta – ${esc(p.name)}</span>${closeBtn}</h3><div class="row2"><label class="f"><span>Suma (€)</span><input type="number" step="0.5" min="0" id="fA"></label><label class="f"><span>Dátum</span><input type="date" id="fD" value="${d}"></label></div><label class="f"><span>Dôvod</span><input type="text" id="fN" placeholder="napr. neskorý príchod"></label><div class="acts"><button class="btn pri grow" data-savefine="${p.id}">Uložiť pokutu</button></div>`); return true; }
+  if(ds.savefine){ const a=+String($('#fA').value).replace(',','.'); if(!(a>0)){ toast('Zadaj sumu'); return true; }
+    (D.fines=D.fines||[]).push({id:uid(),pid:ds.savefine,date:$('#fD').value||today(),amount:a,note:$('#fN').value.trim()}); save(); closeSheet(); render(); toast('Pokuta zapísaná'); return true; }
+  if(ds.delfine){ if(!confirmTwice(b,'Zmazať?')) return true; D.fines=(D.fines||[]).filter(f=>f.id!==ds.delfine); save(); render(); return true; }
   if(ds.addmiss){ (D.miss||[]).forEach(n=>{ if(!D.players.some(p=>normN(p.name)===normN(n))) D.players.push({id:uid(),name:n,active:true}); }); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); D.miss=[]; save(); toast('Hráči pridaní, synchronizujem'); vedSync(true); return true; }
   if(ds.saveEv){ const date=$('#eDate').value; if(!date){ toast('Vyplň dátum'); return true; }
     editEv.date=date; if(editEv.src) editEv.rucne=true; editEv.time=$('#eTime').value; editEv.note=$('#eNote').value.trim(); if($('#eMatch')) editEv.matchId=$('#eMatch').value;
@@ -1517,7 +1552,7 @@ function vedClick(b){
   if(ds.addp){ const n=$('#pNew').value.trim(); if(!n) return true; D.players.push({id:uid(),name:n,active:true}); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); save(); playersSheet(); render(); return true; }
   if(ds.addsquad){ const known=new Set(D.players.map(p=>p.name)); squad().filter(n=>!known.has(n)).forEach(n=>D.players.push({id:uid(),name:n,active:true})); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); save(); playersSheet(); render(); toast('Hráči pridaní'); return true; }
   if(ds.pact){ const p=D.players.find(x=>x.id===ds.pact); p.active=p.active===false; save(); b.textContent=p.active===false?'Neaktívny':'Aktívny'; return true; }
-  if(ds.saveRates){ D.rates={trening:+$('#rT').value||0,zapas:+$('#rZ').value||0,km:+String($('#rKm').value).replace(',','.')||0}; D.syncOd=$('#rOd').value||SYNC_OD_DEF;
+  if(ds.saveRates){ D.rates={trening:+$('#rT').value||0,zapas:+$('#rZ').value||0,km:+String($('#rKm').value).replace(',','.')||0,strh:+$('#rS').value||0,volno:$('#rV').value===''?1:Math.max(0,+$('#rV').value|0)}; D.syncOd=$('#rOd').value||SYNC_OD_DEF;
     document.querySelectorAll('[data-km]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.km); if(p) p.km=i.value===''?null:+i.value; });
     document.querySelectorAll('[data-rt]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.rt); if(p) p.rt=i.value===''?null:+i.value; });
     document.querySelectorAll('[data-rz]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.rz); if(p) p.rz=i.value===''?null:+i.value; });
@@ -2919,12 +2954,56 @@ function vStat(){
 function openPlayer(name){
   const p=(KLUB&&KLUB.hraci||[]).find(x=>x.name===name); if(!p) return;
   const close=`<button class="ibtn" data-close="1" aria-label="Zavrieť"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
-  let h=`<h3><span>${p.nr!=null?p.nr+' ':''}${esc(p.name)}</span>${close}</h3>`;
-  h+=`<div class="tiles t5"><div><small>Zápasy</small><b>${p.z}</b></div><div><small>V základe</small><b>${p.zs}</b></div><div><small>Minúty</small><b>${p.min}</b></div><div><small>Góly</small><b>${p.g}</b></div><div><small>Karty</small><b>${p.zk}/${p.ck}</b></div></div>`;
+  openSheet(`<h3><span>${p.nr!=null?p.nr+' ':''}${esc(p.name)}</span>${close}</h3>`+playerHtml(p));
+}
+function playerHtml(p){
+  let h=`<div class="tiles t5"><div><small>Zápasy</small><b>${p.z}</b></div><div><small>V základe</small><b>${p.zs}</b></div><div><small>Minúty</small><b>${p.min}</b></div><div><small>Góly</small><b>${p.g}</b></div><div><small>Karty</small><b>${p.zk}/${p.ck}</b></div></div>`;
   if(p.pk) h+=`<p class="note">Z toho ${p.pk} z penalty.</p>`;
   if(p.hz) h+=`<p class="note">🏆 Hráč zápasu ${p.hz}× podľa hlasovania hráčov.</p>`;
   h+='<h2>Zápasy</h2>'+p.matches.map(x=>`<div class="mrow" data-mid="${esc(x.id)}"><div class="d">${dLabel(x.date)}${x.round?'<br>'+x.round+'. kolo':''}</div><div class="t"><div>${x.home?'doma':'vonku'}: ${esc(x.opp)}</div><div class="ref">${x.start?'základ':'striedal'}, ${x.min}'${x.g?', '+'⚽'.repeat(Math.min(x.g,5))+(x.g>5?x.g:''):''}${x.zk?' 🟨':''}${x.ck?' 🟥':''}</div></div><div class="s"><div>${x.score}</div></div><div class="res ${x.res}">${x.res}</div></div>`).join('');
-  openSheet(h);
+  return h;
+}
+
+/* Môj profil (web, s osobným heslom): štatistiky zo Sportnetu + môj výpočet peňazí */
+let JAP={data:undefined, busy:false, err:'', m:null};
+function jaMeno(){ try{ return (JSON.parse(lsGet('pristup')||'null')||{}).meno||JA||''; }catch(e){ return JA||''; } }
+async function jaLoad(){
+  if(JAP.busy) return; JAP.busy=true;
+  try{ const j=await chatApi('/profil/moj',{pin:PPIN}); JAP.data=j.data||null; JAP.at=j.at; JAP.err=''; }
+  catch(e){ JAP.err=e.message; if(JAP.data===undefined) JAP.data=null; }
+  finally{ JAP.busy=false; if(tab==='ja') render(); }
+}
+function vJa(){
+  const meno=jaMeno(), nm=normN(meno);
+  if(JAP.data===undefined&&!JAP.busy) jaLoad();
+  let h=`<h2 style="margin-top:0">${esc(meno||'Môj profil')}</h2>`;
+  // peniaze
+  const M=(JAP.data&&JAP.data.mesiace)||[];
+  h+='<h2>Môj výpočet</h2>';
+  if(JAP.data===undefined) h+='<p class="note">Načítavam…</p>';
+  else if(!M.length) h+=`<div class="empty">${JAP.err?esc(JAP.err):'Zatiaľ tu nie je žiadny výpočet. Objaví sa, keď vedenie zapíše dochádzku.'}</div>`;
+  else{
+    const ms=M.map(x=>x.m); if(!ms.includes(JAP.m)) JAP.m=ms[ms.length-1];
+    const r=M.find(x=>x.m===JAP.m), i=ms.indexOf(JAP.m), [y,mo]=JAP.m.split('-');
+    h+=`<div class="mbar"><button class="ibtn" data-jam="${ms[i-1]||''}" ${i>0?'':'disabled'} aria-label="Predchádzajúci mesiac"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button><b>${MESF[+mo-1]} ${y}</b><button class="ibtn" data-jam="${ms[i+1]||''}" ${i<ms.length-1?'':'disabled'} aria-label="Ďalší mesiac"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></div>`;
+    const row=(a,b,c,cls)=>`<div class="jr ${cls||''}"><span>${a}</span><small>${b||''}</small><b>${c}</b></div>`;
+    h+='<div class="jaw">';
+    h+=row('Tréningy',`${r.t} × ${eur(r.rt)}`,eur(r.t*r.rt));
+    h+=row('Zápasy',`${r.z} × ${eur(r.rz)}`,eur(r.z*r.rz));
+    if(r.cest||r.km) h+=row('Cestovné',`${r.km} km × ${eur(r.kmR)}`,eur(r.cest));
+    if(r.abs) h+=row('Neúčasť na tréningu',`${r.abs}×, ${Math.min(r.abs,r.volno)} ospr.${r.strhN?`<br>${r.strhN} × ${eur(r.strhR)}`:''}`,r.strh?'−'+eur(r.strh):'0 €',r.strh?'neg':'');
+    r.fines.forEach(f=>{ h+=row('Pokuta',`${dLabel(f.d)}${f.n?' · '+esc(f.n):''}`,'−'+eur(f.a),'neg'); });
+    h+=row('Spolu','',eur(r.sum),'jsum');
+    h+='</div>';
+    h+=`<p class="note">${r.paid?`✅ Vyplatené ${dLabel(r.paid)}.`:'Ešte nevyplatené – suma sa môže do konca mesiaca meniť.'} Ak ti niečo nesedí (napr. si bol na tréningu a nedal si Prídem), napíš vedeniu.</p>`;
+  }
+  // štatistiky
+  const p=(KLUB&&KLUB.hraci||[]).find(x=>normN(x.name)===nm);
+  h+='<h2>Moje štatistiky</h2>';
+  if(!KLUB) h+='<p class="note">Načítavam…</p>';
+  else if(!p) h+='<div class="empty">V zápisoch zo Sportnetu ťa zatiaľ nevidím. Ak si už hral, možno je tvoje meno na Sportnete napísané inak – daj vedeniu vedieť.</div>';
+  else h+=playerHtml(p)+'<p class="note">Zo zápisov o stretnutí na Sportnete, majstrovské zápasy tejto sezóny.</p>';
+  return h;
 }
 
 function vFoto(){
@@ -3007,6 +3086,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.close){ closeSheet(); return; }
   if(Object.keys(b.dataset).some(k=>k.startsWith('ch'))){ chatClick(b); return; }
   if(APP && vedClick(b)) return;
+  if(b.dataset.jam!=null){ if(b.dataset.jam){ JAP.m=b.dataset.jam; render(); } return; }
   if(hryClick(b)) return;
   if(b.id==='bHry'){ tab='hry'; render(); scrollTo(0,0); return; }
   if(b.id==='bTheme'){ toggleTheme(); return; }
@@ -3036,6 +3116,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet();
   if($('#lb') && (e.key==='ArrowRight'||e.key==='ArrowLeft')) openPhoto(phIdx+(e.key==='ArrowRight'?1:-1)); });
 if('serviceWorker' in navigator && !APP) navigator.serviceWorker.register('sw.js');
 if(APP){ const nav=$('#nav'); nav.insertAdjacentHTML('beforeend','<button data-t="ved">Vedenie</button>'); nav.style.gridTemplateColumns='repeat(7,1fr)'; }
+function jaNav(){ if(APP||!PPIN||document.querySelector('#nav [data-t="ja"]')) return; const nav=$('#nav'); nav.insertAdjacentHTML('beforeend','<button data-t="ja">Ja</button>'); nav.style.gridTemplateColumns='repeat(7,1fr)'; }
 function boot(){
   loadAll(false).then(pollLive).then(()=>{ if(PROXY&&CHPIN) chatStart(); });
   setTimeout(arkSync,4000);
