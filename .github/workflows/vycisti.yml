@@ -1,0 +1,26 @@
+name: Vyčistiť Prídem
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - run: |
+          T=$(printf '%s' "$CF_TOKEN" | tr -d '\r' | grep -oE '[A-Za-z0-9_-]{32,}' | awk '{ print length, $0 }' | sort -rn | head -1 | cut -d' ' -f2); echo "::add-mask::$T"
+          api() { curl -sS -H "Authorization: Bearer $T" "$@"; }
+          ACC="${{ vars.CLOUDFLARE_ACCOUNT_ID }}"; [ -z "$ACC" ] && ACC=$(api https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id // empty')
+          [ -z "$ACC" ] && ACC=$(api https://api.cloudflare.com/client/v4/memberships | jq -r '.result[0].account.id // empty')
+          KV=$(api "https://api.cloudflare.com/client/v4/accounts/$ACC/storage/kv/namespaces?per_page=100" | jq -r '.result[] | select(.title=="tjklas-dochadzka") | .id' | head -1)
+          B="https://api.cloudflare.com/client/v4/accounts/$ACC/storage/kv/namespaces/$KV"
+          api "$B/keys?limit=1000&prefix=u:" | jq -r '.result[].name' > keys.txt
+          echo "Záznamov: $(wc -l < keys.txt)"
+          while read k; do
+            api "$B/values/$k" > v.json
+            n0=$(jq 'length' v.json)
+            jq 'with_entries(select(.key | ascii_downcase | test("skacan|skačan|alexandra")))' v.json > n.json
+            n1=$(jq 'length' n.json)
+            if [ "$n1" = "0" ]; then api -X DELETE "$B/values/$k" > /dev/null; echo "$k: $n0 -> zmazané"
+            elif [ "$n1" != "$n0" ]; then api -X PUT -H 'Content-Type: text/plain' --data-binary @n.json "$B/values/$k?expiration_ttl=34560000" > /dev/null; echo "$k: $n0 -> $n1"
+            else echo "$k: $n0 bez zmeny"; fi
+          done < keys.txt
