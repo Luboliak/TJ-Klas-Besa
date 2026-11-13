@@ -96,7 +96,7 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .jaw{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 14px}
 .jr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:baseline;padding:10px 0;border-top:1px solid var(--line)}
 .jr:first-child{border-top:0}.jr small{color:var(--mute);font-size:12.5px;text-align:right}.jr b{grid-column:3;font-family:var(--cond);font-size:17px;font-weight:500;min-width:64px;text-align:right}
-.jr.neg b{color:#e06666}.jr.jsum{border-top:2px solid var(--ink)}.jr.jsum b{font-size:21px;font-weight:700}
+.jr.neg b{color:#e06666}.jr.pos b{color:#5cb85c}.jr.jsum{border-top:2px solid var(--ink)}.jr.jsum b{font-size:21px;font-weight:700}
 
 .ev .n small.auto{display:block;font-size:10px;color:var(--mute);font-family:inherit;line-height:1}
 .sync{font-size:13px;color:var(--mute);margin:-4px 0 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sync .btn{margin-left:auto}
@@ -1276,7 +1276,7 @@ function profData(){
   months.forEach(m=>monthCalc(m).forEach(r=>{
     if(!by.has(r.p.id)) by.set(r.p.id,{meno:r.p.name,data:{mesiace:[]}});
     by.get(r.p.id).data.mesiace.push({m, t:r.t, z:r.z, rt:rateOf(r.p,'trening'), rz:rateOf(r.p,'zapas'), km:r.km, kmR:+D.rates.km||0, cest:r.cest,
-      abs:r.abs, volno:r.volno, ospr:r.ospr, strhN:r.strhN, strhR:r.strhRate, strh:r.strh, fines:r.fines.map(f=>({d:f.date,a:+f.amount,n:f.note||''})), fine:r.fine, zaklad:r.zaklad, sum:r.sum, paid:r.paid?r.paid.date:null});
+      abs:r.abs, volno:r.volno, ospr:r.ospr, strhN:r.strhN, strhR:r.strhRate, strh:r.strh, fines:r.fines.map(f=>({d:f.date,a:+f.amount,n:f.note||'',...(f.bonus?{b:1}:{})})), fine:r.fine, bonus:r.bonus, zaklad:r.zaklad, sum:r.sum, paid:r.paid?r.paid.date:null});
   }));
   return [...by.values()];
 }
@@ -1325,23 +1325,23 @@ function monthCalc(month){
     const t=evs.filter(e=>e.type==='trening'&&e.present.includes(p.id)).length;
     const z=evs.filter(e=>e.type==='zapas'&&e.present.includes(p.id)).length;
     const abs=p.active===false?0:trs.filter(e=>!e.present.includes(p.id)).length, ospr=Math.min(abs,volno), strhN=Math.max(0,abs-volno), strh=strhN*sr;
-    const fines=(D.fines||[]).filter(f=>f.pid===p.id&&ym(f.date)===month), fine=fines.reduce((a,f)=>a+(+f.amount||0),0);
+    const fines=(D.fines||[]).filter(f=>f.pid===p.id&&ym(f.date)===month), fine=fines.filter(f=>!f.bonus).reduce((a,f)=>a+(+f.amount||0),0), bonus=fines.filter(f=>f.bonus).reduce((a,f)=>a+(+f.amount||0),0);
     const pd=D.paid[month+'|'+p.id], km=(+p.km||0)*(t+z), cest=km*(+D.rates.km||0);
     const zaklad=(t+ospr)*rateOf(p,'trening')+z*rateOf(p,'zapas')+cest;
-    return {p,t,z,km,cest,abs,volno,ospr,strhN,strhRate:sr,strh,fines,fine,zaklad,sum:pd?pd.amount:Math.max(0,zaklad-strh-fine),paid:pd};
-  }).filter(r=>r.t||r.z||r.paid||r.fine||(r.strh&&(r.t||r.z)));
+    return {p,t,z,km,cest,abs,volno,ospr,strhN,strhRate:sr,strh,fines,fine,zaklad,bonus,sum:pd?pd.amount:Math.max(0,zaklad+bonus-strh-fine),paid:pd};
+  }).filter(r=>r.t||r.z||r.paid||r.fine||r.bonus||(r.strh&&(r.t||r.z)));
 }
 function vPay(){
   let h=monthNav();
   const rows=monthCalc(curMonth);
   if(!(+D.rates.trening)&&!(+D.rates.zapas)&&!D.players.some(p=>(p.rt!=null&&p.rt!=='')||(p.rz!=null&&p.rz!==''))) h+='<div class="empty" style="margin-bottom:12px">Sadzby sú nastavené na 0 €.<br><br><button class="btn" data-vs="nast">Nastaviť sadzby</button></div>';
   if(!rows.length) return h+'<div class="empty">V tomto mesiaci nemá nikto zapísanú dochádzku.</div>';
-  h+=`<p class="note">Suma = tréningy + zápasy + cestovné − zrážky. Ospravedlnený tréning (${D.rates.volno??1} za mesiac) sa platí, ako keby bol hráč prítomný (v stĺpci T ako +1). Zrážka je za každú ďalšiu neúčasť (${eur(+D.rates.strh||0)}) a ručné pokuty. Vyplatené mesiace si držia sumu z dňa výplaty.</p>`;
+  h+=`<p class="note">Suma = tréningy + zápasy + cestovné + bonusy − zrážky. Ospravedlnený tréning (${D.rates.volno??1} za mesiac) sa platí, ako keby bol hráč prítomný (v stĺpci T ako +1). Zrážka je za každú ďalšiu neúčasť (${eur(+D.rates.strh||0)}) a ručné pokuty. Vyplatené mesiace si držia sumu z dňa výplaty.</p>`;
   if(!PROF.pin()) h+='<p class="note" style="color:#e0a040">Hráči zatiaľ svoj výpočet nevidia. Zadaj správcovský PIN v záložke Heslá a appka im ho bude posielať sama.</p>';
   else if(PROF.err) h+=`<p class="note" style="color:#e0a040">Posielanie výpočtov hráčom zlyhalo: ${esc(PROF.err)}</p>`;
   h+='<div class="pay"><div class="h l">Hráč</div><div class="h">T</div><div class="h">Z</div><div class="h">Cest.</div><div class="h">Zráž.</div><div class="h">Suma</div>';
   rows.forEach(r=>{
-    h+=`<div class="nm">${esc(r.p.name)}<br><span class="note" style="margin:0">T ${eur(rateOf(r.p,'trening'))}, Z ${eur(rateOf(r.p,'zapas'))}${+r.p.km?`, ${r.p.km} km`:''}</span><br>${r.paid?`<span class="paid">vyplatené ${dLabel(r.paid.date)}</span> <button class="btn sm" data-unpay="${r.p.id}">Zrušiť</button>`:`<button class="btn sm pri" data-pay="${r.p.id}">Vyplatiť</button> <button class="btn sm" data-fine="${r.p.id}">Pokuta</button>`}${r.strhN?`<br><span class="note" style="margin:0">neúčasť ${r.abs}× (${r.volno} ospr.)</span>`:''}${r.fines.map(f=>`<br><span class="note" style="margin:0">pokuta ${eur(+f.amount)}${f.note?' – '+esc(f.note):''} <button class="btn sm" data-delfine="${f.id}" aria-label="Zmazať pokutu">×</button></span>`).join('')}</div>
+    h+=`<div class="nm">${esc(r.p.name)}<br><span class="note" style="margin:0">T ${eur(rateOf(r.p,'trening'))}, Z ${eur(rateOf(r.p,'zapas'))}${+r.p.km?`, ${r.p.km} km`:''}</span><br>${r.paid?`<span class="paid">vyplatené ${dLabel(r.paid.date)}</span> <button class="btn sm" data-unpay="${r.p.id}">Zrušiť</button>`:`<button class="btn sm pri" data-pay="${r.p.id}">Vyplatiť</button> <button class="btn sm" data-fine="${r.p.id}">Pokuta</button> <button class="btn sm" data-fine="${r.p.id}" data-bon="1">Bonus</button>`}${r.strhN?`<br><span class="note" style="margin:0">neúčasť ${r.abs}× (${r.volno} ospr.)</span>`:''}${r.fines.map(f=>`<br><span class="note" style="margin:0">${f.bonus?'bonus +':'pokuta '}${eur(+f.amount)}${f.note?' – '+esc(f.note):''} <button class="btn sm" data-delfine="${f.id}" aria-label="Zmazať">×</button></span>`).join('')}</div>
       <div class="c">${r.t}${r.ospr?'+'+r.ospr:''}</div><div class="c">${r.z}</div><div class="c">${r.cest?eur(r.cest):'–'}</div><div class="c">${r.strh+r.fine?'−'+eur(r.strh+r.fine):'–'}</div><div class="c sum">${eur(r.sum)}</div>`;
   });
   h+='</div>';
@@ -1472,8 +1472,8 @@ async function writeFile(name,text,mime){
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:mime})); a.download=name; a.click();
 }
 function exportCsv(){
-  const rows=monthCalc(curMonth), lines=['Hráč;Tréningy;Zápasy;Km;Cestovné €;Neúčasti;Zrážky €;Pokuty €;Suma €;Vyplatené'], c=n=>String(Math.round(n*100)/100).replace('.',',');
-  rows.forEach(r=>lines.push([r.p.name,r.t,r.z,r.km,c(r.cest),r.abs,c(r.strh),c(r.fine),c(r.sum),r.paid?r.paid.date:''].join(';')));
+  const rows=monthCalc(curMonth), lines=['Hráč;Tréningy;Ospravedlnené;Zápasy;Km;Cestovné €;Neúčasti;Zrážky €;Pokuty €;Bonusy €;Suma €;Vyplatené'], c=n=>String(Math.round(n*100)/100).replace('.',',');
+  rows.forEach(r=>lines.push([r.p.name,r.t,r.ospr,r.z,r.km,c(r.cest),r.abs,c(r.strh),c(r.fine),c(r.bonus),c(r.sum),r.paid?r.paid.date:''].join(';')));
   writeFile('vyplata-'+curMonth+'.csv','﻿'+lines.join('\r\n'),'text/csv');
 }
 function restoreFile(){
@@ -1537,9 +1537,10 @@ function vedClick(b){
   if(ds.fromrsvp){ presentFromRsvp(); return true; }
   if(ds.sync){ vedSync(true); return true; }
   if(ds.fine){ const p=D.players.find(x=>x.id===ds.fine); const d=curMonth===ym(today())?today():curMonth+'-01';
-    openSheet(`<h3><span>Pokuta – ${esc(p.name)}</span>${closeBtn}</h3><div class="row2"><label class="f"><span>Suma (€)</span><input type="number" step="0.5" min="0" id="fA"></label><label class="f"><span>Dátum</span><input type="date" id="fD" value="${d}"></label></div><label class="f"><span>Dôvod</span><input type="text" id="fN" placeholder="napr. neskorý príchod"></label><div class="acts"><button class="btn pri grow" data-savefine="${p.id}">Uložiť pokutu</button></div>`); return true; }
+    const bon=!!ds.bon;
+    openSheet(`<h3><span>${bon?'Bonus':'Pokuta'} – ${esc(p.name)}</span>${closeBtn}</h3><div class="row2"><label class="f"><span>Suma (€)</span><input type="number" step="0.5" min="0" id="fA"></label><label class="f"><span>Dátum</span><input type="date" id="fD" value="${d}"></label></div><label class="f"><span>Dôvod</span><input type="text" id="fN" placeholder="${bon?'napr. hráč zápasu':'napr. neskorý príchod'}"></label><div class="acts"><button class="btn pri grow" data-savefine="${p.id}" ${bon?'data-bon="1"':''}>${bon?'Uložiť bonus':'Uložiť pokutu'}</button></div>`); return true; }
   if(ds.savefine){ const a=+String($('#fA').value).replace(',','.'); if(!(a>0)){ toast('Zadaj sumu'); return true; }
-    (D.fines=D.fines||[]).push({id:uid(),pid:ds.savefine,date:$('#fD').value||today(),amount:a,note:$('#fN').value.trim()}); save(); closeSheet(); render(); toast('Pokuta zapísaná'); return true; }
+    (D.fines=D.fines||[]).push({id:uid(),pid:ds.savefine,date:$('#fD').value||today(),amount:a,note:$('#fN').value.trim(),...(ds.bon?{bonus:true}:{})}); save(); closeSheet(); render(); toast(ds.bon?'Bonus zapísaný':'Pokuta zapísaná'); return true; }
   if(ds.delfine){ if(!confirmTwice(b,'Zmazať?')) return true; D.fines=(D.fines||[]).filter(f=>f.id!==ds.delfine); save(); render(); return true; }
   if(ds.addmiss){ (D.miss||[]).forEach(n=>{ if(!D.players.some(p=>normN(p.name)===normN(n))) D.players.push({id:uid(),name:n,active:true}); }); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); D.miss=[]; save(); toast('Hráči pridaní, synchronizujem'); vedSync(true); return true; }
   if(ds.saveEv){ const date=$('#eDate').value; if(!date){ toast('Vyplň dátum'); return true; }
@@ -2993,7 +2994,7 @@ function vJa(){
     h+=row('Zápasy',`${r.z} × ${eur(r.rz)}`,eur(r.z*r.rz));
     if(r.cest||r.km) h+=row('Cestovné',`${r.km} km × ${eur(r.kmR)}`,eur(r.cest));
     if(r.abs) h+=row('Neúčasť na tréningu',`${r.abs}×, ${Math.min(r.abs,r.volno)} ospr.${r.strhN?`<br>${r.strhN} × ${eur(r.strhR)}`:''}`,r.strh?'−'+eur(r.strh):'0 €',r.strh?'neg':'');
-    r.fines.forEach(f=>{ h+=row('Pokuta',`${dLabel(f.d)}${f.n?' · '+esc(f.n):''}`,'−'+eur(f.a),'neg'); });
+    r.fines.forEach(f=>{ h+=f.b?row('Bonus',`${dLabel(f.d)}${f.n?' · '+esc(f.n):''}`,'+'+eur(f.a),'pos'):row('Pokuta',`${dLabel(f.d)}${f.n?' · '+esc(f.n):''}`,'−'+eur(f.a),'neg'); });
     h+=row('Spolu','',eur(r.sum),'jsum');
     h+='</div>';
     h+=`<p class="note">${r.paid?`✅ Vyplatené ${dLabel(r.paid)}.`:'Ešte nevyplatené – suma sa môže do konca mesiaca meniť.'} Ak ti niečo nesedí (napr. si bol na tréningu a nedal si Prídem), napíš vedeniu.</p>`;
