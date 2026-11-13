@@ -107,8 +107,8 @@ async function attendance(request, env) {
     if (!ID.test(id) || !meno || !['ano', 'nie', ''].includes(o)) return json({ error: 'Zlé údaje' }, 400);
     const ev = await readEvent(kv, id);
     if (o) ev[meno] = { o, t: Date.now() }; else delete ev[meno];
-    // záznam sa sám zmaže po 120 dňoch
-    await kv.put('u:' + id, JSON.stringify(ev), { expirationTtl: 120 * 86400 });
+    // záznam sa sám zmaže po 400 dňoch (kvôli výplatám)
+    await kv.put('u:' + id, JSON.stringify(ev), { expirationTtl: 400 * 86400 });
     return json(ev, 200, { 'Cache-Control': 'no-store' });
   }
   return json({ error: 'Nepodporovaná metóda' }, 405);

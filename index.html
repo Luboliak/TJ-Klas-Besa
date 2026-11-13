@@ -93,6 +93,8 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .kolo{font-family:var(--cond);color:var(--mute);margin:14px 4px 2px;font-size:14px}
 
 /* dochádzka / výplata */
+.ev .n small.auto{display:block;font-size:10px;color:var(--mute);font-family:inherit;line-height:1}
+.sync{font-size:13px;color:var(--mute);margin:-4px 0 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sync .btn{margin-left:auto}
 .mbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .mbar b{flex:1;text-align:center;font-family:var(--cond);font-size:19px}
 .acts{display:flex;gap:8px;margin-bottom:12px}
@@ -109,7 +111,8 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .ev .n{font-family:var(--cond);font-size:18px}
 .empty{border:1px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--mute)}
 
-.pay{display:grid;grid-template-columns:1fr auto auto auto;gap:4px 10px;align-items:center}
+.pay{display:grid;grid-template-columns:1fr auto auto auto auto;gap:0 10px;align-items:stretch}
+.pay .c{display:flex;align-items:center;justify-content:flex-end}
 .pay .h{color:var(--mute);font-size:12px;text-align:right}
 .pay .h.l{text-align:left}
 .pay .c{text-align:right}
@@ -401,7 +404,7 @@ const today=()=>iso(new Date());
 function dLabel(ds){ if(!ds) return ''; const d=new Date(ds+'T12:00'); return DNI[d.getDay()]+' '+d.getDate()+'.'+(d.getMonth()+1)+'.'; }
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2600);}
 
-let LIGY=[], TREN=null, AKT=null, tab='tab', zapMode='nase', cur=null;
+let LIGY=[], TREN_TXT='', TREN=null, AKT=null, tab='tab', zapMode='nase', cur=null;
 try{ cur=localStorage.getItem('liga'); }catch(e){}
 
 /* téma podľa systému */
@@ -459,7 +462,7 @@ function parseAkt(txt){
 }
 /* tréningy zo súboru treningy.txt: pravidelné dni + zmeny, zrušenia a prestávky */
 const DEN={'nedela':0,'nedeľa':0,'pondelok':1,'utorok':2,'streda':3,'stvrtok':4,'štvrtok':4,'piatok':5,'sobota':6};
-function parseTren(txt){
+function parseTren(txt, from, to){
   const reg=[], extra=new Map(), pauses=[];
   txt.replace(/\r/g,'').split('\n').forEach(raw=>{
     const l=raw.trim(); if(!l || l.startsWith('#')) return;
@@ -471,7 +474,7 @@ function parseTren(txt){
     if(/^zru[sš]en/i.test(p[1]||'')) extra.set(d,{d,cas:'',kde:'',pozn:'ZRUŠENÝ'+(p[2]?' – '+p[2]:''),zrus:true});
     else extra.set(d,{d,cas:p[1]||'',kde:p[2]||'',pozn:p[3]||''});
   });
-  const out=new Map(), t0=new Date(), from=new Date(t0.getTime()-21*864e5), to=new Date(t0.getTime()+70*864e5);
+  const out=new Map(), t0=new Date(); from=from||new Date(t0.getTime()-21*864e5); to=to||new Date(t0.getTime()+70*864e5);
   for(let x=new Date(from); x<=to; x.setDate(x.getDate()+1)){
     const d=iso(x); if(pauses.some(([a,b])=>d>=a&&d<=b)) continue;
     reg.filter(r=>r.dw===x.getDay()).forEach(r=>out.set(d,{d,cas:r.cas,kde:r.kde,pozn:r.pozn}));
@@ -484,7 +487,7 @@ async function trenSource(){
   const r=await fetch(BASE+'treningy.txt',{cache:'no-store'});
   if(r.status===404) return [];
   if(!r.ok) throw new Error('HTTP '+r.status);
-  return parseTren(await r.text());
+  TREN_TXT=await r.text(); return parseTren(TREN_TXT);
 }
 async function aktSource(){
   if(typeof AKTUALITY_CSV!=='undefined' && AKTUALITY_CSV) return sheet(AKTUALITY_CSV);
@@ -1257,6 +1260,7 @@ async function mvpPinSubmit(id){
 /* ===== VEDENIE (len v Android appke): dochádzka a výplaty, údaje ostávajú v telefóne ===== */
 const K_DATA='tjklas.data.v1';
 let D=(()=>{ try{ return JSON.parse(localStorage.getItem(K_DATA)); }catch(e){ return null; } })() || {players:[], events:[], rates:{trening:0, zapas:0}, paid:{}};
+const SYNC_OD_DEF='2027-01-01';
 function save(){ try{ localStorage.setItem(K_DATA, JSON.stringify(D)); }catch(e){ toast('Uloženie zlyhalo'); } }
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const eur=n=>(Math.round(n*100)/100).toLocaleString('sk-SK',{minimumFractionDigits:0,maximumFractionDigits:2})+' €';
@@ -1267,6 +1271,7 @@ let vsub='doch', curMonth=ym(today()), editEv=null;
 try{ vsub=localStorage.getItem('vsub')||'doch'; }catch(e){}
 
 function vVedenie(){
+  if(vsub!=='hesla'&&vsub!=='nast'&&!SYNC.busy&&LIGY.length&&Date.now()-SYNC.at>10*60000) setTimeout(()=>vedSync(false),50);
   let h=`<div class="seg"><button data-vs="doch" class="${vsub==='doch'?'on':''}">Dochádzka</button><button data-vs="vypl" class="${vsub==='vypl'?'on':''}">Výplata</button><button data-vs="nast" class="${vsub==='nast'?'on':''}">Hráči a sadzby</button><button data-vs="hesla" class="${vsub==='hesla'?'on':''}">Heslá</button></div>`;
   return h+(vsub==='doch'?vAttend():vsub==='vypl'?vPay():vsub==='hesla'?vHesla():vVedNast());
 }
@@ -1278,13 +1283,14 @@ function shiftMonth(d){ let [y,m]=curMonth.split('-').map(Number); m+=d; if(m<1)
 function vAttend(){
   let h=monthNav();
   h+=`<div class="acts"><button class="btn pri grow" data-new="trening">Pridať tréning</button><button class="btn pri grow" data-new="zapas">Pridať zápas</button></div>`;
+  h+=syncInfo();
   if(!D.players.length) h+='<div class="empty" style="margin-bottom:12px">Najprv si pridaj hráčov.<br><br><button class="btn" data-vs="nast">Hráči a sadzby</button></div>';
   const evs=D.events.filter(e=>ym(e.date)===curMonth).sort((a,b)=>(b.date+(b.time||'')).localeCompare(a.date+(a.time||'')));
   if(!evs.length) h+='<div class="empty">V tomto mesiaci zatiaľ nie je zapísaný žiadny tréning ani zápas.</div>';
   evs.forEach(e=>{
     h+=`<button class="ev" data-ev="${e.id}"><div class="tag ${e.type==='zapas'?'Z':''}">${e.type==='zapas'?'Z':'T'}</div>
       <div class="x">${dLabel(e.date)}${e.time?' o '+esc(e.time):''}<small>${esc(e.note||(e.type==='zapas'?'Zápas':'Tréning'))}</small></div>
-      <div class="n">${e.present.length}</div></button>`;
+      <div class="n">${e.present.length}${e.src&&!e.rucne?'<small class="auto">auto</small>':''}</div></button>`;
   });
   return h;
 }
@@ -1294,8 +1300,8 @@ function monthCalc(month){
   return D.players.map(p=>{
     const t=evs.filter(e=>e.type==='trening'&&e.present.includes(p.id)).length;
     const z=evs.filter(e=>e.type==='zapas'&&e.present.includes(p.id)).length;
-    const pd=D.paid[month+'|'+p.id];
-    return {p,t,z,sum:pd?pd.amount:t*rateOf(p,'trening')+z*rateOf(p,'zapas'),paid:pd};
+    const pd=D.paid[month+'|'+p.id], km=(+p.km||0)*(t+z), cest=km*(+D.rates.km||0);
+    return {p,t,z,km,cest,sum:pd?pd.amount:t*rateOf(p,'trening')+z*rateOf(p,'zapas')+cest,paid:pd};
   }).filter(r=>r.t||r.z||r.paid);
 }
 function vPay(){
@@ -1303,11 +1309,11 @@ function vPay(){
   const rows=monthCalc(curMonth);
   if(!(+D.rates.trening)&&!(+D.rates.zapas)&&!D.players.some(p=>(p.rt!=null&&p.rt!=='')||(p.rz!=null&&p.rz!==''))) h+='<div class="empty" style="margin-bottom:12px">Sadzby sú nastavené na 0 €.<br><br><button class="btn" data-vs="nast">Nastaviť sadzby</button></div>';
   if(!rows.length) return h+'<div class="empty">V tomto mesiaci nemá nikto zapísanú dochádzku.</div>';
-  h+='<p class="note">Pod menom je sadzba hráča za tréning a zápas. Vyplatené mesiace si držia sumu z dňa výplaty.</p>';
-  h+='<div class="pay"><div class="h l">Hráč</div><div class="h">T</div><div class="h">Z</div><div class="h">Suma</div>';
+  h+='<p class="note">Pod menom je sadzba hráča za tréning a zápas a jeho km na jeden príchod. Suma obsahuje aj cestovné. Vyplatené mesiace si držia sumu z dňa výplaty.</p>';
+  h+='<div class="pay"><div class="h l">Hráč</div><div class="h">T</div><div class="h">Z</div><div class="h">Cest.</div><div class="h">Suma</div>';
   rows.forEach(r=>{
-    h+=`<div class="nm">${esc(r.p.name)}<br><span class="note" style="margin:0">T ${eur(rateOf(r.p,'trening'))}, Z ${eur(rateOf(r.p,'zapas'))}</span><br>${r.paid?`<span class="paid">vyplatené ${dLabel(r.paid.date)}</span> <button class="btn sm" data-unpay="${r.p.id}">Zrušiť</button>`:`<button class="btn sm pri" data-pay="${r.p.id}">Vyplatiť</button>`}</div>
-      <div class="c">${r.t}</div><div class="c">${r.z}</div><div class="c sum">${eur(r.sum)}</div>`;
+    h+=`<div class="nm">${esc(r.p.name)}<br><span class="note" style="margin:0">T ${eur(rateOf(r.p,'trening'))}, Z ${eur(rateOf(r.p,'zapas'))}${+r.p.km?`, ${r.p.km} km`:''}</span><br>${r.paid?`<span class="paid">vyplatené ${dLabel(r.paid.date)}</span> <button class="btn sm" data-unpay="${r.p.id}">Zrušiť</button>`:`<button class="btn sm pri" data-pay="${r.p.id}">Vyplatiť</button>`}</div>
+      <div class="c">${r.t}</div><div class="c">${r.z}</div><div class="c">${r.cest?eur(r.cest):'–'}</div><div class="c sum">${eur(r.sum)}</div>`;
   });
   h+='</div>';
   const tot=rows.reduce((s,r)=>s+r.sum,0), open=rows.filter(r=>!r.paid).reduce((s,r)=>s+r.sum,0);
@@ -1320,6 +1326,52 @@ function vVedNast(){
     <h2>Záloha</h2>
     <div class="acts"><button class="btn grow" data-backup="1">Uložiť zálohu</button><button class="btn grow" data-restore="1">Načítať zálohu</button></div>
     <p class="note">Záloha sa uloží do Dokumenty/TJKlas. Obsahuje hráčov, dochádzku, sadzby a výplaty. Tieto údaje sú len v tomto telefóne, na internet sa neposielajú.</p>`;
+}
+/* Automatická dochádzka: zápasy zo Sportnetu (celá zápisnica) a tréningy podľa Prídem.
+   Záznam, ktorý ručne upravíš, už automatika nemení. */
+let SYNC={busy:false, at:0, msg:''};
+const normN=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+function syncInfo(){
+  const od=D.syncOd||SYNC_OD_DEF, miss=(D.miss||[]);
+  let h=`<div class="sync"><span>${today()<od?`Automatický zápis začne ${dLabel(od)}.`:SYNC.busy?'Synchronizujem…':SYNC.msg||'Zápasy a tréningy sa zapisujú samé.'}</span><button class="btn sm" data-sync="1" ${SYNC.busy?'disabled':''}>Synchronizovať</button></div>`;
+  if(miss.length) h+=`<div class="sync" style="color:#e0a040"><span>Tieto mená nemáš v hráčoch, preto sa im nič nezapísalo: ${miss.map(esc).join(', ')}</span><button class="btn sm" data-addmiss="1">Pridať ich</button></div>`;
+  return h;
+}
+async function vedSync(manual){
+  if(SYNC.busy||!APP) return; const od=D.syncOd||SYNC_OD_DEF, t=today();
+  if(t<od){ if(manual) toast('Automatický zápis začne '+dLabel(od)); return; }
+  SYNC.busy=true; if(tab==='ved') render();
+  const byName=new Map(D.players.map(p=>[normN(p.name),p])), miss=new Set(), ids=names=>{ const out=[]; names.forEach(n=>{ const p=byName.get(normN(n)); if(p) out.push(p.id); else miss.add(n.trim()); }); return [...new Set(out)]; };
+  const paidMonth=m=>Object.keys(D.paid).some(k=>k.startsWith(m+'|'));
+  let nNew=0, nUpd=0, err=0;
+  const put=(src,type,date,time,note,matchId,present)=>{
+    let e=D.events.find(x=>x.src===src) || D.events.find(x=>!x.src&&x.type===type&&(type==='zapas'?(matchId&&x.matchId===matchId):x.date===date));
+    if(e){ if(e.rucne||(!e.src&&e.present.length)||paidMonth(ym(e.date))) return;
+      e.src=src; const same=e.present.length===present.length&&present.every(id=>e.present.includes(id)); if(!same){ e.present=present; nUpd++; } return; }
+    if(paidMonth(ym(date))||!present.length) return;
+    D.events.push({id:uid(),type,date,time:time||'',note,present,matchId:matchId||'',src}); nNew++;
+  };
+  try{
+    // zápasy: celá zápisnica Beše
+    for(const m of ours().filter(m=>played(m)&&m.date&&m.date>=od&&m.date<=t)){
+      const d=await getDetail(m,false); const side=m.home===US?'home':'away', L=d&&d.lineups&&d.lineups[side];
+      if(!L||!(L.players||[]).length) continue;
+      put('sp:'+m.id,'zapas',m.date,m.time,m.home===US?m.away+' doma':m.home+' vonku',m.id,ids(L.players.map(x=>x.name)));
+    }
+    // tréningy: kto dal Prídem
+    if(PROXY&&TREN_TXT){
+      const tr=parseTren(TREN_TXT,new Date(od+'T12:00'),new Date(Date.now()-864e5)).filter(r=>!r[4]&&r[0]>=od&&r[0]<t);
+      for(let i=0;i<tr.length;i+=25){
+        const part=tr.slice(i,i+25), r=await fetch(PROXY+'/dochadzka?ids='+part.map(x=>'tren-'+x[0]).join(','),{cache:'no-store'});
+        if(!r.ok){ err++; continue; } const j=await r.json();
+        part.forEach(x=>{ const a=j['tren-'+x[0]]||{}; put('tr:'+x[0],'trening',x[0],x[1],'',null,ids(Object.keys(a).filter(n=>a[n].o==='ano'))); });
+      }
+    }
+    D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save();
+    SYNC.msg=(err?'Časť údajov sa nenačítala. ':'')+(nNew||nUpd?`Zapísané: ${nNew} nových, ${nUpd} upravených.`:'Všetko je aktuálne.');
+    if(manual) toast(SYNC.msg);
+  }catch(e){ SYNC.msg='Synchronizácia zlyhala, skús neskôr.'; if(manual) toast(SYNC.msg); }
+  finally{ SYNC.busy=false; SYNC.at=Date.now(); if(tab==='ved') render(); }
 }
 function rsvpIdFor(ev){ return ev.type==='zapas' ? (ev.matchId||'') : 'tren-'+ev.date; }
 function eventSheet(ev){
@@ -1373,10 +1425,14 @@ function ratesSheet(){
   openSheet(`<h3><span>Sadzby</span>${closeBtn}</h3>
     <h2 style="margin-top:0">Predvolená sadzba</h2>
     <div class="row2"><label class="f"><span>Tréning (€)</span><input type="number" step="0.5" min="0" id="rT" value="${D.rates.trening}"></label><label class="f"><span>Zápas (€)</span><input type="number" step="0.5" min="0" id="rZ" value="${D.rates.zapas}"></label></div>
-    <h2>Sadzby hráčov</h2><p class="note">Prázdne pole znamená predvolenú sadzbu.</p>
+    <div class="row2"><label class="f"><span>Cestovné (€ za 1 km)</span><input type="number" step="0.001" min="0" id="rKm" value="${D.rates.km||''}" placeholder="napr. 0,313"></label><label class="f"><span>Automaticky od</span><input type="date" id="rOd" value="${D.syncOd||SYNC_OD_DEF}"></label></div>
+    <p class="note">Od tohto dátumu appka sama zapisuje zápasy zo Sportnetu (celá zápisnica) a tréningy podľa tlačidla Prídem.</p>
+    <h2>Sadzby hráčov</h2><p class="note">Prázdne pole znamená predvolenú sadzbu. Km je vzdialenosť na jeden príchod, tam aj späť.</p>
+    <div class="row2 note" style="margin:0 0 4px"><div style="flex:1.4"></div><div style="flex:1">Tréning €</div><div style="flex:1">Zápas €</div><div style="flex:1">Km</div></div>
     ${act.map(p=>`<div class="row2" style="align-items:center;margin-bottom:6px"><div style="flex:1.4">${esc(p.name)}</div>
       <input type="number" step="0.5" min="0" data-rt="${p.id}" value="${p.rt??''}" placeholder="T ${+D.rates.trening||0}" aria-label="Tréning ${esc(p.name)}">
-      <input type="number" step="0.5" min="0" data-rz="${p.id}" value="${p.rz??''}" placeholder="Z ${+D.rates.zapas||0}" aria-label="Zápas ${esc(p.name)}"></div>`).join('')||'<div class="empty">Zatiaľ nemáš pridaných hráčov.</div>'}
+      <input type="number" step="0.5" min="0" data-rz="${p.id}" value="${p.rz??''}" placeholder="Z ${+D.rates.zapas||0}" aria-label="Zápas ${esc(p.name)}">
+      <input type="number" step="1" min="0" data-km="${p.id}" value="${p.km??''}" placeholder="0" aria-label="Km ${esc(p.name)}"></div>`).join('')||'<div class="empty">Zatiaľ nemáš pridaných hráčov.</div>'}
     <p class="note">Zmena sa prejaví vo všetkých nevyplatených mesiacoch. Vyplatené ostávajú bez zmeny.</p>
     <button class="btn pri" data-save-rates="1">Uložiť sadzby</button>`);
 }
@@ -1386,8 +1442,8 @@ async function writeFile(name,text,mime){
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:mime})); a.download=name; a.click();
 }
 function exportCsv(){
-  const rows=monthCalc(curMonth), lines=['Hráč;Tréningy;Zápasy;Suma €;Vyplatené'];
-  rows.forEach(r=>lines.push([r.p.name,r.t,r.z,String(r.sum).replace('.',','),r.paid?r.paid.date:''].join(';')));
+  const rows=monthCalc(curMonth), lines=['Hráč;Tréningy;Zápasy;Km;Cestovné €;Suma €;Vyplatené'], c=n=>String(Math.round(n*100)/100).replace('.',',');
+  rows.forEach(r=>lines.push([r.p.name,r.t,r.z,r.km,c(r.cest),c(r.sum),r.paid?r.paid.date:''].join(';')));
   writeFile('vyplata-'+curMonth+'.csv','﻿'+lines.join('\r\n'),'text/csv');
 }
 function restoreFile(){
@@ -1395,7 +1451,7 @@ function restoreFile(){
   inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return;
     try{ const j=JSON.parse(await f.text()); if(!Array.isArray(j.players)||!Array.isArray(j.events)) throw new Error('nie je to záloha tejto appky');
       if(!confirm('Nahradiť súčasné údaje zálohou? ('+j.players.length+' hráčov, '+j.events.length+' záznamov)')) return;
-      D={players:j.players,events:j.events,rates:j.rates||{trening:0,zapas:0},paid:j.paid||{}}; save(); render(); toast('Záloha načítaná');
+      D={players:j.players,events:j.events,rates:j.rates||{trening:0,zapas:0},paid:j.paid||{},syncOd:j.syncOd,miss:j.miss}; save(); render(); toast('Záloha načítaná');
     }catch(err){ toast('Súbor sa nedá načítať: '+err.message); } };
   inp.click();
 }
@@ -1449,8 +1505,10 @@ function vedClick(b){
   if(ds.pid){ const i=editEv.present.indexOf(ds.pid); if(i>=0) editEv.present.splice(i,1); else editEv.present.push(ds.pid); b.classList.toggle('on',i<0); $('#eCnt').textContent=editEv.present.length; return true; }
   if(ds.all!=null){ editEv.present=ds.all==='1'?[...document.querySelectorAll('#eList [data-pid]')].map(x=>x.dataset.pid):[]; document.querySelectorAll('#eList [data-pid]').forEach(x=>x.classList.toggle('on',ds.all==='1')); $('#eCnt').textContent=editEv.present.length; return true; }
   if(ds.fromrsvp){ presentFromRsvp(); return true; }
+  if(ds.sync){ vedSync(true); return true; }
+  if(ds.addmiss){ (D.miss||[]).forEach(n=>{ if(!D.players.some(p=>normN(p.name)===normN(n))) D.players.push({id:uid(),name:n,active:true}); }); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); D.miss=[]; save(); toast('Hráči pridaní, synchronizujem'); vedSync(true); return true; }
   if(ds.saveEv){ const date=$('#eDate').value; if(!date){ toast('Vyplň dátum'); return true; }
-    editEv.date=date; editEv.time=$('#eTime').value; editEv.note=$('#eNote').value.trim(); if($('#eMatch')) editEv.matchId=$('#eMatch').value;
+    editEv.date=date; if(editEv.src) editEv.rucne=true; editEv.time=$('#eTime').value; editEv.note=$('#eNote').value.trim(); if($('#eMatch')) editEv.matchId=$('#eMatch').value;
     const i=D.events.findIndex(x=>x.id===editEv.id); if(i>=0) D.events[i]=editEv; else D.events.push(editEv);
     save(); curMonth=ym(date); closeSheet(); render(); toast('Uložené'); return true; }
   if(ds.delEv){ if(!confirm('Zmazať tento záznam aj s dochádzkou?')) return true; D.events=D.events.filter(x=>x.id!==editEv.id); save(); closeSheet(); render(); return true; }
@@ -1459,7 +1517,8 @@ function vedClick(b){
   if(ds.addp){ const n=$('#pNew').value.trim(); if(!n) return true; D.players.push({id:uid(),name:n,active:true}); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); save(); playersSheet(); render(); return true; }
   if(ds.addsquad){ const known=new Set(D.players.map(p=>p.name)); squad().filter(n=>!known.has(n)).forEach(n=>D.players.push({id:uid(),name:n,active:true})); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); save(); playersSheet(); render(); toast('Hráči pridaní'); return true; }
   if(ds.pact){ const p=D.players.find(x=>x.id===ds.pact); p.active=p.active===false; save(); b.textContent=p.active===false?'Neaktívny':'Aktívny'; return true; }
-  if(ds.saveRates){ D.rates={trening:+$('#rT').value||0,zapas:+$('#rZ').value||0};
+  if(ds.saveRates){ D.rates={trening:+$('#rT').value||0,zapas:+$('#rZ').value||0,km:+String($('#rKm').value).replace(',','.')||0}; D.syncOd=$('#rOd').value||SYNC_OD_DEF;
+    document.querySelectorAll('[data-km]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.km); if(p) p.km=i.value===''?null:+i.value; });
     document.querySelectorAll('[data-rt]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.rt); if(p) p.rt=i.value===''?null:+i.value; });
     document.querySelectorAll('[data-rz]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.rz); if(p) p.rz=i.value===''?null:+i.value; });
     save(); closeSheet(); render(); toast('Sadzby uložené'); return true; }
