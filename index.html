@@ -1991,7 +1991,7 @@ async function kvNext(){
     clearInterval(KV.timer);
     KV.timer=setInterval(()=>{ if(KV.st!=='q'||KV.picked!=null) return;
       const left=KV.left-(Date.now()-KV.t0)/1000, bar=$('#kvbar'), sc=$('#kvsec');
-      if(bar) bar.style.width=Math.max(0,left/20*100)+'%'; if(sc) sc.textContent=Math.ceil(Math.max(0,left));
+      if(bar) bar.style.width=Math.max(0,left/10*100)+'%'; if(sc) sc.textContent=Math.ceil(Math.max(0,left));
       if(left<=0) kvAnswer(-1); },200);
     hr('kviz'); scrollTo(0,0);
   }catch(e){ toast(e.message); KV.st='start'; hr('kviz'); }
@@ -2005,11 +2005,11 @@ async function kvAnswer(i){
   setTimeout(()=>{ if(f.koniec){ KV.st='start'; KV.q=null; clearInterval(KV.timer); KV.stav=null; delete BOARDS.kq; kqStav(); } else kvNext(); }, f.pozn?(f.ok?2600:3800):(f.ok?1000:2000));
 }
 function vKviz(){
-  const intro=`<p class="note" style="margin-top:0">Každý deň 12 otázok a každý hráč má svoje vlastné – v ten istý deň nikto nedostane rovnakú otázku, takže si nemáte čo poradiť. Obťažnosť je pre všetkých rovnaká (4 ľahšie, 3 stredné, 3 ťažké a 2 príklady). Na otázku je 20 sekúnd. Správne = 10 bodov + až 10 bodov za rýchlosť. Body sa sčítavajú za mesiac a za rok. <b>Víťaz mesiaca dostane ${BONUS.kviz} € k výplate.</b></p>`;
+  const intro=`<p class="note" style="margin-top:0">Každý deň 12 otázok a každý hráč má svoje vlastné – v ten istý deň nikto nedostane rovnakú otázku, takže si nemáte čo poradiť. Obťažnosť je pre všetkých rovnaká (4 ľahšie, 3 stredné, 3 ťažké a 2 príklady). Na otázku je len 10 sekúnd, takže sa nedá odpoveď dohľadať v mobile ani pýtať umelej inteligencie. Správne = 10 bodov + 1 bod za každú ušetrenú sekundu. Body sa sčítavajú za mesiac a za rok. <b>Víťaz mesiaca dostane ${BONUS.kviz} € k výplate.</b></p>`;
   const g=hryGate(intro); if(g) return g;
   if(KV.st==='q'&&KV.q){
     const q=KV.q, f=KV.fb, left=Math.max(0,KV.left-(Date.now()-KV.t0)/1000);
-    let h=`<div class="kvh"><span>Otázka ${q.n}/${q.z}</span><span>${f&&f.s!=null?f.s:q.s} b</span></div><div class="kvt"><i id="kvbar" style="width:${KV.picked!=null?0:left/20*100}%"></i></div><p class="kvtema">${esc(q.tema||'')}</p><p class="kvq">${esc(q.text)}</p><div class="kvo">`;
+    let h=`<div class="kvh"><span>Otázka ${q.n}/${q.z}</span><span>${f&&f.s!=null?f.s:q.s} b</span></div><div class="kvt"><i id="kvbar" style="width:${KV.picked!=null?0:left/10*100}%"></i></div><p class="kvtema">${esc(q.tema||'')}</p><p class="kvq">${esc(q.text)}</p><div class="kvo">`;
     q.opts.forEach((o,i)=>{ let c=''; if(f&&f.spravna!=null){ if(i===f.spravna) c='ok'; else if(i===KV.picked) c='bad'; } else if(i===KV.picked) c='sel';
       h+=`<button data-kva="${i}" class="${c}"${KV.picked!=null?' disabled':''}>${esc(o)}</button>`; });
     h+='</div>';

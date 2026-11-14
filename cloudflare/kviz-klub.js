@@ -3,7 +3,7 @@
 // Meno hráča určuje server podľa osobného hesla (alebo správca v apke s klubovým PIN-om).
 import POOL from './kviz-klub-otazky.js';
 
-const N = 12, SEC = 20;
+const N = 12, SEC = 10; // 10 s: nestihne sa odfotiť alebo nadiktovať otázku umelej inteligencii a čakať na odpoveď
 const NOSTORE = { 'Cache-Control': 'no-store' };
 // zloženie dennej sady: 4 ľahšie, 3 stredné, 3 ťažké otázky z banky + 2 príklady (počty a logika) – rovnaká obťažnosť pre všetkých
 const SKLAD = [1, 1, 1, 1, 2, 2, 'm2', 2, 3, 3, 'm3', 3];
@@ -111,8 +111,8 @@ export function klubKviz(room, path, body, meno, skDate) {
     const d = dnes();
     if (!d || !d.pend) return out({ error: 'Žiadna otvorená otázka.' }, 409);
     const q = poOtazku(sada(d)[d.i - 1]), k = Number(body.k), cas = (now - d.t0) / 1000;
-    const vcas = cas <= SEC + 1.5, ok = vcas && k === q.ok;
-    const b = ok ? 10 + Math.min(10, Math.round(Math.max(0, SEC - cas) / 2)) : 0;
+    const vcas = cas <= SEC + 1, ok = vcas && k === q.ok;
+    const b = ok ? 10 + Math.min(10, Math.round(Math.max(0, SEC - cas) * 10 / SEC)) : 0; // za každú ušetrenú sekundu bod navyše
     sql('UPDATE kq_dni SET pend=0, s=s+?, c=c+?, r=r||? WHERE meno=? AND den=?', b, ok ? 1 : 0, ok ? '1' : '0', meno, den);
     const n = dnes();
     return out({ ok, body: b, vcas, spravna: q.ok, pozn: q.pozn, s: n.s, c: n.c, r: n.r, koniec: n.i >= N });
