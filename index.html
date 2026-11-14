@@ -1030,6 +1030,7 @@ const lsSet=(k,v)=>{ try{ v?localStorage.setItem(k,v):localStorage.removeItem(k)
 let CHPIN=lsGet('chatPin'), CHADMIN=lsGet('chatAdmin'), PPIN='';
 function pristupPin(){ try{ const P=JSON.parse(lsGet('pristup')||'null'); if(P&&P.kod&&!APP){ PPIN='P:'+P.kod+':'+devId(); CHPIN=PPIN; if(typeof jaNav==='function') jaNav(); } }catch(e){} }
 async function chatApi(path, body){
+  if(APP&&body&&!body.adminPin&&!String(path).startsWith('/profil/')&&!String(path).startsWith('/pristup/')){ const a=lsGet('admPin')||CHADMIN; if(a) body=Object.assign({},body,{adminPin:a}); }
   const r=await fetch(PROXY+path, body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
   let j={}; try{ j=await r.json(); }catch(e){}
   if(!r.ok) throw Object.assign(new Error(j.error||('HTTP '+r.status)),{status:r.status});
@@ -1367,7 +1368,7 @@ function monthCalc(month){
     const t=evs.filter(e=>e.type==='trening'&&e.present.includes(p.id)).length;
     const z=evs.filter(e=>e.type==='zapas'&&e.present.includes(p.id)).length;
     const abs=p.active===false?0:trs.filter(e=>!e.present.includes(p.id)).length, ospr=Math.min(abs,volno), strhN=Math.max(0,abs-volno), strh=strhN*sr;
-    const fines=(D.fines||[]).filter(f=>f.pid===p.id&&ym(f.date)===month), fine=fines.filter(f=>!f.bonus).reduce((a,f)=>a+(+f.amount||0),0), bonus=fines.filter(f=>f.bonus).reduce((a,f)=>a+(+f.amount||0),0);
+    const fines=(D.fines||[]).filter(f=>f.pid===p.id&&ym(f.date)===month&&!f.pending), fine=fines.filter(f=>!f.bonus).reduce((a,f)=>a+(+f.amount||0),0), bonus=fines.filter(f=>f.bonus).reduce((a,f)=>a+(+f.amount||0),0);
     const pd=D.paid[month+'|'+p.id], tr=cesty(p,evs), km=tr.km, cest=km*(+D.rates.km||0);
     const zaklad=(t+ospr)*rateOf(p,'trening')+z*rateOf(p,'zapas'); // cestovné je len evidencia vedenia, do výplaty sa nepočíta
     return {p,t,z,km,cest,tr,abs,volno,ospr,strhN,strhRate:sr,strh,fines,fine,zaklad,bonus,sum:pd?pd.amount:Math.max(0,zaklad+bonus-strh-fine),paid:pd};
@@ -1381,6 +1382,9 @@ function vPay(){
   h+=`<p class="note">Suma = zápasy + tréningy + bonusy − zrážky. Cestovné je len evidencia pre vedenie – do sumy sa nepočíta a hráči ho nevidia. Ospravedlnený tréning (${D.rates.volno??1} za mesiac) sa platí, ako keby bol hráč prítomný (v stĺpci T ako +1). Zrážka je za každú ďalšiu neúčasť (${eur(+D.rates.strh||0)}) a ručné pokuty. Vyplatené mesiace si držia sumu z dňa výplaty.</p>`;
   if(!PROF.pin()) h+='<p class="note" style="color:#e0a040">Hráči zatiaľ svoj výpočet nevidia. Zadaj správcovský PIN v záložke Heslá a appka im ho bude posielať sama.</p>';
   else if(PROF.err) h+=`<p class="note" style="color:#e0a040">Posielanie výpočtov hráčom zlyhalo: ${esc(PROF.err)}</p>`;
+  const PEND=(D.fines||[]).filter(f=>f.pending);
+  if(PEND.length) h+=`<div class="zbox"><b>Bonus za penalty čaká na schválenie</b>${PEND.map(f=>{ const p=D.players.find(x=>x.id===f.pid)||{}, i=f.info||{}, sk=i.score&&i.dur?Math.round(i.dur/1000/(i.score+1)*10)/10:null;
+    return `<div><span>${esc(p.name||'?')} · ${esc(f.note)} · séria ${i.score??'?'} gólov${i.dur?`, hral ${Math.round(i.dur/60000)} min (${String(sk).replace('.',',')} s na kop)`:', čas hry neznámy'}</span><span style="white-space:nowrap"><button class="btn sm pri" data-pok="${f.id}">Schváliť</button> <button class="btn sm" data-pno="${f.id}">Zamietnuť</button></span></div>`; }).join('')}<p class="note" style="margin:6px 0 0">Ak je čas na jeden kop podozrivo krátky (pod 2 s) alebo séria nereálne dlhá, bonus zamietni.</p></div>`;
   const Z=(PROF.ziadosti||[]).filter(z=>!D.paid[z.m+'|'+((D.players.find(p=>normN(p.name)===normN(z.meno))||{}).id)]);
   if(Z.length) h+=`<div class="zbox"><b>Žiadosti o predčasné vyplatenie</b>${Z.map(z=>`<div><span>${esc(z.meno)} · ${MESF[+z.m.slice(5)-1]} · požiadal ${dLabel(iso(new Date(z.at)))}</span><button class="btn sm" data-zvyb="${esc(z.meno)}" data-zm="${z.m}">Vybavené</button></div>`).join('')}</div>`;
   h+='<div class="pay"><div class="h l">Hráč</div><div class="h">T</div><div class="h">Z</div><div class="h">Cest.*</div><div class="h">Zráž.</div><div class="h">Suma</div>';
@@ -1448,13 +1452,13 @@ async function vedSync(manual){
       const V=await fetch(PROXY+'/hra/vitazi',{cache:'no-store'}).then(r=>r.ok?r.json():null);
       if(V){ D.bonDone=D.bonDone||[]; const done=new Set(D.bonDone);
         const last=m=>{ const [y,mo]=m.split('-').map(Number); return iso(new Date(y,mo,0)); };
-        const give=(src,names,amt,date,note)=>{ if(done.has(src)||date<od||!amt) return; let any=false;
+        const give=(src,names,amt,date,note,info)=>{ if(done.has(src)||date<od||!amt) return; let any=false;
           names.forEach(n=>{ const p=byName.get(normN(n)); if(!p){ miss.add(n); return; } any=true;
             const dd=Object.keys(D.paid).some(k=>k===ym(date)+'|'+p.id)?iso(new Date(new Date(last(ym(date))+'T12:00').getTime()+864e5)):date;
-            (D.fines=D.fines||[]).push({id:uid(),pid:p.id,date:dd,amount:amt,note,bonus:true,src}); nNew++; });
+            const inf=info&&info(n); (D.fines=D.fines||[]).push({id:uid(),pid:p.id,date:dd,amount:amt,note,bonus:true,src,...(inf?{pending:true,info:inf}:{})}); nNew++; });
           if(any||!names.length){ done.add(src); D.bonDone.push(src); } };
         Object.entries(V.kq||{}).forEach(([m,ns])=>give('kq:'+m,ns,BONUS.kviz,last(m),'víťaz kvízu za '+MESF[+m.slice(5)-1]));
-        Object.entries(V.pk||{}).forEach(([m,ns])=>give('pk:'+m,ns,BONUS.pk,last(m),'víťaz penált za '+MESF[+m.slice(5)-1]));
+        Object.entries(V.pk||{}).forEach(([m,ns])=>give('pk:'+m,ns,BONUS.pk,last(m),'víťaz penált za '+MESF[+m.slice(5)-1],n=>{ const x=(V.pkInfo||{})[m+'|'+n]||{}; return {score:x.score,dur:x.dur}; }));
         (V.mvp||[]).forEach(p=>{ const mt=findMatch(p.id), d=(mt&&mt.date)||iso(new Date(p.closes)); give('mvp:'+p.id,p.mena||[],BONUS.mvp,d,'hráč zápasu'+(mt?' – '+(mt.home===US?mt.away:mt.home):'')); });
       } }catch(e){ err++; } }
     D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save(); kmFetch(); if(!nNew&&!nUpd) profSchedule();
@@ -1625,6 +1629,8 @@ function vedClick(b){
   if(ds.pay){ const r=monthCalc(curMonth).find(x=>x.p.id===ds.pay); D.paid[curMonth+'|'+ds.pay]={date:today(),amount:r.sum}; save(); render();
     if((PROF.ziadosti||[]).some(z=>z.m===curMonth&&normN(z.meno)===normN(r.p.name))) zVybav(r.p.name,curMonth); return true; }
   if(ds.zvyb){ zVybav(ds.zvyb,ds.zm); return true; }
+  if(ds.pok){ const f=(D.fines||[]).find(x=>x.id===ds.pok); if(f){ delete f.pending; save(); render(); toast('Bonus schválený'); } return true; }
+  if(ds.pno){ if(!confirmTwice(b,'Naozaj?')) return true; D.fines=(D.fines||[]).filter(x=>x.id!==ds.pno); save(); render(); toast('Bonus zamietnutý'); return true; }
   if(ds.trips){ const p=D.players.find(x=>x.id===ds.trips), r=monthCalc(curMonth).find(x=>x.p.id===p.id);
     openSheet(`<h3><span>Cestovné – ${esc(p.name)}</span>${closeBtn}</h3><p class="note" style="margin-top:-6px">${MESF[+curMonth.slice(5)-1]} · ${p.byd?'z obce '+esc(p.byd):'ručne zadané km'} · ${eur(+D.rates.km||0)} za km</p>`+
       r.tr.list.map(x=>`<div class="jr"><span>${dLabel(x.e.date)} ${x.e.type==='zapas'?'zápas':'tréning'}</span><small>${x.od?esc(x.od)+' → '+esc(x.kam)+' a späť':''}</small><b>${x.km==null?'<span style="color:#e06666">?</span>':x.km+' km'}</b></div>`).join('')+
@@ -2142,8 +2148,11 @@ if(PK.mode==='pv') pkFkNew();
 function pkGeo(W,H){ const pv=PK.mode==='pv'&&PK.fk; return {gx0:W*.13, gx1:W*.87, gyT:H*.17, gyB:H*.44, bx:W*(pv?PK.fk.bx:.5), by:H*(pv?.79:.72), br:W*(pv?.026:.03), pv:!!pv}; }
 function pkGauss(){ let u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 function pkKeeper(){ return PK_GK[(PK.kick+PK.k0)%2]; }
-function pkReset(){ Object.assign(PK,{st:'aim', goals:0, kick:0, k0:Math.random()<.5?0:1, aim:null, shot:null, hist:[], saved:false}); if(PK.mode==='pv') pkFkNew(); }
+function pkReset(){ Object.assign(PK,{st:'aim', goals:0, kick:0, k0:Math.random()<.5?0:1, aim:null, shot:null, hist:[], saved:false, kopy:[], tok:null, tokErr:''}); if(PK.mode==='pv') pkFkNew(); }
+// hra sa začne na serveri – server potom overí, že výsledok sa dal za ten čas reálne nakopať
+async function pkStart(){ if(!(PROXY&&CHPIN&&JA)) return; const m=PK.mode; PK.kopy=PK.kopy||[]; try{ const j=await chatApi('/hra/start',{pin:CHPIN,meno:JA,hra:m}); if(PK.mode===m&&PK.kopy.length<=1) PK.tok=j.tok; }catch(e){ PK.tokErr=e.message; } }
 function pkShoot(){
+  if(!PK.tok&&!(PK.kopy||[]).length) pkStart();
   const g=pkKeeper(), p=PK.pow, lvl=PK.goals;
   const sig=(.035+Math.abs(p-.72)*.3)*(PK.mode==='pv'?1.6:1); // z diaľky je strela menej presná
   const bu=PK.aim.u+pkGauss()*sig; let bv=Math.max(.04,PK.aim.v+pkGauss()*sig*.8+Math.max(0,p-.88)*2.6);
@@ -2174,7 +2183,8 @@ async function pkOver(){
   PK.st='over'; PK.saved=false; const pv=PK.mode==='pv';
   if(pv){ PK.rek=PK.goals>PK.bestPv; if(PK.rek){ PK.bestPv=PK.goals; lsSet('pvBest',String(PK.goals)); } }
   else { PK.rek=PK.goals>PK.best; if(PK.rek){ PK.best=PK.goals; lsSet('pkBest',String(PK.best)); } }
-  if(PROXY&&CHPIN&&JA&&PK.goals>0){ try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra:PK.mode,score:PK.goals}); PK.saved=true; delete BOARDS[PK.mode]; }catch(e){} }
+  PK.saveErr='';
+  if(PROXY&&CHPIN&&JA&&PK.goals>0){ if(!PK.tok) PK.saveErr=PK.tokErr||'Hra sa nezačala na serveri (bez internetu?)'; else try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra:PK.mode,score:PK.goals,tok:PK.tok,kopy:PK.kopy}); PK.saved=true; delete BOARDS[PK.mode]; }catch(e){ PK.saveErr=e.message; } }
   hr('pk');
 }
 async function pkBoard(){ if(!PROXY||PK.bl) return; PK.bl=true; const m=PK.mode; try{ PK.board=await fetch(PROXY+'/hra/board?hra='+m,{cache:'no-store'}).then(r=>r.json()); }catch(e){ PK.board={}; } PK.boardM=m; PK.bl=false; hr('pk'); }
@@ -2368,6 +2378,7 @@ function pkDraw(cv,ts){
     c.lineWidth=6; c.strokeStyle='rgba(0,0,0,.7)'; c.strokeText(S.res,W*.5,H*.62); c.fillStyle=goal?'#ffe600':'#ff6b6b'; c.fillText(S.res,W*.5,H*.62); c.restore();
     if(PK.st==='fly'){ PK.st='res'; if(goal&&navigator.vibrate) try{ navigator.vibrate(60); }catch(e){} }
     if(t>kickAt+fl+1300&&PK.st==='res'){
+      (PK.kopy=PK.kopy||[]).push({g:goal?1:0});
       if(G.pv){ if(goal) PK.goals++; PK.kick++; if(PK.kick>=PV_N) pkOver(); else { PK.st='aim'; PK.aim=null; PK.shot=null; pkFkNew(); } }
       else if(goal){ PK.goals++; PK.kick++; PK.st='aim'; PK.aim=null; PK.shot=null; } else pkOver(); }
   }
@@ -2386,6 +2397,7 @@ function vPK(){
   h+='<div class="pkw"><canvas id="pkc" aria-label="Pokutové kopy, hra"></canvas></div>';
   if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
   else if(PK.st==='over'&&PK.saved) h+='<p class="note">Séria zapísaná do poradia.</p>';
+  else if(PK.st==='over'&&PK.saveErr) h+=`<p class="note" style="color:#e06666">Do poradia sa nezapísalo: ${esc(PK.saveErr)}</p>`;
   if(PROXY){ const D0=board(PK.mode,'pk')||{}, B=D0.best||[]; h+=boardErr(PK.mode);
     const t=(L,e)=>L.length?boardTable(L.map(x=>[x.meno,x.score]),'Góly'):`<p class="note">${e}</p>`;
     if(!pv){ const MF=['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'], m=D0.m||skToday().slice(0,7);
@@ -2647,7 +2659,7 @@ async function arkBoard(hra){ if(!PROXY||(ARK[hra]&&ARK[hra].on)) return; ARK[hr
 // osobné rekordy uložené v telefóne pošle do rebríčka, keď hráč ešte nebol prihlásený (server si nechá vyššie)
 let ARK_SYNC=false;
 function arkSync(){ if(ARK_SYNC||!(PROXY&&CHPIN&&JA)) return; ARK_SYNC=true;
-  [['pk','pkBest'],['pv','pvBest'],['beh','behBest'],['bloky','blokyBest']].forEach(([h,k])=>{ const v=+lsGet(k)||0; if(v>0) arkSave(h,v); }); }
+  [['beh','behBest'],['bloky','blokyBest']].forEach(([h,k])=>{ const v=+lsGet(k)||0; if(v>0) arkSave(h,v); }); }
 async function arkSave(hra,score){ if(!(PROXY&&CHPIN&&JA&&score>0)) return false; try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra,score}); delete BOARDS[hra]; return true; }catch(e){ return false; } }
 function arkHtml(hra,title,col){
   let h='';

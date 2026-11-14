@@ -180,6 +180,7 @@ export class ChatRoom {
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fails (t INTEGER)`);
       // osobné heslá na web: jedno heslo = jeden telefón
       kqInit((q, ...a) => ctx.storage.sql.exec(q, ...a));
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS ark_sess (tok TEXT PRIMARY KEY, meno TEXT, hra TEXT, t0 INTEGER, done INTEGER DEFAULT 0, score INTEGER, dur INTEGER)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS ziadosti (mn TEXT, meno TEXT, m TEXT, at INTEGER, PRIMARY KEY (mn, m))`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS km_geo (q TEXT PRIMARY KEY, lat REAL, lon REAL, at INTEGER)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS km_trasa (k TEXT PRIMARY KEY, km REAL, at INTEGER)`);
@@ -252,7 +253,13 @@ export class ChatRoom {
         kq[r.m] = top(kqBoard(rows, r.m + '-01', r.m + '-31').filter(x => x.body > 0).map(x => ({ meno: x.meno, v: x.body * 1000 + x.spravne })));
       for (const r of rows(`SELECT DISTINCT k FROM hry WHERE hra='pk' AND k LIKE 'm:%' AND k < ?`, 'm:' + cur))
         pk[r.k.slice(2)] = top(rows(`SELECT meno, score AS v FROM hry WHERE hra='pk' AND k=? AND score > 0 ORDER BY score DESC`, r.k));
-      return json({ kq, pk, mvp: this.mvpSummary().map(p => ({ id: p.id, title: p.title, closes: p.closes, mena: p.winners })) }, 200, { 'Cache-Control': 'no-store' });
+      const pkInfo = {};
+      for (const [m, names] of Object.entries(pk)) for (const n of names) {
+        const best = rows(`SELECT score, t FROM hry WHERE hra='pk' AND k=? AND meno=?`, 'm:' + m, n)[0];
+        const se = best && rows(`SELECT dur FROM ark_sess WHERE hra='pk' AND done=1 AND meno=? AND score=? ORDER BY t0 DESC LIMIT 1`, n, best.score)[0];
+        pkInfo[m + '|' + n] = { score: best ? best.score : null, dur: se ? se.dur : null };
+      }
+      return json({ kq, pk, pkInfo, mvp: this.mvpSummary().map(p => ({ id: p.id, title: p.title, closes: p.closes, mena: p.winners })) }, 200, { 'Cache-Control': 'no-store' });
     }
 
     if (path === '/chat/setup' && request.method === 'POST') {
@@ -343,6 +350,20 @@ export class ChatRoom {
       if (!pr) return json({ error: 'Heslo neplatí' }, 403);
       body.meno = pr.meno;
       if (url.searchParams.has('meno')) url.searchParams.set('meno', pr.meno);
+    } else if (!admin && body.meno) {
+      // klubový PIN: za meno, ktoré má osobné heslo, sa nedá hrať, hlasovať ani tipovať
+      const mn = normMeno(body.meno);
+      if (this.rows('SELECT meno FROM pristup').some(r => normMeno(r.meno) === mn))
+        return json({ error: 'Toto meno má osobné heslo – prihlás sa ním na webe.' }, 403);
+    }
+    // penalty a priame kopy: hra sa musí začať na serveri (meria sa skutočný čas hry)
+    if (path === '/hra/start' && request.method === 'POST') {
+      const hra = String(body.hra || ''), meno = String(body.meno || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+      if (!['pk', 'pv'].includes(hra) || !meno) return json({ error: 'Zlé údaje' }, 400);
+      const tok = crypto.randomUUID();
+      this.ctx.storage.sql.exec('DELETE FROM ark_sess WHERE t0 < ? AND done=0', Date.now() - 864e5);
+      this.ctx.storage.sql.exec('INSERT INTO ark_sess (tok, meno, hra, t0) VALUES (?, ?, ?, ?)', tok, meno, hra, Date.now());
+      return json({ tok });
     }
     if (path.startsWith('/hra/kq/')) return klubKviz(this, path, body, String(body.meno || '').trim().replace(/\s+/g, ' ').slice(0, 60), skDate);
 
@@ -439,6 +460,18 @@ export class ChatRoom {
       const ARK_MAX = { pk: 300, pv: 10, beh: 200000, bloky: 1000000 };
       if (ARK_MAX[hra] != null) {
         if (score > ARK_MAX[hra]) return json({ error: 'Zlé skóre' }, 400);
+        if (hra === 'pk' || hra === 'pv') {
+          // výsledok musí patriť k hre začatej na serveri a musí sa dať reálne stihnúť
+          const se = this.rows('SELECT meno, hra, t0, done FROM ark_sess WHERE tok=?', String(body.tok || ''))[0];
+          if (!se || se.done || se.hra !== hra || normMeno(se.meno) !== normMeno(meno)) return json({ error: 'Hra nebola začatá na serveri' }, 409);
+          const kopy = Array.isArray(body.kopy) ? body.kopy : [], dur = Date.now() - se.t0, goly = kopy.filter(k => k && k.g).length;
+          const n = hra === 'pk' ? score + 1 : 10;
+          if (goly !== score || kopy.length !== n || dur < n * 1500 || dur > 3 * 3600e3) {
+            this.ctx.storage.sql.exec('UPDATE ark_sess SET done=2, score=?, dur=? WHERE tok=?', score, dur, body.tok);
+            return json({ error: 'Výsledok nesedí s priebehom hry' }, 409);
+          }
+          this.ctx.storage.sql.exec('UPDATE ark_sess SET done=1, score=?, dur=? WHERE tok=?', score, dur, body.tok);
+        }
         this.ctx.storage.sql.exec(`INSERT INTO hry (meno, hra, k, score, t) VALUES (?, ?, 'best', ?, ?)
           ON CONFLICT (meno, hra, k) DO UPDATE SET score = excluded.score, t = excluded.t WHERE excluded.score > hry.score`, meno, hra, score, Date.now());
         for (const k of ['m:' + skDate(0).slice(0, 7), 'r:' + skDate(0).slice(0, 4)])
