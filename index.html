@@ -93,6 +93,9 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .kolo{font-family:var(--cond);color:var(--mute);margin:14px 4px 2px;font-size:14px}
 
 /* dochádzka / výplata */
+.zbox{border:1px solid #e0a040;border-radius:10px;padding:10px 12px;margin:0 0 12px}.zbox>div{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:6px;font-size:14px}
+.zbadge{font-size:11px;background:#e0a040;color:#000;border-radius:6px;padding:1px 6px;vertical-align:middle}
+.lnk{background:none;border:0;padding:0;color:inherit;text-decoration:underline;font:inherit;cursor:pointer}
 .jaw{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 14px}
 .jr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:baseline;padding:10px 0;border-top:1px solid var(--line)}
 .jr:first-child{border-top:0}.jr small{color:var(--mute);font-size:12.5px;text-align:right}.jr b{grid-column:3;font-family:var(--cond);font-size:17px;font-weight:500;min-width:64px;text-align:right}
@@ -1243,7 +1246,7 @@ async function openMvp(id){
     else h+='<h2 style="margin-top:4px">Výsledky</h2>'+res.map((r,i)=>`<div class="mvr ${r[1]===res[0][1]?'win':''}"><span>${r[1]===res[0][1]?'🏆 ':''}${esc(r[0])}</span><b>${r[1]}</b></div>`).join('')+`<p class="note">Hlasovanie skončilo ${dtl(w.closes)}.</p>`;
     openSheet(h); return;
   }
-  const cands=mvpCandidates(m), mine=st.mine||'';
+  const ja=normN((typeof jaMeno==='function'&&PPIN?jaMeno():'')||JA), cands=mvpCandidates(m).filter(n=>normN(n)!==ja), mine=st.mine||'';
   h+=`<p>Koho by si vyhlásil za najlepšieho hráča zápasu? Za seba hlasovať nemôžeš. Hlas môžeš zmeniť do ${dtl(w.closes)}.</p>
     <div class="names">${cands.map(n=>`<button class="btn ${n===mine?'pri':''}" data-mvpvote="${esc(id)}" data-za="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <p class="note">Hlasovalo ${st.n||0} ${(st.n||0)===1?'hráč':(st.n||0)>=2&&(st.n||0)<=4?'hráči':'hráčov'}. Výsledky sa ukážu po skončení hlasovania.${mine?' Ťukni znova na svoj hlas, ak ho chceš zrušiť.':''}</p>`;
@@ -1267,6 +1270,42 @@ async function mvpPinSubmit(id){
 const K_DATA='tjklas.data.v1';
 let D=(()=>{ try{ return JSON.parse(localStorage.getItem(K_DATA)); }catch(e){ return null; } })() || {players:[], events:[], rates:{trening:0, zapas:0}, paid:{}};
 const SYNC_OD_DEF='2027-01-01';
+/* Cestovné: z bydliska hráča na ihrisko (tréning a domáci zápas = Beša, zápas vonku = ihrisko súpera), tam aj späť.
+   Km po ceste zisťuje server (OpenStreetMap) a appka si ich pamätá v D.kmCache. Kto nemá bydlisko, ráta sa mu ručné km. */
+function ciel(e){
+  let host=US;
+  if(e.type==='zapas'&&e.matchId){ const m=findMatch(e.matchId); if(m) host=m.home; }
+  const g=(IHR[host]||{}).geo;
+  return {host, ciel:g&&g.length===2?g:(host===US?'Beša, Levice':null), nazov:host===US?'Beša':host.replace(/^(TJ|FK|OFK|ŠK|SC|MFK|FC|OŠK|TJ Družstevník|Družstevník)\s+/g,'').replace(/^(Družstevník|Lokomotíva|Klas)\s+/,'')};
+}
+const kmKey=(od,c)=>String(od).trim().toLowerCase()+'>'+(Array.isArray(c)?c.map(x=>(+x).toFixed(4)).join(','):String(c).toLowerCase());
+function kmInfo(p){ const c=ciel({type:'trening'}), k=kmKey(p.byd,c.ciel), v=(D.kmCache||{})[k], e=(D.kmErr||{})[k];
+  return `<span class="note" style="margin:0;white-space:nowrap;align-self:center">${v!=null?`do Beše ${String(v).replace('.',',')} km`:e?`<span style="color:#e06666">${esc(e)}</span>`:'zisťujem…'}</span>`; }
+function cesty(p,evs){
+  const ja=evs.filter(e=>(e.type==='trening'||e.type==='zapas')&&e.present.includes(p.id)), list=[]; let km=0, chyba=0;
+  for(const e of ja){
+    if(!p.byd){ const k=+p.km||0; km+=k; if(k) list.push({e,od:'',kam:'',km:k}); continue; }
+    const c=ciel(e); if(!c.ciel){ chyba++; list.push({e,od:p.byd,kam:c.nazov,km:null}); continue; }
+    const one=(D.kmCache||{})[kmKey(p.byd,c.ciel)];
+    if(one==null){ chyba++; list.push({e,od:p.byd,kam:c.nazov,km:null}); continue; }
+    const k=Math.round(one*2); km+=k; list.push({e,od:p.byd,kam:c.nazov,km:k});
+  }
+  return {km,list,chyba,n:list.filter(x=>x.km).length};
+}
+async function kmFetch(){
+  const pin=PROF.pin(); if(!pin||!PROXY) return;
+  D.kmCache=D.kmCache||{}; const need=new Map(), od=D.syncOd||SYNC_OD_DEF;
+  D.players.filter(p=>p.byd).forEach(p=>D.events.filter(e=>e.date>=od.slice(0,7)+'-01'||ym(e.date)>=ym(today())).forEach(e=>{ if(!e.present.includes(p.id)) return; const c=ciel(e); if(!c.ciel) return; const k=kmKey(p.byd,c.ciel); if(D.kmCache[k]==null&&!need.has(k)) need.set(k,{od:p.byd.trim(),do:c.ciel}); }));
+  // aj cesta na tréning pre každého s bydliskom (aby bola hneď vidieť v sadzbách)
+  const tc=ciel({type:'trening'}); D.players.filter(p=>p.byd&&p.active!==false).forEach(p=>{ const k=kmKey(p.byd,tc.ciel); if(D.kmCache[k]==null&&!need.has(k)) need.set(k,{od:p.byd.trim(),do:tc.ciel}); });
+  const all=[...need.values()]; if(!all.length) return;
+  D.kmErr={};
+  for(let i=0;i<all.length;i+=20){
+    try{ const j=await chatApi('/profil/admin',{pin,akcia:'km',trasy:all.slice(i,i+20)});
+      (j.km||[]).forEach(x=>{ if(x.km!=null) D.kmCache[x.k]=x.km; else D.kmErr[x.k]=x.chyba||'?'; }); }catch(e){ break; }
+  }
+  save(); if(tab==='ved') render();
+}
 function save(){ try{ localStorage.setItem(K_DATA, JSON.stringify(D)); }catch(e){ toast('Uloženie zlyhalo'); } profSchedule(); }
 /* Môj profil: výpočty sa posielajú na server, každý hráč vidí len svoj (cez osobné heslo) */
 const PROF={t:0, err:'', pin:()=>lsGet('admPin')||CHADMIN||''};
@@ -1276,14 +1315,15 @@ function profData(){
   const by=new Map();
   months.forEach(m=>monthCalc(m).forEach(r=>{
     if(!by.has(r.p.id)) by.set(r.p.id,{meno:r.p.name,data:{mesiace:[]}});
-    by.get(r.p.id).data.mesiace.push({m, t:r.t, z:r.z, rt:rateOf(r.p,'trening'), rz:rateOf(r.p,'zapas'), km:r.km, kmR:+D.rates.km||0, cest:r.cest,
+    by.get(r.p.id).data.mesiace.push({m, t:r.t, z:r.z, rt:rateOf(r.p,'trening'), rz:rateOf(r.p,'zapas'), km:r.km, kmR:+D.rates.km||0, cest:r.cest, cesty:r.tr.n,
       abs:r.abs, volno:r.volno, ospr:r.ospr, strhN:r.strhN, strhR:r.strhRate, strh:r.strh, fines:r.fines.map(f=>({d:f.date,a:+f.amount,n:f.note||'',...(f.bonus?{b:1}:{})})), fine:r.fine, bonus:r.bonus, zaklad:r.zaklad, sum:r.sum, paid:r.paid?r.paid.date:null});
   }));
   return [...by.values()];
 }
+async function zVybav(meno,m){ const pin=PROF.pin(); if(!pin) return; try{ const j=await chatApi('/profil/admin',{pin,akcia:'vybav',meno,m}); PROF.ziadosti=j.ziadosti||[]; render(); }catch(e){ toast(e.message); } }
 async function profPublish(){
   const pin=PROF.pin(); if(!pin) return;
-  try{ await chatApi('/profil/admin',{pin,list:profData()}); PROF.err=''; }
+  try{ const j=await chatApi('/profil/admin',{pin,list:profData()}); PROF.err=''; if(j&&j.ziadosti){ PROF.ziadosti=j.ziadosti; if(tab==='ved'&&vsub==='vypl') render(); } }
   catch(e){ PROF.err=e.message; if(e.status===403){ lsSet('admPin',''); } }
 }
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -1296,6 +1336,7 @@ try{ vsub=localStorage.getItem('vsub')||'doch'; }catch(e){}
 
 function vVedenie(){
   if(vsub!=='hesla'&&vsub!=='nast'&&!SYNC.busy&&LIGY.length&&Date.now()-SYNC.at>10*60000) setTimeout(()=>vedSync(false),50);
+  if(PROF.pin()&&Date.now()-(PROF.zAt||0)>5*60000){ PROF.zAt=Date.now(); chatApi('/profil/admin',{pin:PROF.pin(),akcia:'ziadosti'}).then(j=>{ PROF.ziadosti=j.ziadosti||[]; if(tab==='ved') render(); }).catch(()=>{}); }
   let h=`<div class="seg"><button data-vs="doch" class="${vsub==='doch'?'on':''}">Dochádzka</button><button data-vs="vypl" class="${vsub==='vypl'?'on':''}">Výplata</button><button data-vs="nast" class="${vsub==='nast'?'on':''}">Hráči a sadzby</button><button data-vs="hesla" class="${vsub==='hesla'?'on':''}">Heslá</button></div>`;
   return h+(vsub==='doch'?vAttend():vsub==='vypl'?vPay():vsub==='hesla'?vHesla():vVedNast());
 }
@@ -1327,9 +1368,9 @@ function monthCalc(month){
     const z=evs.filter(e=>e.type==='zapas'&&e.present.includes(p.id)).length;
     const abs=p.active===false?0:trs.filter(e=>!e.present.includes(p.id)).length, ospr=Math.min(abs,volno), strhN=Math.max(0,abs-volno), strh=strhN*sr;
     const fines=(D.fines||[]).filter(f=>f.pid===p.id&&ym(f.date)===month), fine=fines.filter(f=>!f.bonus).reduce((a,f)=>a+(+f.amount||0),0), bonus=fines.filter(f=>f.bonus).reduce((a,f)=>a+(+f.amount||0),0);
-    const pd=D.paid[month+'|'+p.id], km=(+p.km||0)*(t+z), cest=km*(+D.rates.km||0);
+    const pd=D.paid[month+'|'+p.id], tr=cesty(p,evs), km=tr.km, cest=km*(+D.rates.km||0);
     const zaklad=(t+ospr)*rateOf(p,'trening')+z*rateOf(p,'zapas')+cest;
-    return {p,t,z,km,cest,abs,volno,ospr,strhN,strhRate:sr,strh,fines,fine,zaklad,bonus,sum:pd?pd.amount:Math.max(0,zaklad+bonus-strh-fine),paid:pd};
+    return {p,t,z,km,cest,tr,abs,volno,ospr,strhN,strhRate:sr,strh,fines,fine,zaklad,bonus,sum:pd?pd.amount:Math.max(0,zaklad+bonus-strh-fine),paid:pd};
   }).filter(r=>r.t||r.z||r.paid||r.fine||r.bonus||(r.strh&&(r.t||r.z)));
 }
 function vPay(){
@@ -1340,9 +1381,12 @@ function vPay(){
   h+=`<p class="note">Suma = tréningy + zápasy + cestovné + bonusy − zrážky. Ospravedlnený tréning (${D.rates.volno??1} za mesiac) sa platí, ako keby bol hráč prítomný (v stĺpci T ako +1). Zrážka je za každú ďalšiu neúčasť (${eur(+D.rates.strh||0)}) a ručné pokuty. Vyplatené mesiace si držia sumu z dňa výplaty.</p>`;
   if(!PROF.pin()) h+='<p class="note" style="color:#e0a040">Hráči zatiaľ svoj výpočet nevidia. Zadaj správcovský PIN v záložke Heslá a appka im ho bude posielať sama.</p>';
   else if(PROF.err) h+=`<p class="note" style="color:#e0a040">Posielanie výpočtov hráčom zlyhalo: ${esc(PROF.err)}</p>`;
+  const Z=(PROF.ziadosti||[]).filter(z=>!D.paid[z.m+'|'+((D.players.find(p=>normN(p.name)===normN(z.meno))||{}).id)]);
+  if(Z.length) h+=`<div class="zbox"><b>Žiadosti o predčasné vyplatenie</b>${Z.map(z=>`<div><span>${esc(z.meno)} · ${MESF[+z.m.slice(5)-1]} · požiadal ${dLabel(iso(new Date(z.at)))}</span><button class="btn sm" data-zvyb="${esc(z.meno)}" data-zm="${z.m}">Vybavené</button></div>`).join('')}</div>`;
   h+='<div class="pay"><div class="h l">Hráč</div><div class="h">T</div><div class="h">Z</div><div class="h">Cest.</div><div class="h">Zráž.</div><div class="h">Suma</div>';
   rows.forEach(r=>{
-    h+=`<div class="nm">${esc(r.p.name)}<br><span class="note" style="margin:0">T ${eur(rateOf(r.p,'trening'))}, Z ${eur(rateOf(r.p,'zapas'))}${+r.p.km?`, ${r.p.km} km`:''}</span><br>${r.paid?`<span class="paid">vyplatené ${dLabel(r.paid.date)}</span> <button class="btn sm" data-unpay="${r.p.id}">Zrušiť</button>`:`<button class="btn sm pri" data-pay="${r.p.id}">Vyplatiť</button> <button class="btn sm" data-fine="${r.p.id}">Pokuta</button> <button class="btn sm" data-fine="${r.p.id}" data-bon="1">Bonus</button>`}${r.strhN?`<br><span class="note" style="margin:0">neúčasť ${r.abs}× (${r.volno} ospr.)</span>`:''}${r.fines.map(f=>`<br><span class="note" style="margin:0">${f.bonus?'bonus +':'pokuta '}${eur(+f.amount)}${f.note?' – '+esc(f.note):''} <button class="btn sm" data-delfine="${f.id}" aria-label="Zmazať">×</button></span>`).join('')}</div>
+    const zi=!r.paid&&(PROF.ziadosti||[]).find(z=>z.m===curMonth&&normN(z.meno)===normN(r.p.name));
+    h+=`<div class="nm">${esc(r.p.name)}${zi?' <span class="zbadge">žiada o výplatu</span>':''}<br><span class="note" style="margin:0">T ${eur(rateOf(r.p,'trening'))}, Z ${eur(rateOf(r.p,'zapas'))}${r.km?`, <button class="lnk" data-trips="${r.p.id}">${r.km} km${r.tr.chyba?' ⚠':''}</button>`:r.tr.chyba?`, <button class="lnk" data-trips="${r.p.id}">km ⚠</button>`:''}</span><br>${r.paid?`<span class="paid">vyplatené ${dLabel(r.paid.date)}</span> <button class="btn sm" data-unpay="${r.p.id}">Zrušiť</button>`:`<button class="btn sm pri" data-pay="${r.p.id}">Vyplatiť</button> <button class="btn sm" data-fine="${r.p.id}">Pokuta</button> <button class="btn sm" data-fine="${r.p.id}" data-bon="1">Bonus</button>`}${r.strhN?`<br><span class="note" style="margin:0">neúčasť ${r.abs}× (${r.volno} ospr.)</span>`:''}${r.fines.map(f=>`<br><span class="note" style="margin:0">${f.bonus?'bonus +':'pokuta '}${eur(+f.amount)}${f.note?' – '+esc(f.note):''} <button class="btn sm" data-delfine="${f.id}" aria-label="Zmazať">×</button></span>`).join('')}</div>
       <div class="c">${r.t}${r.ospr?'+'+r.ospr:''}</div><div class="c">${r.z}</div><div class="c">${r.cest?eur(r.cest):'–'}</div><div class="c">${r.strh+r.fine?'−'+eur(r.strh+r.fine):'–'}</div><div class="c sum">${eur(r.sum)}</div>`;
   });
   h+='</div>';
@@ -1411,7 +1455,7 @@ async function vedSync(manual){
         Object.entries(V.pk||{}).forEach(([m,ns])=>give('pk:'+m,ns,BONUS.pk,last(m),'víťaz penált za '+MESF[+m.slice(5)-1]));
         (V.mvp||[]).forEach(p=>{ const mt=findMatch(p.id), d=(mt&&mt.date)||iso(new Date(p.closes)); give('mvp:'+p.id,p.mena||[],BONUS.mvp,d,'hráč zápasu'+(mt?' – '+(mt.home===US?mt.away:mt.home):'')); });
       } }catch(e){ err++; } }
-    D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save(); if(!nNew&&!nUpd) profSchedule();
+    D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save(); kmFetch(); if(!nNew&&!nUpd) profSchedule();
     SYNC.msg=(err?'Časť údajov sa nenačítala. ':'')+(nNew||nUpd?`Zapísané: ${nNew} nových, ${nUpd} upravených.`:'Všetko je aktuálne.');
     if(manual) toast(SYNC.msg);
   }catch(e){ SYNC.msg='Synchronizácia zlyhala, skús neskôr.'; if(manual) toast(SYNC.msg); }
@@ -1472,12 +1516,13 @@ function ratesSheet(){
     <div class="row2"><label class="f"><span>Cestovné (€ za 1 km)</span><input type="number" step="0.001" min="0" id="rKm" value="${D.rates.km||''}" placeholder="napr. 0,313"></label><label class="f"><span>Zrážka za neúčasť (€)</span><input type="number" step="0.5" min="0" id="rS" value="${D.rates.strh||''}" placeholder="0"></label></div>
     <div class="row2"><label class="f"><span>Ospravedlnené tréningy za mesiac</span><input type="number" step="1" min="0" id="rV" value="${D.rates.volno??1}"></label><label class="f"><span>Automaticky od</span><input type="date" id="rOd" value="${D.syncOd||SYNC_OD_DEF}"></label></div>
     <p class="note">Od tohto dátumu appka sama zapisuje zápasy zo Sportnetu (celá zápisnica) a tréningy podľa tlačidla Prídem.</p>
-    <h2>Sadzby hráčov</h2><p class="note">Prázdne pole znamená predvolenú sadzbu. Km je vzdialenosť na jeden príchod, tam aj späť.</p>
-    <div class="row2 note" style="margin:0 0 4px"><div style="flex:1.4"></div><div style="flex:1">Tréning €</div><div style="flex:1">Zápas €</div><div style="flex:1">Km</div></div>
+    <h2>Sadzby hráčov</h2><p class="note">Prázdne pole znamená predvolenú sadzbu. Keď zadáš hráčovi bydlisko, appka sama vypočíta km po ceste na tréning (do Beše) aj na každý zápas (domáci v Beši, vonku na ihrisko súpera), tam aj späť. „Km ručne“ platí len pre hráčov bez bydliska. Bydlisko ostáva len v tvojej appke. Ak sa obec nenájde, dopíš okres, napr. „Rybník, okres Levice“.</p>
+    <div class="row2 note" style="margin:0 0 4px"><div style="flex:1.4"></div><div style="flex:1">Tréning €</div><div style="flex:1">Zápas €</div><div style="flex:1">Km ručne</div></div>
     ${act.map(p=>`<div class="row2" style="align-items:center;margin-bottom:6px"><div style="flex:1.4">${esc(p.name)}</div>
       <input type="number" step="0.5" min="0" data-rt="${p.id}" value="${p.rt??''}" placeholder="T ${+D.rates.trening||0}" aria-label="Tréning ${esc(p.name)}">
       <input type="number" step="0.5" min="0" data-rz="${p.id}" value="${p.rz??''}" placeholder="Z ${+D.rates.zapas||0}" aria-label="Zápas ${esc(p.name)}">
-      <input type="number" step="1" min="0" data-km="${p.id}" value="${p.km??''}" placeholder="0" aria-label="Km ${esc(p.name)}"></div>`).join('')||'<div class="empty">Zatiaľ nemáš pridaných hráčov.</div>'}
+      <input type="number" step="1" min="0" data-km="${p.id}" value="${p.km??''}" placeholder="0" aria-label="Km ${esc(p.name)}"></div>
+      <div class="row2" style="margin:-2px 0 10px"><input type="text" data-byd="${p.id}" value="${esc(p.byd||'')}" placeholder="Bydlisko (obec)" aria-label="Bydlisko ${esc(p.name)}" style="flex:1">${p.byd?kmInfo(p):''}</div>`).join('')||'<div class="empty">Zatiaľ nemáš pridaných hráčov.</div>'}
     <p class="note">Zmena sa prejaví vo všetkých nevyplatených mesiacoch. Vyplatené ostávajú bez zmeny.</p>
     <button class="btn pri" data-save-rates="1">Uložiť sadzby</button>`);
 }
@@ -1570,10 +1615,18 @@ function vedClick(b){
   if(ds.pact){ const p=D.players.find(x=>x.id===ds.pact); p.active=p.active===false; save(); b.textContent=p.active===false?'Neaktívny':'Aktívny'; return true; }
   if(ds.saveRates){ D.rates={trening:+$('#rT').value||0,zapas:+$('#rZ').value||0,km:+String($('#rKm').value).replace(',','.')||0,strh:+$('#rS').value||0,volno:$('#rV').value===''?1:Math.max(0,+$('#rV').value|0)}; D.syncOd=$('#rOd').value||SYNC_OD_DEF;
     document.querySelectorAll('[data-km]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.km); if(p) p.km=i.value===''?null:+i.value; });
+    document.querySelectorAll('[data-byd]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.byd); if(p) p.byd=i.value.trim().replace(/\s+/g,' ')||null; });
+    setTimeout(kmFetch,300);
     document.querySelectorAll('[data-rt]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.rt); if(p) p.rt=i.value===''?null:+i.value; });
     document.querySelectorAll('[data-rz]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.rz); if(p) p.rz=i.value===''?null:+i.value; });
     save(); closeSheet(); render(); toast('Sadzby uložené'); return true; }
-  if(ds.pay){ const r=monthCalc(curMonth).find(x=>x.p.id===ds.pay); D.paid[curMonth+'|'+ds.pay]={date:today(),amount:r.sum}; save(); render(); return true; }
+  if(ds.pay){ const r=monthCalc(curMonth).find(x=>x.p.id===ds.pay); D.paid[curMonth+'|'+ds.pay]={date:today(),amount:r.sum}; save(); render();
+    if((PROF.ziadosti||[]).some(z=>z.m===curMonth&&normN(z.meno)===normN(r.p.name))) zVybav(r.p.name,curMonth); return true; }
+  if(ds.zvyb){ zVybav(ds.zvyb,ds.zm); return true; }
+  if(ds.trips){ const p=D.players.find(x=>x.id===ds.trips), r=monthCalc(curMonth).find(x=>x.p.id===p.id);
+    openSheet(`<h3><span>Cestovné – ${esc(p.name)}</span>${closeBtn}</h3><p class="note" style="margin-top:-6px">${MESF[+curMonth.slice(5)-1]} · ${p.byd?'z obce '+esc(p.byd):'ručne zadané km'} · ${eur(+D.rates.km||0)} za km</p>`+
+      r.tr.list.map(x=>`<div class="jr"><span>${dLabel(x.e.date)} ${x.e.type==='zapas'?'zápas':'tréning'}</span><small>${x.od?esc(x.od)+' → '+esc(x.kam)+' a späť':''}</small><b>${x.km==null?'<span style="color:#e06666">?</span>':x.km+' km'}</b></div>`).join('')+
+      `<div class="jr jsum"><span>Spolu</span><small></small><b>${r.km} km · ${eur(r.cest)}</b></div>`+(r.tr.chyba?'<p class="note">Pri ? sa km nepodarilo zistiť (obec alebo ihrisko sa nenašli). Skús upraviť bydlisko v Sadzbách alebo stlač Synchronizovať.</p>':'')); return true; }
   if(ds.unpay){ if(!confirm('Zrušiť označenie vyplatené?')) return true; delete D.paid[curMonth+'|'+ds.unpay]; save(); render(); return true; }
   if(ds.csv){ exportCsv(); return true; }
   if(ds.backup){ writeFile('zaloha-'+today()+'.json',JSON.stringify(D,null,1),'application/json'); return true; }
@@ -2936,7 +2989,7 @@ let JAP={data:undefined, busy:false, err:'', m:null};
 function jaMeno(){ try{ return (JSON.parse(lsGet('pristup')||'null')||{}).meno||JA||''; }catch(e){ return JA||''; } }
 async function jaLoad(){
   if(JAP.busy) return; JAP.busy=true;
-  try{ const j=await chatApi('/profil/moj',{pin:PPIN}); JAP.data=j.data||null; JAP.at=j.at; JAP.err=''; }
+  try{ const j=await chatApi('/profil/moj',Object.assign({pin:PPIN},JAP.akcia||{})); JAP.akcia=null; JAP.data=j.data||null; JAP.at=j.at; JAP.ziadosti=j.ziadosti||[]; JAP.err=''; }
   catch(e){ JAP.err=e.message; if(JAP.data===undefined) JAP.data=null; }
   finally{ JAP.busy=false; if(tab==='ja') render(); }
 }
@@ -2958,12 +3011,15 @@ function vJa(){
     const os=r.ospr??Math.min(r.abs||0,r.volno||0);
     h+=row('Tréningy',`${r.t}${os?` + ${os} ospr.`:''} × ${eur(r.rt)}`,eur((r.t+os)*r.rt));
     h+=row('Zápasy',`${r.z} × ${eur(r.rz)}`,eur(r.z*r.rz));
-    if(r.cest||r.km) h+=row('Cestovné',`${r.km} km × ${eur(r.kmR)}`,eur(r.cest));
+    if(r.cest) h+=row('Cestovné',r.cesty?`${r.cesty} ${r.cesty===1?'cesta':r.cesty<5?'cesty':'ciest'}`:'',eur(r.cest));
     if(r.abs) h+=row('Neúčasť na tréningu',`${r.abs}×, ${Math.min(r.abs,r.volno)} ospr.${r.strhN?`<br>${r.strhN} × ${eur(r.strhR)}`:''}`,r.strh?'−'+eur(r.strh):'0 €',r.strh?'neg':'');
     r.fines.forEach(f=>{ h+=f.b?row('Bonus',`${dLabel(f.d)}${f.n?' · '+esc(f.n):''}`,'+'+eur(f.a),'pos'):row('Pokuta',`${dLabel(f.d)}${f.n?' · '+esc(f.n):''}`,'−'+eur(f.a),'neg'); });
     h+=row('Spolu','',eur(r.sum),'jsum');
     h+='</div>';
-    h+=`<p class="note">${r.paid?`✅ Vyplatené ${dLabel(r.paid)}.`:'Ešte nevyplatené – suma sa môže do konca mesiaca meniť.'} Ak ti niečo nesedí (napr. si bol na tréningu a nedal si Prídem), napíš vedeniu.</p>`;
+    const zi=(JAP.ziadosti||[]).find(z=>z.m===r.m);
+    if(!r.paid) h+=zi?`<div class="zbox" style="margin-top:12px"><div style="margin:0"><span>Požiadal si o predčasné vyplatenie (${dLabel(iso(new Date(zi.at)))}) – vedenie to vidí.</span><button class="btn sm" data-jaz="zrus" data-m="${r.m}">Zrušiť</button></div></div>`
+      :`<button class="btn" style="width:100%;margin-top:12px" data-jaz="ziadaj" data-m="${r.m}">Požiadať o predčasné vyplatenie</button>`;
+    h+=`<p class="note">${r.paid?`✅ Vyplatené ${dLabel(r.paid)}.`:'Ešte nevyplatené – suma sa môže do konca mesiaca meniť. Pri predčasnom vyplatení dostaneš sumu ku dňu výplaty.'} Ak ti niečo nesedí (napr. si bol na tréningu a nedal si Prídem), napíš vedeniu.</p>`;
   }
   // štatistiky
   const p=(KLUB&&KLUB.hraci||[]).find(x=>normN(x.name)===nm);
@@ -3054,6 +3110,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.close){ closeSheet(); return; }
   if(Object.keys(b.dataset).some(k=>k.startsWith('ch'))){ chatClick(b); return; }
   if(APP && vedClick(b)) return;
+  if(b.dataset.jaz){ JAP.akcia={ziadost:b.dataset.jaz,m:b.dataset.m}; b.disabled=true; jaLoad().then(()=>toast(b.dataset.jaz==='zrus'?'Žiadosť zrušená':'Žiadosť odoslaná vedeniu')); return; }
   if(b.dataset.jam!=null){ if(b.dataset.jam){ JAP.m=b.dataset.jam; render(); } return; }
   if(hryClick(b)) return;
   if(b.id==='bHry'){ tab='hry'; render(); scrollTo(0,0); return; }

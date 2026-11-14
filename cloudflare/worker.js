@@ -180,6 +180,9 @@ export class ChatRoom {
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fails (t INTEGER)`);
       // osobné heslá na web: jedno heslo = jeden telefón
       kqInit((q, ...a) => ctx.storage.sql.exec(q, ...a));
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS ziadosti (mn TEXT, meno TEXT, m TEXT, at INTEGER, PRIMARY KEY (mn, m))`);
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS km_geo (q TEXT PRIMARY KEY, lat REAL, lon REAL, at INTEGER)`);
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS km_trasa (k TEXT PRIMARY KEY, km REAL, at INTEGER)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS profil (mn TEXT PRIMARY KEY, meno TEXT, data TEXT, at INTEGER)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pristup (kod TEXT PRIMARY KEY, meno TEXT, dev TEXT, vytvor INTEGER, prve INTEGER, posledne INTEGER, blok INTEGER DEFAULT 0)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pfails (t INTEGER)`);
@@ -295,6 +298,10 @@ export class ChatRoom {
       const ok = await this.checkPin(body.pin, true);
       if (ok === 'locked') return json({ error: 'Príliš veľa pokusov, skús o 10 minút' }, 429);
       if (ok !== true) return json({ error: 'Nesprávny správcovský PIN' }, 403);
+      const ziadosti = () => this.rows('SELECT meno, m, at FROM ziadosti ORDER BY at');
+      if (body.akcia === 'ziadosti') return json({ ziadosti: ziadosti() });
+      if (body.akcia === 'vybav') { this.ctx.storage.sql.exec('DELETE FROM ziadosti WHERE mn=? AND m=?', normMeno(body.meno), String(body.m || '')); return json({ ziadosti: ziadosti() }); }
+      if (body.akcia === 'km') return json({ km: await this.kmTrasy(Array.isArray(body.trasy) ? body.trasy.slice(0, 40) : []) });
       const list = Array.isArray(body.list) ? body.list.slice(0, 150) : null;
       if (!list) return json({ error: 'Zlé údaje' }, 400);
       this.ctx.storage.sql.exec('DELETE FROM profil');
@@ -305,7 +312,7 @@ export class ChatRoom {
         this.ctx.storage.sql.exec('INSERT OR REPLACE INTO profil (mn, meno, data, at) VALUES (?, ?, ?, ?)', normMeno(meno), meno, data, Date.now());
         n++;
       }
-      return json({ ok: true, n });
+      return json({ ok: true, n, ziadosti: ziadosti() });
     }
     if (path === '/pristup/admin' && request.method === 'POST') {
       const ok = await this.checkPin(body.pin, true);
@@ -379,8 +386,13 @@ export class ChatRoom {
       if (!pin.startsWith('P:')) return json({ error: 'Profil je dostupný len s osobným heslom' }, 403);
       const r = this.rows('SELECT meno FROM pristup WHERE kod=?', pin.split(':')[1] || '')[0];
       if (!r) return json({ error: 'Heslo neplatí' }, 403);
-      const p = this.rows('SELECT meno, data, at FROM profil WHERE mn=?', normMeno(r.meno))[0];
-      return json({ meno: r.meno, data: p ? JSON.parse(p.data) : null, at: p ? p.at : null });
+      const mn = normMeno(r.meno);
+      if (body.ziadost && /^\d{4}-\d{2}$/.test(String(body.m || ''))) {
+        if (body.ziadost === 'zrus') this.ctx.storage.sql.exec('DELETE FROM ziadosti WHERE mn=? AND m=?', mn, body.m);
+        else this.ctx.storage.sql.exec('INSERT OR IGNORE INTO ziadosti (mn, meno, m, at) VALUES (?, ?, ?, ?)', mn, r.meno, body.m, Date.now());
+      }
+      const p = this.rows('SELECT meno, data, at FROM profil WHERE mn=?', mn)[0];
+      return json({ meno: r.meno, data: p ? JSON.parse(p.data) : null, at: p ? p.at : null, ziadosti: this.rows('SELECT m, at FROM ziadosti WHERE mn=?', mn) });
     }
     if (path === '/fan/mine') {
       const meno = url.searchParams.get('meno') || '', out = {};
@@ -447,7 +459,7 @@ export class ChatRoom {
     if (path === '/mvp/vote' && request.method === 'POST') {
       const id = String(body.id || ''), meno = String(body.meno || '').trim().slice(0, 60), za = String(body.za || '').trim().slice(0, 60);
       if (!ID.test(id) || !meno) return json({ error: 'Zlé údaje' }, 400);
-      if (za && za === meno) return json({ error: 'Za seba hlasovať nemôžeš' }, 400);
+      if (za && normMeno(za) === normMeno(meno)) return json({ error: 'Za seba hlasovať nemôžeš' }, 400);
       let poll = this.rows('SELECT start FROM mvp_polls WHERE id=?', id)[0];
       if (!poll) {
         const st = Number(body.start) || 0;
@@ -592,6 +604,39 @@ export class ChatRoom {
     if (now > w.closes) st.results = this.rows('SELECT za, COUNT(*) AS c FROM mvp_votes WHERE poll=? GROUP BY za ORDER BY c DESC, za', id).map(r => [r.za, r.c]);
     return st;
   }
+  // Vzdialenosť po ceste (km, jedným smerom) z obce do cieľa. Obce hľadá OpenStreetMap (Nominatim), trasu OSRM.
+  // Ukladá sa len názov obce a km – nie je tu nič o hráčoch.
+  async kmGeo(q) {
+    q = String(q || '').trim().slice(0, 80);
+    if (!q) return null;
+    const c = this.rows('SELECT lat, lon FROM km_geo WHERE q=?', q.toLowerCase())[0];
+    if (c) return c.lat == null ? null : [c.lat, c.lon];
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=sk,hu,cz&q=' + encodeURIComponent(q), { headers: { 'User-Agent': 'TJKlasBesa/1.0 (klubová appka)', 'Accept-Language': 'sk' } });
+    const j = r.ok ? await r.json() : [];
+    const g = j[0] ? [+j[0].lat, +j[0].lon] : null;
+    this.ctx.storage.sql.exec('INSERT OR REPLACE INTO km_geo (q, lat, lon, at) VALUES (?, ?, ?, ?)', q.toLowerCase(), g ? g[0] : null, g ? g[1] : null, Date.now());
+    return g;
+  }
+  async kmTrasy(list) {
+    const out = [];
+    for (const t of list) {
+      const od = String(t.od || ''), ciel = Array.isArray(t.do) ? t.do.map(Number) : null, k = od.toLowerCase() + '>' + (ciel ? ciel.map(x => x.toFixed(4)).join(',') : String(t.do || '').toLowerCase());
+      const c = this.rows('SELECT km FROM km_trasa WHERE k=?', k)[0];
+      if (c) { out.push({ k, km: c.km }); continue; }
+      try {
+        const a = await this.kmGeo(od), b = ciel && ciel.length === 2 && ciel.every(isFinite) ? ciel : await this.kmGeo(t.do);
+        if (!a || !b) { out.push({ k, km: null, chyba: !a ? 'Nenašiel som obec ' + od : 'Nenašiel som cieľ' }); continue; }
+        const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=false`);
+        const j = r.ok ? await r.json() : null, m = j && j.routes && j.routes[0] ? j.routes[0].distance : null;
+        if (m == null) { out.push({ k, km: null, chyba: 'Trasa sa nenašla' }); continue; }
+        const km = Math.round(m / 100) / 10;
+        this.ctx.storage.sql.exec('INSERT OR REPLACE INTO km_trasa (k, km, at) VALUES (?, ?, ?)', k, km, Date.now());
+        out.push({ k, km });
+      } catch (e) { out.push({ k, km: null, chyba: 'Služba máp neodpovedá' }); }
+    }
+    return out;
+  }
+
   mvpSummary() {
     const now = Date.now(), out = [];
     for (const p of this.rows('SELECT id, start, title FROM mvp_polls ORDER BY start')) {

@@ -1,0 +1,12 @@
+name: Test mapy
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          G=$(curl -s -A 'TJKlasBesa/1.0' 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=sk,hu,cz&q=Levice' | jq -r '.[0]|"\(.lat),\(.lon)"'); echo "Levice $G"
+          B=$(jq -r '."TJ Klas Beša".geo|join(",")' data/ihriska.json 2>/dev/null); echo "Beša $B"
+          LA=${G%,*}; LO=${G#*,}; BA=${B%,*}; BO=${B#*,}
+          curl -s "https://router.project-osrm.org/route/v1/driving/$LO,$LA;$BO,$BA?overview=false" | jq '.routes[0].distance/1000'
