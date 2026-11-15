@@ -2025,7 +2025,7 @@ function vManazer(){
   const S=MZ.st;
   if(!S) return '<h2 style="margin-top:0">Beša manažér</h2>'+(MZ.err?`<div class="empty">${esc(MZ.err)}<br><br><button class="btn" data-mzr="1">Skúsiť znova</button></div>`:'<p class="note">Načítavam…</p>');
   if(!S.tim) return mzNovy(intro,S);
-  clearTimeout(MZ.poll); if(S.sez&&S.sez.posledne&&S.sez.posledne.some(z=>z.live)) MZ.poll=setTimeout(()=>{ if(tab==='mz'&&!MZ.busy) mzApi('stav'); },20000);
+  clearTimeout(MZ.poll); if((S.sez&&S.sez.posledne&&S.sez.posledne.some(z=>z.live))||(S.tim&&S.tim.vyzvy.some(z=>z.live))) MZ.poll=setTimeout(()=>{ if(tab==='mz'&&!MZ.busy) mzApi('stav'); },20000);
   const T=S.tim, segs=[['tim','Tím'],['liga','Liga'],['tren','Tréning'],['trh','Prestupy'],['vyz','Priateľák']];
   let h=`<div class="mzhead">${mzErb(T,1)}<div><b>${esc(T.nazov)}</b><small>${T.kredit} kreditov · ${T.tb} TB</small></div></div>`;
   h+=`<div class="seg hseg">${segs.map(([k,n])=>`<button data-mzs="${k}" class="${MZ.sub===k?'on':''}">${n}</button>`).join('')}</div>`;
@@ -2088,11 +2088,11 @@ function mzTrh(S){
 }
 function mzVyz(S){
   const ine=S.timy.filter(t=>t.meno!==S.meno);
-  let h=`<p class="note" style="margin-top:0">Priateľský zápas proti tímu spoluhráča hneď teraz, s aktuálnymi zostavami. Nepočíta sa do tabuľky, hráči sa neunavia ani nezrania. Denne najviac ${S.pravidla.VYZVY_DEN}.</p>`;
+  let h=`<p class="note" style="margin-top:0">Priateľský zápas proti tímu spoluhráča s aktuálnymi zostavami, hrá sa naživo 5 minút. Nepočíta sa do tabuľky, hráči sa neunavia ani nezrania. Denne najviac ${S.pravidla.VYZVY_DEN}.</p>`;
   if(!ine.length) return h+'<div class="empty">Zatiaľ nie je proti komu hrať.</div>';
   h+=ine.map(t=>`<div class="mztr"><div>${mzErb(t)} <b>${esc(t.nazov)}</b></div><button class="btn sm pri" data-mzvyz="${esc(t.meno)}">Hrať</button></div>`).join('');
   const nm=m=>esc((S.timy.find(t=>t.meno===m)||{}).nazov||m);
-  if(S.tim.vyzvy.length) h+='<h2>Posledné priateľáky</h2>'+S.tim.vyzvy.map(z=>`<button class="mzm" data-mzzap="${z.id}"><span>${esc(S.tim.nazov)}</span><b>${z.gd}:${z.gh}</b><span>${nm(z.hos)}</span></button>`).join('');
+  if(S.tim.vyzvy.length) h+='<h2>Posledné priateľáky</h2>'+S.tim.vyzvy.map(z=>`<button class="mzm" data-mzzap="${z.id}"><span>${nm(z.dom)}</span><b>${z.gd}:${z.gh}${z.live?`<small class="mzmin">${z.live}'</small>`:''}</b><span>${nm(z.hos)}</span></button>`).join('');
   return h;
 }
 async function mzZapas(id){
@@ -2100,7 +2100,7 @@ async function mzZapas(id){
   const z=j.zapas, u=z.udalosti, ic={gol:'⚽',zk:'🟨',ck:'🟥',zran:'🚑'};
   if(MZ.zOpen&&MZ.zOpen!==id&&!$('#ov').classList.contains('on')) MZ.zOpen=null;
   MZ.zOpen=id; clearTimeout(MZ.zPoll);
-  if(z.live) MZ.zPoll=setTimeout(()=>{ if(MZ.zOpen===id&&$('#ov').classList.contains('on')) mzZapas(id); },15000);
+  if(z.live) MZ.zPoll=setTimeout(()=>{ if(MZ.zOpen===id&&$('#ov').classList.contains('on')) mzZapas(id); },z.vyzva?5000:15000);
   openSheet(`<h3><span>${z.vyzva?'Priateľák':z.kolo+'. kolo'}</span>${closeBtn}</h3>
     <div class="mzscore"><div>${esc(z.de)}<br>${esc(z.dn)}</div><b>${z.gd}:${z.gh}</b><div>${esc(z.he)}<br>${esc(z.hn)}</div></div>
     <p class="note" style="text-align:center;margin-top:-4px">${z.live?`<span class="mzlive">NAŽIVO</span> ${z.live}. minúta`:`Šance (xG) ${String(u.xg[0]).replace('.',',')} : ${String(u.xg[1]).replace('.',',')}`}</p>`+

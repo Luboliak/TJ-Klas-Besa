@@ -2,7 +2,7 @@
 // Kolá sa hrajú každý deň o 20:00 (dopočítajú sa pri prvej požiadavke po tomto čase).
 // Tréningové body (TB) za skutočné tréningy (podľa dochádzky vedenia), kredity za body z kvízu a za zápasy.
 
-const LIGA_START = '2026-12-01', LIVE_MIN = 15; // kolo sa „hrá“ naživo 15 minút od 20:00 (1 min = 6 herných minút)
+const LIGA_START = '2026-12-01', LIVE_MIN = 15, VYZVA_MIN = 5; // kolo sa „hrá“ naživo 15 minút od 20:00 (1 min = 6 herných minút)
 // // prvá sezóna; body z kvízu sa rátajú až odtiaľto
 const MIN_KOL = 30, KOLO_HOD = 20, TB_TRENING = 3, TB_KOLO = 1, START_KREDIT = 1000, MAX_KADER = 22, MIN_KADER = 14, VYZVY_DEN = 3;
 const FORM = { '4-4-2': [4, 4, 2], '4-3-3': [4, 3, 3], '3-5-2': [3, 5, 2], '5-3-2': [5, 3, 2], '4-5-1': [4, 5, 1], '3-4-3': [3, 4, 3] };
@@ -30,6 +30,7 @@ export function mzInit(sql) {
   sql(`CREATE TABLE IF NOT EXISTS mz_sez (id INTEGER PRIMARY KEY AUTOINCREMENT, start TEXT, n INTEGER, timy TEXT, rozpis TEXT, odohrane INTEGER DEFAULT 0, majster TEXT)`);
   sql(`CREATE TABLE IF NOT EXISTS mz_zapas (id INTEGER PRIMARY KEY AUTOINCREMENT, sez INTEGER, kolo INTEGER, dom TEXT, hos TEXT, gd INTEGER, gh INTEGER, udalosti TEXT, den TEXT, vyzva INTEGER DEFAULT 0)`);
   try { sql(`ALTER TABLE mz_zapas ADD COLUMN hotovo INTEGER DEFAULT 1`); } catch (e) {}
+  try { sql(`ALTER TABLE mz_zapas ADD COLUMN t0 INTEGER`); } catch (e) {}
 }
 
 export function manazer(room, path, body, meno, rows, sql) {
@@ -38,6 +39,8 @@ export function manazer(room, path, body, meno, rows, sql) {
   const now = skNow();
   // herná minúta živého kola (null = kolo ešte nezačalo alebo už skončilo)
   const liveMin = den => den === now.den && now.t >= KOLO_HOD * 60 && now.t < KOLO_HOD * 60 + LIVE_MIN ? Math.min(90, Math.floor((now.t - KOLO_HOD * 60) * 90 / LIVE_MIN) + 1) : null;
+  // priateľák sa prehráva 5 minút od odohrania
+  const vyzMin = t0 => t0 && Date.now() - t0 < VYZVA_MIN * 60000 ? Math.min(90, Math.floor((Date.now() - t0) / 60000 * 90 / VYZVA_MIN) + 1) : null;
   const skoncene = den => den < now.den || (den === now.den && now.t >= KOLO_HOD * 60 + LIVE_MIN);
   const tim = m => rows('SELECT * FROM mz_tim WHERE meno=?', m)[0];
   const hraci = m => rows('SELECT * FROM mz_hrac WHERE tim=? ORDER BY CASE post WHEN \'B\' THEN 0 WHEN \'O\' THEN 1 WHEN \'S\' THEN 2 ELSE 3 END, id', m);
@@ -242,7 +245,7 @@ export function manazer(room, path, body, meno, rows, sql) {
   if (path === '/mz/zapas') {
     const z = rows('SELECT * FROM mz_zapas WHERE id=?', Number(body.id))[0];
     if (!z) return err('Zápas sa nenašiel.', 404);
-    const a = tim(z.dom), b = tim(z.hos), u = JSON.parse(z.udalosti), lm = z.vyzva || z.hotovo ? null : liveMin(z.den);
+    const a = tim(z.dom), b = tim(z.hos), u = JSON.parse(z.udalosti), lm = z.vyzva ? vyzMin(z.t0) : z.hotovo ? null : liveMin(z.den);
     if (lm != null) { u.ev = u.ev.filter(e => e.m <= lm); z.gd = u.ev.filter(e => e.t === 'gol' && e.s === 'd').length; z.gh = u.ev.filter(e => e.t === 'gol' && e.s === 'h').length; z.live = lm; u.xg = null; }
     delete u.zdi; delete u.zhi;
     return out({ zapas: { ...z, udalosti: u, dn: a ? a.nazov : z.dom, hn: b ? b.nazov : z.hos, de: a ? a.erb : '', he: b ? b.erb : '' } });
@@ -253,7 +256,7 @@ export function manazer(room, path, body, meno, rows, sql) {
     const dnes = rows('SELECT COUNT(*) AS n FROM mz_zapas WHERE vyzva=1 AND dom=? AND den=?', meno, now.den)[0].n;
     if (dnes >= VYZVY_DEN) return err(`Dnes si už odohral ${VYZVY_DEN} priateľské zápasy.`);
     const r = simuluj(tim(meno), b, false);
-    sql('INSERT INTO mz_zapas (sez, kolo, dom, hos, gd, gh, udalosti, den, vyzva) VALUES (0, 0, ?, ?, ?, ?, ?, ?, 1)', meno, b.meno, r.gA, r.gB, JSON.stringify({ ev: r.ev, xg: r.xg, zd: r.zA.hraci.map(x => x.h.meno), zh: r.zB.hraci.map(x => x.h.meno) }), now.den);
+    sql('INSERT INTO mz_zapas (sez, kolo, dom, hos, gd, gh, udalosti, den, vyzva, t0) VALUES (0, 0, ?, ?, ?, ?, ?, ?, 1, ?)', meno, b.meno, r.gA, r.gB, JSON.stringify({ ev: r.ev, xg: r.xg, zd: r.zA.hraci.map(x => x.h.meno), zh: r.zB.hraci.map(x => x.h.meno) }), now.den, Date.now());
     return out({ vyzva: rows('SELECT id FROM mz_zapas WHERE vyzva=1 AND dom=? ORDER BY id DESC LIMIT 1', meno)[0].id });
   }
 
@@ -275,7 +278,7 @@ export function manazer(room, path, body, meno, rows, sql) {
   const minuli = rows('SELECT id, majster FROM mz_sez WHERE majster IS NOT NULL ORDER BY id DESC LIMIT 5').map(x => ({ id: x.id, majster: x.majster, nazov: (tim(x.majster) || {}).nazov }));
   return out({
     meno, kolo_hod: KOLO_HOD, liga_start: LIGA_START, live_min: LIVE_MIN, timy, sez, minuli,
-    tim: T ? { ...T, zostava: zostava(T).hraci.map(x => ({ id: x.h.id, p: x.p })), hraci: hraci(meno).map(h => ({ ...h, ovr: ovr(h), cena: cena(h), tbU: tbCena(h.utok), tbO: tbCena(h.obrana), tbK: tbCena(h.kond) })), vyzvy: rows('SELECT id, hos, gd, gh FROM mz_zapas WHERE vyzva=1 AND (dom=? OR hos=?) ORDER BY id DESC LIMIT 5', meno, meno) } : null,
+    tim: T ? { ...T, zostava: zostava(T).hraci.map(x => ({ id: x.h.id, p: x.p })), hraci: hraci(meno).map(h => ({ ...h, ovr: ovr(h), cena: cena(h), tbU: tbCena(h.utok), tbO: tbCena(h.obrana), tbK: tbCena(h.kond) })), vyzvy: rows('SELECT id, dom, hos, gd, gh, t0, udalosti FROM mz_zapas WHERE vyzva=1 AND (dom=? OR hos=?) ORDER BY id DESC LIMIT 5', meno, meno).map(z => { const lm = vyzMin(z.t0), o = { id: z.id, dom: z.dom, hos: z.hos, gd: z.gd, gh: z.gh }; if (lm != null) { const ev = JSON.parse(z.udalosti).ev.filter(e => e.t === 'gol' && e.m <= lm); o.gd = ev.filter(e => e.s === 'd').length; o.gh = ev.filter(e => e.s === 'h').length; o.live = lm; } return o; }) } : null,
     trh: T ? trh() : [],
     pravidla: { TB_TRENING, TB_KOLO, MAX_KADER, MIN_KADER, VYZVY_DEN, formacie: Object.keys(FORM) },
   });
