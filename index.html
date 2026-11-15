@@ -34,6 +34,7 @@ button{cursor:pointer}
 /* hlavička */
 header{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
 header img{width:40px;height:40px;object-fit:contain}
+.hname{min-width:0;flex:1}.hname b,.hname span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hname{flex:1;min-width:0}
 .hname b{display:block;font-family:var(--cond);font-size:20px;letter-spacing:.3px;line-height:1.1}
 .hname span{color:var(--mute);font-size:13px}
@@ -92,6 +93,23 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .res.V{background:var(--win)} .res.P{background:var(--loss)} .res.R{background:var(--draw)} .res.x{background:none;border:1px solid var(--line)}
 .kolo{font-family:var(--cond);color:var(--mute);margin:14px 4px 2px;font-size:14px}
 
+/* Beša manažér */
+.mzerb{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--f1) 50%,var(--f2) 50%);font-size:14px;vertical-align:middle;border:1px solid var(--line)}
+.mzerb.big{width:52px;height:52px;font-size:28px}
+.mzhead{display:flex;gap:12px;align-items:center;margin-bottom:12px}.mzhead b{font-family:var(--cond);font-size:22px;display:block}.mzhead small{color:var(--mute)}
+.mzerbs{display:flex;flex-wrap:wrap;gap:6px}.mzerbs .btn{font-size:20px;padding:6px 10px}
+.mzz{display:grid;gap:4px}
+.mzslot{display:grid;grid-template-columns:28px 1fr auto;gap:2px 10px;align-items:center;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);margin-bottom:4px}
+.mzslot i{font-style:normal;font-weight:700;color:var(--mute)}.mzslot b{font-family:var(--cond);font-size:17px}.mzslot>small{grid-column:2/4}
+.neg{color:#e06666}
+.mzm{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0;color:var(--ink);text-align:left}
+.mzm span:last-child{text-align:right}.mzm b{font-family:var(--cond);font-size:18px;min-width:38px;text-align:center}.mzm.us{font-weight:600}
+.mztr{display:flex;gap:6px;align-items:center;border-top:1px solid var(--line);padding:8px 0}.mztr>div{flex:1;min-width:0}.mztr>div small{display:block;color:var(--mute);font-size:12.5px}
+.mztr .btn small{display:block;font-size:10px;opacity:.75}
+.mzk td,.mzk th{padding-left:4px;padding-right:4px}
+.mzscore{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;text-align:center;margin:6px 0 10px}.mzscore b{font-family:var(--cond);font-size:38px}
+.mzev{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line)}.mzev i{font-style:normal;color:var(--mute);min-width:30px}.mzev.h{flex-direction:row-reverse;text-align:right}
+.mzsost{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13.5px}.mzsost div:last-child{text-align:right}
 /* dochádzka / výplata */
 .zbox{border:1px solid #e0a040;border-radius:10px;padding:10px 12px;margin:0 0 12px}.zbox>div{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:6px;font-size:14px}
 .zbadge{font-size:11px;background:#e0a040;color:#000;border-radius:6px;padding:1px 6px;vertical-align:middle}
@@ -382,6 +400,7 @@ body.gated>*:not(#gate){display:none!important}
   <img id="logo" src="logo.png" alt="Logo TJ Klas Beša">
   <div class="hname"><b>TJ Klas Beša</b><span id="hsub">VII. liga ObFZ Levice</span></div>
   <button class="ibtn" id="bHry" title="Hry" aria-label="Hry"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/></svg></button>
+  <button class="ibtn" id="bMz" title="Beša manažér" aria-label="Beša manažér"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></button>
   <button class="ibtn" id="bTheme" title="Svetlý / tmavý režim" aria-label="Režim zobrazenia"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
   <button class="ibtn" id="bRefresh" title="Obnoviť" aria-label="Obnoviť"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
 </header>
@@ -547,11 +566,12 @@ function render(){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   const v=$('#view');
   const draft=$('#chText'), dv=draft?draft.value:null, df=draft&&document.activeElement===draft;
-  v.innerHTML=(tab==='chat'?'':hint())+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():tab==='chat'?vChat():tab==='ved'&&APP?vVedenie():tab==='hry'?vHry():tab==='ja'&&PPIN?vJa():vKlub())
+  v.innerHTML=(tab==='chat'?'':hint())+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():tab==='chat'?vChat():tab==='ved'&&APP?vVedenie():tab==='hry'?vHry():tab==='mz'?vManazer():tab==='ja'&&PPIN?vJa():vKlub())
     +(['tab','zap','live'].includes(tab)?'<p class="src">Zdroj údajov: <a href="https://sportnet.sme.sk/futbalnet/" target="_blank" rel="noopener">Sportnet / Futbalnet</a> (SFZ). Neoficiálna klubová appka TJ Klas Beša.</p>':'');
   navBadge(); fillWx(v); fillRsvp(v); fillMvp(v);
   if(tab==='hry') hryAfterRender(v);
   const bh=$('#bHry'); if(bh) bh.classList.toggle('on', tab==='hry');
+  const bm=$('#bMz'); if(bm) bm.classList.toggle('on', tab==='mz');
   if(tab==='chat'){ const t=$('#chText'); if(t){ if(dv!=null) t.value=dv; if(df) t.focus();
     t.oninput=()=>{ t.style.height=''; t.style.height=Math.min(t.scrollHeight,140)+'px'; };
     t.onkeydown=e=>{ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){ e.preventDefault(); chatSend(); } }; }
@@ -1641,6 +1661,7 @@ function vedClick(b){
   if(ds.restore){ restoreFile(); return true; }
   return false;
 }
+document.addEventListener('change',e=>{ if(e.target.id==='mzForm'&&MZ.st&&MZ.st.tim){ mzApi('zostava',{form:e.target.value,takt:MZ.st.tim.takt,ids:[]}); } });
 document.addEventListener('change',e=>{ const id=e.target.dataset&&e.target.dataset.pname; if(!id) return;
   const p=D.players.find(x=>x.id===id), v=e.target.value.trim(); if(p&&v){ p.name=v; save(); render(); } });
 document.addEventListener('keydown',e=>{
@@ -1983,6 +2004,124 @@ function board(key,sub){
   return (BOARDS[key]||{}).d;
 }
 const boardErr=key=>BOARDS[key]&&BOARDS[key].err&&!BOARDS[key].d?'<p class="note">Poradie sa nepodarilo načítať, skúsim znova o chvíľu.</p>':'';
+/* --- BEŠA MANAŽÉR: vlastný fiktívny tím, liga všetkých hráčov (simuluje server) --- */
+let MZ={st:null, busy:false, err:'', sub:'tim'};
+const MZ_ERB=['🦅','🐺','🦁','🐗','🐻','🦊','⚡','🔥','⭐','🛡️','🐝','🐉','🐂','🦈','🍀','👑'];
+const MZ_POST={B:'B',O:'O',S:'S',U:'Ú'}, MZ_TAKT=[['utok','Útočne'],['vyrov','Vyrovnane'],['obrana','Obranne']];
+async function mzApi(p,b,keep){
+  if(MZ.busy) return null; MZ.busy=true;
+  try{ const j=await chatApi('/mz/'+p,Object.assign({pin:CHPIN,meno:JA},b||{})); if(!keep) MZ.st=j; MZ.err=''; return j; }
+  catch(e){ MZ.err=e.message; if(p!=='stav') toast(e.message); return null; }
+  finally{ MZ.busy=false; if(tab==='mz') render(); }
+}
+function mzDen(d){ return dLabel(d); }
+function mzErb(t,big){ return `<span class="mzerb${big?' big':''}" style="--f1:${t.f1||'#444'};--f2:${t.f2||'#fff'}">${esc(t.erb||'⚽')}</span>`; }
+function vManazer(){
+  const intro=`<p class="note" style="margin-top:0">Postav si vlastný tím a hraj ligu proti spoluhráčom. Prvá sezóna začína 1. decembra, potom sa kolá hrajú každý deň o 20:00. Za každý tvoj skutočný tréning dostaneš tréningové body na zlepšenie hráčov, body z kvízu sa od začiatku súťaže menia na kredity na prestupy. Tím si môžeš založiť a pripraviť už teraz.</p>`;
+  const g=hryGate(intro); if(g) return '<h2 style="margin-top:0">Beša manažér</h2>'+g;
+  if(!MZ.st&&!MZ.busy&&!MZ.err) mzApi('stav');
+  const S=MZ.st;
+  if(!S) return '<h2 style="margin-top:0">Beša manažér</h2>'+(MZ.err?`<div class="empty">${esc(MZ.err)}<br><br><button class="btn" data-mzr="1">Skúsiť znova</button></div>`:'<p class="note">Načítavam…</p>');
+  if(!S.tim) return mzNovy(intro,S);
+  const T=S.tim, segs=[['tim','Tím'],['liga','Liga'],['tren','Tréning'],['trh','Prestupy'],['vyz','Priateľák']];
+  let h=`<div class="mzhead">${mzErb(T,1)}<div><b>${esc(T.nazov)}</b><small>${T.kredit} kreditov · ${T.tb} TB</small></div></div>`;
+  h+=`<div class="seg hseg">${segs.map(([k,n])=>`<button data-mzs="${k}" class="${MZ.sub===k?'on':''}">${n}</button>`).join('')}</div>`;
+  return h+(MZ.sub==='liga'?mzLiga(S):MZ.sub==='tren'?mzTren(S):MZ.sub==='trh'?mzTrh(S):MZ.sub==='vyz'?mzVyz(S):mzTim(S));
+}
+function mzNovy(intro,S){
+  let h='<h2 style="margin-top:0">Beša manažér</h2>'+intro+`<h2>Založ si tím</h2>
+  <label class="f"><span>Názov tímu</span><input type="text" id="mzN" maxlength="28" placeholder="napr. FC Kosačky Beša"></label>
+  <div class="row2"><label class="f"><span>Farba dresu</span><input type="color" id="mzF1" value="#111111"></label><label class="f"><span>Druhá farba</span><input type="color" id="mzF2" value="#f2c200"></label></div>
+  <p class="note" style="margin:8px 0 4px">Erb</p><div class="mzerbs">${MZ_ERB.map((e,i)=>`<button class="btn${i===0?' pri':''}" data-mzerb="${e}">${e}</button>`).join('')}</div>
+  <button class="btn pri" style="width:100%;margin-top:12px" data-mzzaloz="1">Založiť tím</button>
+  <p class="note">Dostaneš 16 hráčov (2 brankári, 5 obrancov, 5 záložníkov, 4 útočníkov) a ${1000} kreditov. Všetci začínajú s rovnako silným kádrom.</p>`;
+  if(S.timy.length) h+=`<h2>V lige sú</h2><p>${S.timy.map(t=>mzErb(t)+' '+esc(t.nazov)).join('<br>')}</p>`;
+  return h;
+}
+function mzTim(S){
+  const T=S.tim, by=new Map(T.hraci.map(h=>[h.id,h]));
+  let h=`<div class="row2"><label class="f"><span>Rozostavenie</span><select id="mzForm">${S.pravidla.formacie.map(f=>`<option ${T.form===f?'selected':''}>${f}</option>`).join('')}</select></label></div>`;
+  h+=`<div class="seg">${MZ_TAKT.map(([k,n])=>`<button data-mztakt="${k}" class="${T.takt===k?'on':''}">${n}</button>`).join('')}</div>`;
+  h+=`<h2>Zostava <small class="mute">ťukni na hráča a vymeň ho</small></h2><div class="mzz">`;
+  T.zostava.forEach((z,i)=>{ const p=by.get(z.id); h+=`<button class="mzslot" data-mzslot="${i}"><i>${MZ_POST[z.p]}</i><span>${esc(p.meno)}${p.post!==z.p?' <small class="neg">mimo postu</small>':''}</span><b>${p.ovr}</b>${p.unava>40?'<small class="neg">unavený</small>':''}</button>`; });
+  h+=`</div><button class="btn" style="width:100%;margin-top:8px" data-mzauto="1">Najlepšia zostava automaticky</button>`;
+  h+=`<h2>Káder (${T.hraci.length})</h2><table class="lt mzk"><thead><tr><th class="l">Hráč</th><th>Post</th><th title="Útok">Ú</th><th title="Obrana">O</th><th title="Kondícia">K</th><th title="Forma">F</th><th title="Únava">Ún</th><th title="Góly">G</th></tr></thead><tbody>`+
+    T.hraci.map(p=>`<tr class="${T.zostava.some(z=>z.id===p.id)?'us':''}"><td class="l">${esc(p.meno)}${p.zran?` <span class="neg">🚑 ${p.zran}</span>`:''}</td><td>${MZ_POST[p.post]}</td><td>${p.utok}</td><td>${p.obrana}</td><td>${p.kond}</td><td>${p.forma}</td><td>${p.unava}</td><td>${p.goly}</td></tr>`).join('')+'</tbody></table>';
+  h+='<p class="note">Únava rastie, keď hráč hrá, a klesá, keď oddychuje. Unavený alebo zranený hráč hrá horšie, oplatí sa striedať. Hráč mimo svojho postu má 75 % sily.</p>';
+  return h;
+}
+function mzLiga(S){
+  const s=S.sez; let h='';
+  if(!s) return '<div class="empty">Liga začne, keď budú založené aspoň 2 tímy.</div>';
+  if(s.pripravuje) return `<div class="empty">Sezóna začína ${mzDen(s.start)} o 20:00.<br>Prihlásené sú všetky tímy založené dovtedy (${S.timy.length}).</div>`+S.timy.map(t=>`<div>${mzErb(t)} ${esc(t.nazov)}</div>`).join('');
+  h+=`<p class="note" style="margin-top:0">Sezóna ${s.id} · ${s.odohrane}/${s.n} kôl${s.odohrane>=s.n?` · skončila, majster: <b>${esc((S.timy.find(t=>t.meno===s.majster)||{}).nazov||'')}</b>`:` · koniec ${mzDen(s.koniec)}`}${s.ucastnik?'':' · tvoj tím hrá od ďalšej sezóny'}</p>`;
+  h+='<table class="lt"><thead><tr><th></th><th class="l">Tím</th><th>Z</th><th class="hide-s">V</th><th class="hide-s">R</th><th class="hide-s">P</th><th>Skóre</th><th>B</th></tr></thead><tbody>'+
+    s.tabulka.map((t,i)=>`<tr class="${t.meno===S.meno?'us':''}"><td>${i+1}.</td><td class="l">${mzErb(t)} ${esc(t.nazov)}</td><td>${t.z}</td><td class="hide-s">${t.v}</td><td class="hide-s">${t.r}</td><td class="hide-s">${t.p}</td><td>${t.gs}:${t.gi}</td><td><b>${t.b}</b></td></tr>`).join('')+'</tbody></table>';
+  const nm=m=>esc((S.timy.find(t=>t.meno===m)||{}).nazov||m);
+  if(s.dalsie) h+=`<h2>${s.dalsie.kolo}. kolo · ${mzDen(s.dalsie.den)} 20:00</h2>`+s.dalsie.zapasy.map(([a,b])=>`<div class="mzm${a===S.meno||b===S.meno?' us':''}"><span>${nm(a)}</span><b>–</b><span>${nm(b)}</span></div>`).join('');
+  if(s.posledne.length) h+=`<h2>Výsledky ${s.posledne[0].kolo}. kola</h2>`+s.posledne.map(z=>`<button class="mzm${z.dom===S.meno||z.hos===S.meno?' us':''}" data-mzzap="${z.id}"><span>${nm(z.dom)}</span><b>${z.gd}:${z.gh}</b><span>${nm(z.hos)}</span></button>`).join('');
+  const moje=s.mojeZapasy.filter(z=>!s.posledne.some(p=>p.id===z.id));
+  if(moje.length) h+='<h2>Moje zápasy</h2>'+moje.map(z=>`<button class="mzm" data-mzzap="${z.id}"><span>${z.kolo}. ${nm(z.dom)}</span><b>${z.gd}:${z.gh}</b><span>${nm(z.hos)}</span></button>`).join('');
+  if(s.strelci.length) h+='<h2>Strelci</h2>'+boardTable(s.strelci.map(x=>[x.meno+' ('+nm(x.tim)+')',x.goly]),'Góly');
+  if(S.minuli.length) h+='<h2>Majstri</h2>'+S.minuli.map(m=>`<div>🏆 Sezóna ${m.id}: ${esc(m.nazov||m.majster)}</div>`).join('');
+  return h;
+}
+function mzTren(S){
+  const T=S.tim;
+  let h=`<p class="note" style="margin-top:0">Máš <b>${T.tb} TB</b>. Za každý tréning, na ktorom si v skutočnosti bol, dostaneš ${S.pravidla.TB_TRENING} TB (podľa dochádzky vedenia) a za každé odohrané kolo ${S.pravidla.TB_KOLO} TB. Vyššie hodnoty stoja viac TB.</p>`;
+  h+=T.hraci.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · sila ${p.ovr}</small></div>
+    <button class="btn sm" data-mztr="${p.id}" data-a="utok" ${T.tb<p.tbU?'disabled':''}>Ú ${p.utok}<small>+1 za ${p.tbU}</small></button>
+    <button class="btn sm" data-mztr="${p.id}" data-a="obrana" ${T.tb<p.tbO?'disabled':''}>O ${p.obrana}<small>+1 za ${p.tbO}</small></button>
+    <button class="btn sm" data-mztr="${p.id}" data-a="kond" ${T.tb<p.tbK?'disabled':''}>K ${p.kond}<small>+1 za ${p.tbK}</small></button></div>`).join('');
+  return h;
+}
+function mzTrh(S){
+  const T=S.tim;
+  let h=`<p class="note" style="margin-top:0">Máš <b>${T.kredit} kreditov</b>. Kredity dostávaš za body z kvízu od začiatku súťaže (1 bod = 1 kredit) a za zápasy (výhra 300, remíza 150, prehra 60, gól +20). Trh sa obnovuje každý deň. V kádri môžeš mať ${S.pravidla.MIN_KADER} – ${S.pravidla.MAX_KADER} hráčov.</p><h2>Voľní hráči</h2>`;
+  h+=S.trh.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · ${p.vek} r. · Ú ${p.utok} O ${p.obrana} K ${p.kond} · sila ${p.ovr}</small></div><button class="btn sm pri" data-mzkup="${p.id}" ${T.kredit<p.cena?'disabled':''}>${p.cena} kr.</button></div>`).join('');
+  h+='<h2>Predať hráča</h2><p class="note">Za predaj dostaneš polovicu jeho ceny.</p>'+T.hraci.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · sila ${p.ovr}</small></div><button class="btn sm" data-mzpred="${p.id}">+${Math.round(p.cena/2)} kr.</button></div>`).join('');
+  return h;
+}
+function mzVyz(S){
+  const ine=S.timy.filter(t=>t.meno!==S.meno);
+  let h=`<p class="note" style="margin-top:0">Priateľský zápas proti tímu spoluhráča hneď teraz, s aktuálnymi zostavami. Nepočíta sa do tabuľky, hráči sa neunavia ani nezrania. Denne najviac ${S.pravidla.VYZVY_DEN}.</p>`;
+  if(!ine.length) return h+'<div class="empty">Zatiaľ nie je proti komu hrať.</div>';
+  h+=ine.map(t=>`<div class="mztr"><div>${mzErb(t)} <b>${esc(t.nazov)}</b></div><button class="btn sm pri" data-mzvyz="${esc(t.meno)}">Hrať</button></div>`).join('');
+  const nm=m=>esc((S.timy.find(t=>t.meno===m)||{}).nazov||m);
+  if(S.tim.vyzvy.length) h+='<h2>Posledné priateľáky</h2>'+S.tim.vyzvy.map(z=>`<button class="mzm" data-mzzap="${z.id}"><span>${esc(S.tim.nazov)}</span><b>${z.gd}:${z.gh}</b><span>${nm(z.hos)}</span></button>`).join('');
+  return h;
+}
+async function mzZapas(id){
+  const j=await chatApi('/mz/zapas',{pin:CHPIN,meno:JA,id}).catch(e=>{ toast(e.message); return null; }); if(!j) return;
+  const z=j.zapas, u=z.udalosti, ic={gol:'⚽',zk:'🟨',ck:'🟥',zran:'🚑'};
+  openSheet(`<h3><span>${z.vyzva?'Priateľák':z.kolo+'. kolo'}</span>${closeBtn}</h3>
+    <div class="mzscore"><div>${esc(z.de)}<br>${esc(z.dn)}</div><b>${z.gd}:${z.gh}</b><div>${esc(z.he)}<br>${esc(z.hn)}</div></div>
+    <p class="note" style="text-align:center;margin-top:-4px">Šance (xG) ${String(u.xg[0]).replace('.',',')} : ${String(u.xg[1]).replace('.',',')}</p>`+
+    (u.ev.length?u.ev.map(e=>`<div class="mzev ${e.s}"><i>${e.m}'</i><span>${ic[e.t]} ${esc(e.h)}${e.t==='gol'?' – '+esc(e.ako):e.t==='zran'?` (${e.k} ${e.k===1?'kolo':'kolá'})`:''}</span></div>`).join(''):'<p class="note">Nudný zápas bez gólov a kariet.</p>')+
+    `<h2>Zostavy</h2><div class="mzsost"><div>${u.zd.map(esc).join('<br>')}</div><div>${u.zh.map(esc).join('<br>')}</div></div>`);
+}
+function mzSlot(i){
+  const T=MZ.st.tim, z=T.zostava[i], vo=T.hraci.filter(p=>!p.zran);
+  openSheet(`<h3><span>${MZ_POST[z.p]} – vyber hráča</span>${closeBtn}</h3>`+vo.sort((a,b)=>(b.post===z.p)-(a.post===z.p)||b.ovr-a.ovr).map(p=>`<button class="mzslot" data-mzswap="${i}" data-id="${p.id}"><i>${MZ_POST[p.post]}</i><span>${esc(p.meno)}${T.zostava.some(x=>x.id===p.id)?' <small class="mute">v zostave</small>':''}</span><b>${p.ovr}</b>${p.unava>40?'<small class="neg">únava '+p.unava+'</small>':''}</button>`).join(''));
+}
+function mzClick(b){
+  const d=b.dataset;
+  if(d.mzs){ MZ.sub=d.mzs; render(); return true; }
+  if(d.mzr){ MZ.err=''; mzApi('stav'); return true; }
+  if(d.mzerb){ document.querySelectorAll('[data-mzerb]').forEach(x=>x.classList.toggle('pri',x===b)); MZ.erb=d.mzerb; return true; }
+  if(d.mzzaloz){ mzApi('zaloz',{nazov:$('#mzN').value,f1:$('#mzF1').value,f2:$('#mzF2').value,erb:MZ.erb||MZ_ERB[0]}); return true; }
+  if(d.mztakt){ mzApi('zostava',{takt:d.mztakt,form:MZ.st.tim.form,ids:MZ.st.tim.zostava.map(z=>z.id)}); return true; }
+  if(d.mzauto){ mzApi('zostava',{ids:[]}); return true; }
+  if(d.mzslot){ mzSlot(+d.mzslot); return true; }
+  if(d.mzswap){ const ids=MZ.st.tim.zostava.map(z=>z.id), i=+d.mzswap, id=+d.id, j=ids.indexOf(id); if(j>=0) ids[j]=ids[i]; ids[i]=id; closeSheet(); mzApi('zostava',{ids}); return true; }
+  if(d.mztr){ mzApi('trening',{id:+d.mztr,attr:d.a}); return true; }
+  if(d.mzkup){ mzApi('kup',{id:+d.mzkup}); return true; }
+  if(d.mzpred){ if(!confirmTwice(b,'Naozaj?')) return true; mzApi('predaj',{id:+d.mzpred}); return true; }
+  if(d.mzvyz){ mzApi('vyzva',{super:d.mzvyz},true).then(j=>{ if(j&&j.vyzva){ mzZapas(j.vyzva); MZ.st=null; mzApi('stav'); } }); return true; }
+  if(d.mzzap){ mzZapas(+d.mzzap); return true; }
+  return false;
+}
+
 /* --- KVÍZ (12 otázok denne, vyhodnocuje server – víťaz mesiaca dostane bonus k výplate) --- */
 const BONUS={kviz:30, pk:15, mvp:15}; // € k výplate: víťaz mesiaca v kvíze, víťaz mesiaca v penaltách, hráč zápasu
 let KV={st:'start', stav:null, q:null, fb:null, picked:null, t0:0, left:0, timer:null, busy:false, err:''};
@@ -3127,6 +3266,8 @@ document.addEventListener('click',e=>{
   if(b.dataset.jam!=null){ if(b.dataset.jam){ JAP.m=b.dataset.jam; render(); } return; }
   if(hryClick(b)) return;
   if(b.id==='bHry'){ tab='hry'; render(); scrollTo(0,0); return; }
+  if(b.id==='bMz'){ tab='mz'; MZ.st=null; render(); scrollTo(0,0); return; }
+  if(tab==='mz'&&mzClick(b)) return;
   if(b.id==='bTheme'){ toggleTheme(); return; }
   if(b.dataset.t){ tab=b.dataset.t; render(); scrollTo(0, tab==='chat'?document.body.scrollHeight:0); if(tab==='chat'&&CH.state==='ok'&&!CH.ws) chatConnect(); }
   else if(b.dataset.z){ zapMode=b.dataset.z; render(); }

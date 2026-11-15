@@ -7,6 +7,7 @@
 
 import { kviz } from './kviz.js';
 import { klubKviz, kqInit, kqBoard } from './kviz-klub.js';
+import { manazer, mzInit } from './manazer.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -180,6 +181,7 @@ export class ChatRoom {
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS fails (t INTEGER)`);
       // osobné heslá na web: jedno heslo = jeden telefón
       kqInit((q, ...a) => ctx.storage.sql.exec(q, ...a));
+      mzInit((q, ...a) => ctx.storage.sql.exec(q, ...a));
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS ark_sess (tok TEXT PRIMARY KEY, meno TEXT, hra TEXT, t0 INTEGER, done INTEGER DEFAULT 0, score INTEGER, dur INTEGER)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS ziadosti (mn TEXT, meno TEXT, m TEXT, at INTEGER, PRIMARY KEY (mn, m))`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS km_geo (q TEXT PRIMARY KEY, lat REAL, lon REAL, at INTEGER)`);
@@ -365,6 +367,7 @@ export class ChatRoom {
       this.ctx.storage.sql.exec('INSERT INTO ark_sess (tok, meno, hra, t0) VALUES (?, ?, ?, ?)', tok, meno, hra, Date.now());
       return json({ tok });
     }
+    if (path.startsWith('/mz/')) { const m = String(body.meno || '').trim().replace(/\s+/g, ' ').slice(0, 60); if (!m) return json({ error: 'Chýba meno' }, 400); return manazer(this, path, body, m, (q, ...a) => this.rows(q, ...a), (q, ...a) => this.ctx.storage.sql.exec(q, ...a)); }
     if (path.startsWith('/hra/kq/')) return klubKviz(this, path, body, String(body.meno || '').trim().replace(/\s+/g, ' ').slice(0, 60), skDate);
 
     if (path === '/tip/mine') {
@@ -696,7 +699,7 @@ export default {
         if (!env.CHAT) return json({ error: 'Kvíz nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('kviz-partia')).fetch(request);
       }
-      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/') || path.startsWith('/pristup/') || path.startsWith('/profil/')) {
+      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/') || path.startsWith('/pristup/') || path.startsWith('/profil/') || path.startsWith('/mz/')) {
         if (!env.CHAT) return json({ error: 'Chat nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('klub')).fetch(request);
       }
