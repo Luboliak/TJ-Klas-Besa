@@ -2050,6 +2050,7 @@ function mzTim(S){
   h+=`</div><button class="btn" style="width:100%;margin-top:8px" data-mzauto="1">Najlepšia zostava automaticky</button>`;
   h+=`<h2>Káder (${T.hraci.length})</h2><table class="lt mzk"><thead><tr><th class="l">Hráč</th><th>Post</th><th title="Útok">Ú</th><th title="Obrana">O</th><th title="Kondícia">K</th><th title="Forma">F</th><th title="Únava">Ún</th><th title="Góly">G</th></tr></thead><tbody>`+
     T.hraci.map(p=>`<tr class="${T.zostava.some(z=>z.id===p.id)?'us':''}"><td class="l">${esc(p.meno)}${p.zran?` <span class="neg">🚑 ${p.zran}</span>`:''}</td><td>${MZ_POST[p.post]}</td><td>${p.utok}</td><td>${p.obrana}</td><td>${p.kond}</td><td>${p.forma}</td><td>${p.unava}</td><td>${p.goly}</td></tr>`).join('')+'</tbody></table>';
+  h+=`<h2>Zmazať tím</h2><p class="note">Tím aj všetci jeho hráči zmiznú natrvalo. Ak beží sezóna, tvoje zostávajúce zápasy sa už neodohrajú. Nový tím si môžeš založiť hneď, do ligy sa dostane od ďalšej sezóny.</p><button class="btn" style="width:100%;color:#e06666" data-mzzmaz="1">Zmazať môj tím</button>`;
   h+='<p class="note">Únava rastie, keď hráč hrá, a klesá, keď oddychuje. Unavený alebo zranený hráč hrá horšie, oplatí sa striedať. Hráč mimo svojho postu má 75 % sily.</p>';
   return h;
 }
@@ -2126,6 +2127,7 @@ function mzClick(b){
   if(d.mzpred){ if(!confirmTwice(b,'Naozaj?')) return true; mzApi('predaj',{id:+d.mzpred}); return true; }
   if(d.mzvyz){ mzApi('vyzva',{super:d.mzvyz},true).then(j=>{ if(j&&j.vyzva){ mzZapas(j.vyzva); MZ.st=null; mzApi('stav'); } }); return true; }
   if(d.mzzap){ mzZapas(+d.mzzap); return true; }
+  if(d.mzzmaz){ if(!confirmTwice(b,'Naozaj zmazať? Ťukni znova')) return true; mzApi('zmaz',{},true).then(j=>{ if(j&&j.zmazany){ toast('Tím zmazaný'); MZ.st=null; MZ.sub='tim'; mzApi('stav'); } }); return true; }
   return false;
 }
 

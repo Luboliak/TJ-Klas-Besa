@@ -179,7 +179,7 @@ export function manazer(room, path, body, meno, rows, sql) {
     return s;
   };
   const tabulka = s => {
-    const T = {}; for (const m of JSON.parse(s.timy)) { const t = tim(m); T[m] = { meno: m, nazov: t ? t.nazov : m, erb: t ? t.erb : '', f1: t ? t.f1 : '', z: 0, v: 0, r: 0, p: 0, gs: 0, gi: 0, b: 0, forma: [] }; }
+    const T = {}; for (const m of JSON.parse(s.timy)) { const t = tim(m); if (!t) continue; T[m] = { meno: m, nazov: t ? t.nazov : m, erb: t ? t.erb : '', f1: t ? t.f1 : '', z: 0, v: 0, r: 0, p: 0, gs: 0, gi: 0, b: 0, forma: [] }; }
     for (const z of rows('SELECT dom, hos, gd, gh FROM mz_zapas WHERE sez=? AND vyzva=0 AND hotovo=1 ORDER BY kolo', s.id)) {
       for (const [m, g, gi] of [[z.dom, z.gd, z.gh], [z.hos, z.gh, z.gd]]) { const x = T[m]; if (!x) continue; x.z++; x.gs += g; x.gi += gi; if (g > gi) { x.v++; x.b += 3; x.forma.push('V'); } else if (g === gi) { x.r++; x.b++; x.forma.push('R'); } else { x.p++; x.forma.push('P'); } }
     }
@@ -213,6 +213,11 @@ export function manazer(room, path, body, meno, rows, sql) {
   const t = tim(meno);
   if (t) pripis(t);
 
+  if (path === '/mz/zmaz' && t) {
+    // tím zmizne aj z bežiacej sezóny (jeho zostávajúce zápasy sa neodohrajú), odohrané výsledky ostanú v tabuľke súperov
+    sql('DELETE FROM mz_hrac WHERE tim=?', meno); sql('DELETE FROM mz_tim WHERE meno=?', meno);
+    return out({ zmazany: true });
+  }
   if (path === '/mz/zostava' && t) {
     const form = FORM[body.form] ? body.form : t.form, takt = TAKT[body.takt] ? body.takt : t.takt;
     const ids = Array.isArray(body.ids) ? body.ids.map(Number).slice(0, 11) : [];
