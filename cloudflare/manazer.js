@@ -11,6 +11,26 @@ const MENA = ['Adam', 'Andrej', 'Boris', 'Dávid', 'Dominik', 'Erik', 'Filip', '
 const PRIEZ = ['Baláž', 'Benko', 'Bielik', 'Csonka', 'Daňo', 'Dobrota', 'Fekete', 'Gajdoš', 'Hanuliak', 'Horváth', 'Hudec', 'Juhás', 'Kollár', 'Kováč', 'Kováčik', 'Krajčovič', 'Kučera', 'Lacko', 'Lukáč', 'Macko', 'Majerčík', 'Mikuš', 'Molnár', 'Nagy', 'Novák', 'Oravec', 'Pavlík', 'Polák', 'Rybár', 'Sabo', 'Šimko', 'Sloboda', 'Szabó', 'Takáč', 'Tóth', 'Urban', 'Vadovič', 'Varga', 'Vrabec', 'Záhorský', 'Zeman', 'Žiak'];
 const POSTY = { B: 'brankár', O: 'obranca', S: 'záložník', U: 'útočník' };
 
+// komentár k zápasu: {h} = hráč, {b} = brankár súpera, {t} = tím
+const K_SANCA = [
+  '{h} sám pred bránkou… a trafil rohovú zástavku.', '{h} vystrelil tak vysoko, že lopta ešte stále letí.', 'Obrovská šanca! {h} trafil viac trávnika ako lopty.',
+  '{b} vytiahol zákrok, aký by nevymyslel ani režisér akčných filmov.', '{h} trafil žrď, brvno a takmer aj kosačku za bránkou.', '{h} sa rozbehol na hlavičku… netrafil loptu, ale spoluhráča áno.',
+  '{h} si loptu naťahoval tak dlho, až mu ju zobral vlastný spoluhráč.', '{h} padol v šestnástke tak umelecky, že by dostal Oscara. Rozhodca však píska ďalej.',
+  '{b} loptu chytil a ešte si stihol upraviť vlasy.', '{h} skúsil nožničky. Výsledok: kotrmelec a smiech na tribúne.', '{h} vypálil delovku! {b} ju vyrazil na roh, prsty ho budú páliť ešte týždeň.',
+  '{h} obišiel troch obrancov aj brankára… a zakopol o vlastnú nohu.', '{h} pálil z 30 metrov, lopta skončila v susedovej záhrade.', 'Krásna akcia, {h} pred prázdnou bránkou… a trafí ležiaceho brankára.',
+  '{h} skúša strelu z otočky, tesne vedľa.', 'Nebezpečný center, {h} na loptu nedosiahol o centimeter.', '{h} vystrelil k žrdi, {b} je na mieste.', '{h} kopol do lopty tak silno, že mu vyletela aj kopačka.',
+  '{h} chcel prihrať, chcel vystreliť, nakoniec neurobil ani jedno.', '{b} vybehol až k polovici ihriska, {h} lobuje… nad bránu aj nad plot.', '{h} trafil brvno, lopta odskočila do autu. Smola!',
+  '{h} sa pokúsil o kľučku, obranca ani nemusel nič robiť.', 'Priamy kop: {h} trafil múr, múr trafil {h}.', '{h} strieľa slabučko, {b} chytá a pýta sa, či to myslel vážne.',
+];
+const K_GOL = ['Tribúna šalie!', 'Oslavuje saltom, ktoré takmer nedopadlo.', 'Spoluhráči ho zavalili v rohu ihriska.', 'Brankár ani nezdvihol ruky.', 'Aj kosič pri čiare zatlieskal.', 'Toto bude v zostrihu týždňa.', 'Uteká k fanúšikom a posiela pusu tribúne.', 'Lopta sa ešte chvíľu točí v sieti.'];
+const K_KOM = [
+  'Na ihrisko vbehol pes, chvíľu je najlepším hráčom na trávniku.', 'Rozhodca si zaväzuje šnúrky, hra stojí.', 'Z tribúny sa ozýva: „Hraj to tam!“ Nikto nevie kam.',
+  'Lopta preletela cez plot, hľadá ju celá lavička.', 'Tréner {t} gestikuluje tak, že by ho zobrali do divadla.', 'Fanúšikovia spievajú, spev je skôr hlasný ako presný.',
+  'Začína pršať, kopačky sa menia na korčule.', 'Pomedzník mával zástavkou, ale vraj len zdravil známeho.', 'Kosič stojí pri čiare a pozerá, či mu nerozkopú trávnik.',
+  'Na tribúne sa predala posledná klobása, nálada stúpa.', 'Krava z vedľajšej lúky sleduje zápas s mimoriadnym záujmom.', 'Rozhodca sa pozerá na hodinky. Asi myslí na večeru.',
+  'Hráči {t} sa medzi sebou dohadujú, kto mal koho kryť.', 'Fúka taký vietor, že dlhé lopty sa vracajú späť.', 'Lavička {t} je nervózna, náhradník už tretíkrát pije vodu.',
+  'Niekto na tribúne tvrdí, že on by to dal aj s papučami.', '{t} drží loptu, súper beží naprázdno.', 'Tempo zápasu kleslo, hráči šetria sily na pivo po zápase.',
+];
 const rnd = n => Math.floor(Math.random() * n), ch = a => a[rnd(a.length)], cl = (x, a, b) => Math.max(a, Math.min(b, x));
 function poisson(l) { const L = Math.exp(-l); let k = 0, p = 1; do { k++; p *= Math.random(); } while (p > L); return k - 1; }
 const ovr = h => Math.round(h.post === 'B' ? h.obrana : h.post === 'O' ? h.obrana * 0.75 + h.kond * 0.25 : h.post === 'S' ? (h.utok + h.obrana) * 0.4 + h.kond * 0.2 : h.utok * 0.8 + h.kond * 0.2);
@@ -106,13 +126,19 @@ export function manazer(room, path, body, meno, rows, sql) {
     const gA = poisson(lA), gB = poisson(lB), ev = [];
     const strelec = z => { const w = z.hraci.map(({ h, p }) => (p === 'U' ? 3 : p === 'S' ? 1.4 : p === 'O' ? 0.35 : 0.01) * h.utok); let r = Math.random() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < w.length; i++) { r -= w[i]; if (r <= 0) return z.hraci[i].h; } return z.hraci[0].h; };
     const SP = ['strelou z diaľky', 'hlavou po rohu', 'po samostatnom nájazde', 'z penalty', 'po krásnej kombinácii', 'dorážkou', 'z priameho kopu', 'nožničkami', 'po chybe obrany'];
-    for (const [g, z, s] of [[gA, zA, 'd'], [gB, zB, 'h']]) for (let i = 0; i < g; i++) { const h = strelec(z); ev.push({ m: 1 + rnd(90), t: 'gol', s, h: h.meno, id: h.id, ako: ch(SP) }); }
+    for (const [g, z, s] of [[gA, zA, 'd'], [gB, zB, 'h']]) for (let i = 0; i < g; i++) { const h = strelec(z); ev.push({ m: 1 + rnd(90), t: 'gol', s, h: h.meno, id: h.id, ako: ch(SP), txt: Math.random() < 0.6 ? ch(K_GOL) : '' }); }
+    // nepremenené šance a komentár
+    const sub = (x, h, z2, t) => x.replace(/\{h\}/g, h).replace(/\{b\}/g, (z2.hraci[0] || { h: { meno: 'brankár' } }).h.meno).replace(/\{t\}/g, t);
+    for (const [l, z, z2, s] of [[lA, zA, zB, 'd'], [lB, zB, zA, 'h']]) for (let i = poisson(1.5 + l * 1.6); i > 0; i--) { const h = strelec(z); ev.push({ m: 1 + rnd(90), t: 'sanca', s, h: h.meno, txt: sub(ch(K_SANCA), h.meno, z2, '') }); }
+    for (let i = 2 + rnd(3); i > 0; i--) { const s = rnd(2) ? 'd' : 'h', t = s === 'd' ? tA.nazov : tB.nazov; ev.push({ m: 2 + rnd(87), t: 'kom', s: 'n', txt: sub(ch(K_KOM), '', s === 'd' ? zB : zA, t) }); }
+    ev.push({ m: 1, t: 'kom', s: 'n', txt: 'Rozhodca pískol, zápas sa začína!' }, { m: 45, t: 'kom', s: 'n', txt: 'Polčas. V šatni sa podáva čaj a výčitky.' }, { m: 90, t: 'kom', s: 'n', txt: 'Koniec zápasu!' });
     for (const [z, s] of [[zA, 'd'], [zB, 'h']]) {
       for (let i = poisson(1.7); i > 0; i--) { const h = ch(z.hraci).h; ev.push({ m: 1 + rnd(90), t: 'zk', s, h: h.meno }); }
       if (Math.random() < 0.05) { const h = ch(z.hraci).h; ev.push({ m: 20 + rnd(70), t: 'ck', s, h: h.meno }); }
       if (ostry) for (const { h } of z.hraci) if (Math.random() < 0.025) { const k = 1 + rnd(3); ev.push({ m: 1 + rnd(90), t: 'zran', s, h: h.meno, id: h.id, k }); }
     }
-    ev.sort((a, b) => a.m - b.m);
+    const por = e => e.txt === 'Koniec zápasu!' ? 2 : e.txt === 'Rozhodca pískol, zápas sa začína!' ? -1 : e.t === 'kom' && e.m === 45 ? 1 : 0;
+    ev.sort((a, b) => a.m - b.m || por(a) - por(b));
     return { gA, gB, ev, zA, zB, xg: [Math.round(lA * 10) / 10, Math.round(lB * 10) / 10] };
   };
   const poZapase = (t, z, g, gs, ev, s) => {
