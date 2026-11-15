@@ -261,7 +261,8 @@ export class ChatRoom {
         const se = best && rows(`SELECT dur FROM ark_sess WHERE hra='pk' AND done=1 AND meno=? AND score=? ORDER BY t0 DESC LIMIT 1`, n, best.score)[0];
         pkInfo[m + '|' + n] = { score: best ? best.score : null, dur: se ? se.dur : null };
       }
-      return json({ kq, pk, pkInfo, mvp: this.mvpSummary().map(p => ({ id: p.id, title: p.title, closes: p.closes, mena: p.winners })) }, 200, { 'Cache-Control': 'no-store' });
+      const mz = rows('SELECT id, start, n, majster FROM mz_sez WHERE majster IS NOT NULL').map(x => ({ id: x.id, majster: x.majster, koniec: new Date(Date.parse(x.start + 'T12:00:00Z') + (x.n - 1) * 864e5).toISOString().slice(0, 10) }));
+      return json({ kq, pk, pkInfo, mz, mvp: this.mvpSummary().map(p => ({ id: p.id, title: p.title, closes: p.closes, mena: p.winners })) }, 200, { 'Cache-Control': 'no-store' });
     }
 
     if (path === '/chat/setup' && request.method === 'POST') {

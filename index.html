@@ -1480,6 +1480,7 @@ async function vedSync(manual){
           if(any||!names.length){ done.add(src); D.bonDone.push(src); } };
         Object.entries(V.kq||{}).forEach(([m,ns])=>give('kq:'+m,ns,BONUS.kviz,last(m),'víťaz kvízu za '+MESF[+m.slice(5)-1]));
         Object.entries(V.pk||{}).forEach(([m,ns])=>give('pk:'+m,ns,BONUS.pk,last(m),'víťaz penált za '+MESF[+m.slice(5)-1],n=>{ const x=(V.pkInfo||{})[m+'|'+n]||{}; return {score:x.score,dur:x.dur}; }));
+        (V.mz||[]).forEach(x=>give('mz:'+x.id,[x.majster],BONUS.manazer,x.koniec,'majster Beša manažéra – sezóna '+x.id));
         (V.mvp||[]).forEach(p=>{ const mt=findMatch(p.id), d=(mt&&mt.date)||iso(new Date(p.closes)); give('mvp:'+p.id,p.mena||[],BONUS.mvp,d,'hráč zápasu'+(mt?' – '+(mt.home===US?mt.away:mt.home):'')); });
       } }catch(e){ err++; } }
     D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save(); kmFetch(); if(!nNew&&!nUpd) profSchedule();
@@ -2018,7 +2019,7 @@ async function mzApi(p,b,keep){
 function mzDen(d){ return dLabel(d); }
 function mzErb(t,big){ return `<span class="mzerb${big?' big':''}" style="--f1:${t.f1||'#444'};--f2:${t.f2||'#fff'}">${esc(t.erb||'⚽')}</span>`; }
 function vManazer(){
-  const intro=`<p class="note" style="margin-top:0">Postav si vlastný tím a hraj ligu proti spoluhráčom. Prvá sezóna začína 1. decembra, potom sa kolá hrajú každý deň o 20:00. Za každý tvoj skutočný tréning dostaneš tréningové body na zlepšenie hráčov, body z kvízu sa od začiatku súťaže menia na kredity na prestupy. Tím si môžeš založiť a pripraviť už teraz.</p>`;
+  const intro=`<p class="note" style="margin-top:0">Postav si vlastný tím a hraj ligu proti spoluhráčom. Prvá sezóna začína 1. decembra, kolá sa hrajú každý deň o 20:00 a sezóna trvá aspoň mesiac (každý s každým aj viackrát). Majster sezóny dostane ${BONUS.manazer} € k výplate. Za každý tvoj skutočný tréning dostaneš tréningové body na zlepšenie hráčov, body z kvízu sa od začiatku súťaže menia na kredity na prestupy. Tím si môžeš založiť a pripraviť už teraz.</p>`;
   const g=hryGate(intro); if(g) return '<h2 style="margin-top:0">Beša manažér</h2>'+g;
   if(!MZ.st&&!MZ.busy&&!MZ.err) mzApi('stav');
   const S=MZ.st;
@@ -2129,7 +2130,7 @@ function mzClick(b){
 }
 
 /* --- KVÍZ (12 otázok denne, vyhodnocuje server – víťaz mesiaca dostane bonus k výplate) --- */
-const BONUS={kviz:30, pk:15, mvp:15}; // € k výplate: víťaz mesiaca v kvíze, víťaz mesiaca v penaltách, hráč zápasu
+const BONUS={kviz:20, pk:10, mvp:15, manazer:20}; // € k výplate: víťaz mesiaca v kvíze, víťaz mesiaca v penaltách, hráč zápasu
 let KV={st:'start', stav:null, q:null, fb:null, picked:null, t0:0, left:0, timer:null, busy:false, err:''};
 async function kqApi(p,b){ return chatApi('/hra/kq/'+p,Object.assign({pin:CHPIN,meno:JA},b||{})); }
 async function kqStav(){ if(KV.busy) return; KV.busy=true;

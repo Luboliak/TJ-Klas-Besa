@@ -4,7 +4,7 @@
 
 const LIGA_START = '2026-12-01', LIVE_MIN = 15; // kolo sa „hrá“ naživo 15 minút od 20:00 (1 min = 6 herných minút)
 // // prvá sezóna; body z kvízu sa rátajú až odtiaľto
-const KOLO_HOD = 20, TB_TRENING = 3, TB_KOLO = 1, START_KREDIT = 1000, MAX_KADER = 22, MIN_KADER = 14, VYZVY_DEN = 3;
+const MIN_KOL = 30, KOLO_HOD = 20, TB_TRENING = 3, TB_KOLO = 1, START_KREDIT = 1000, MAX_KADER = 22, MIN_KADER = 14, VYZVY_DEN = 3;
 const FORM = { '4-4-2': [4, 4, 2], '4-3-3': [4, 3, 3], '3-5-2': [3, 5, 2], '5-3-2': [5, 3, 2], '4-5-1': [4, 5, 1], '3-4-3': [3, 4, 3] };
 const TAKT = { utok: [1.12, 0.9], vyrov: [1, 1], obrana: [0.88, 1.12] };
 const MENA = ['Adam', 'Andrej', 'Boris', 'Dávid', 'Dominik', 'Erik', 'Filip', 'Gabriel', 'Igor', 'Ivan', 'Jakub', 'Ján', 'Jozef', 'Juraj', 'Kamil', 'Karol', 'Kristián', 'Ladislav', 'Lukáš', 'Marek', 'Martin', 'Matej', 'Matúš', 'Michal', 'Milan', 'Miroslav', 'Norbert', 'Ondrej', 'Patrik', 'Pavol', 'Peter', 'Radoslav', 'Richard', 'Róbert', 'Roman', 'Samuel', 'Šimon', 'Stanislav', 'Tibor', 'Tomáš', 'Viktor', 'Vladimír', 'Zoltán'];
@@ -138,12 +138,15 @@ export function manazer(room, path, body, meno, rows, sql) {
       if (s.start > now.den || (s.start === now.den && now.hod < KOLO_HOD)) return s;
       if (timy.length < 2) return s;
       const T = timy.slice().sort(() => Math.random() - 0.5); if (T.length % 2) T.push(null);
-      const n = T.length - 1, R = [];
-      for (let k = 0; k < n; k++) {
+      const n1 = T.length - 1, R1 = [];
+      for (let k = 0; k < n1; k++) {
         const kolo = [];
         for (let i = 0; i < T.length / 2; i++) { const a = T[i], b = T[T.length - 1 - i]; if (a && b) kolo.push(k % 2 ? [b, a] : [a, b]); }
-        R.push(kolo); T.splice(1, 0, T.pop());
+        R1.push(kolo); T.splice(1, 0, T.pop());
       }
+      // sezóna trvá aspoň mesiac: každý s každým sa opakuje (striedavo doma a vonku), kým nie je aspoň MIN_KOL kôl
+      const R = []; for (let c = 0; R.length < MIN_KOL; c++) for (const k of R1) R.push(c % 2 ? k.map(([a, b]) => [b, a]) : k);
+      const n = R.length;
       sql('UPDATE mz_sez SET n=?, timy=?, rozpis=? WHERE id=?', n, JSON.stringify(timy), JSON.stringify(R), s.id); s = aktSez();
     }
     const roz = JSON.parse(s.rozpis);
@@ -258,7 +261,7 @@ export function manazer(room, path, body, meno, rows, sql) {
   const T = tim(meno);
   const timy = rows('SELECT meno, nazov, erb, f1, f2 FROM mz_tim ORDER BY nazov');
   let sez = null;
-  if (s && !s.rozpis) sez = { id: s.id, start: s.start, pripravuje: true, n: rows('SELECT COUNT(*) AS n FROM mz_tim')[0].n - 1 };
+  if (s && !s.rozpis) { const k = Math.max(1, rows('SELECT COUNT(*) AS n FROM mz_tim')[0].n - 1); sez = { id: s.id, start: s.start, pripravuje: true, n: Math.ceil(MIN_KOL / k) * k }; }
   else if (s) {
     const kola = rows('SELECT id, kolo, dom, hos, gd, gh, den, hotovo, udalosti FROM mz_zapas WHERE sez=? AND vyzva=0 ORDER BY kolo DESC, id', s.id).map(z => {
       const lm = z.hotovo ? null : liveMin(z.den), o = { id: z.id, kolo: z.kolo, dom: z.dom, hos: z.hos, gd: z.gd, gh: z.gh, den: z.den };
