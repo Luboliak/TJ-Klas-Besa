@@ -213,6 +213,10 @@ export function manazer(room, path, body, meno, rows, sql) {
   const t = tim(meno);
   if (t) pripis(t);
 
+  if (path === '/mz/upravit' && t) {
+    const col = c => /^#[0-9a-f]{6}$/i.test(c) ? c : null;
+    sql('UPDATE mz_tim SET erb=?, f1=COALESCE(?, f1), f2=COALESCE(?, f2) WHERE meno=?', String(body.erb || t.erb || '⚽').slice(0, 4), col(body.f1), col(body.f2), meno);
+  }
   if (path === '/mz/zmaz' && t) {
     // tím zmizne aj z bežiacej sezóny (jeho zostávajúce zápasy sa neodohrajú), odohrané výsledky ostanú v tabuľke súperov
     sql('DELETE FROM mz_hrac WHERE tim=?', meno); sql('DELETE FROM mz_tim WHERE meno=?', meno);
