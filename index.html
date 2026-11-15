@@ -109,6 +109,7 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .mzk td,.mzk th{padding-left:4px;padding-right:4px}
 .mzscore{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;text-align:center;margin:6px 0 10px}.mzscore b{font-family:var(--cond);font-size:38px}
 .mzev{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line)}.mzev i{font-style:normal;color:var(--mute);min-width:30px}.mzev.h{flex-direction:row-reverse;text-align:right}
+.mzlive{background:#d64545;color:#fff;font-size:11px;font-weight:700;border-radius:4px;padding:2px 6px;vertical-align:middle;letter-spacing:.5px}.mzmin{display:block;font-size:11px;color:#d64545;font-family:var(--sans,inherit);font-weight:600}
 .mzsost{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13.5px}.mzsost div:last-child{text-align:right}
 /* dochádzka / výplata */
 .zbox{border:1px solid #e0a040;border-radius:10px;padding:10px 12px;margin:0 0 12px}.zbox>div{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:6px;font-size:14px}
@@ -2023,6 +2024,7 @@ function vManazer(){
   const S=MZ.st;
   if(!S) return '<h2 style="margin-top:0">Beša manažér</h2>'+(MZ.err?`<div class="empty">${esc(MZ.err)}<br><br><button class="btn" data-mzr="1">Skúsiť znova</button></div>`:'<p class="note">Načítavam…</p>');
   if(!S.tim) return mzNovy(intro,S);
+  clearTimeout(MZ.poll); if(S.sez&&S.sez.posledne&&S.sez.posledne.some(z=>z.live)) MZ.poll=setTimeout(()=>{ if(tab==='mz'&&!MZ.busy) mzApi('stav'); },20000);
   const T=S.tim, segs=[['tim','Tím'],['liga','Liga'],['tren','Tréning'],['trh','Prestupy'],['vyz','Priateľák']];
   let h=`<div class="mzhead">${mzErb(T,1)}<div><b>${esc(T.nazov)}</b><small>${T.kredit} kreditov · ${T.tb} TB</small></div></div>`;
   h+=`<div class="seg hseg">${segs.map(([k,n])=>`<button data-mzs="${k}" class="${MZ.sub===k?'on':''}">${n}</button>`).join('')}</div>`;
@@ -2059,7 +2061,8 @@ function mzLiga(S){
     s.tabulka.map((t,i)=>`<tr class="${t.meno===S.meno?'us':''}"><td>${i+1}.</td><td class="l">${mzErb(t)} ${esc(t.nazov)}</td><td>${t.z}</td><td class="hide-s">${t.v}</td><td class="hide-s">${t.r}</td><td class="hide-s">${t.p}</td><td>${t.gs}:${t.gi}</td><td><b>${t.b}</b></td></tr>`).join('')+'</tbody></table>';
   const nm=m=>esc((S.timy.find(t=>t.meno===m)||{}).nazov||m);
   if(s.dalsie) h+=`<h2>${s.dalsie.kolo}. kolo · ${mzDen(s.dalsie.den)} 20:00</h2>`+s.dalsie.zapasy.map(([a,b])=>`<div class="mzm${a===S.meno||b===S.meno?' us':''}"><span>${nm(a)}</span><b>–</b><span>${nm(b)}</span></div>`).join('');
-  if(s.posledne.length) h+=`<h2>Výsledky ${s.posledne[0].kolo}. kola</h2>`+s.posledne.map(z=>`<button class="mzm${z.dom===S.meno||z.hos===S.meno?' us':''}" data-mzzap="${z.id}"><span>${nm(z.dom)}</span><b>${z.gd}:${z.gh}</b><span>${nm(z.hos)}</span></button>`).join('');
+  const live=s.posledne.some(z=>z.live);
+  if(s.posledne.length) h+=`<h2>${live?'<span class="mzlive">NAŽIVO</span> ':'Výsledky '}${s.posledne[0].kolo}. kola</h2>`+s.posledne.map(z=>`<button class="mzm${z.dom===S.meno||z.hos===S.meno?' us':''}" data-mzzap="${z.id}"><span>${nm(z.dom)}</span><b>${z.gd}:${z.gh}${z.live?`<small class="mzmin">${z.live}'</small>`:''}</b><span>${nm(z.hos)}</span></button>`).join('')+(live?'<p class="note">Kolo sa hrá naživo od 20:00 do 20:15. Tabuľka sa prepočíta po skončení.</p>':'');
   const moje=s.mojeZapasy.filter(z=>!s.posledne.some(p=>p.id===z.id));
   if(moje.length) h+='<h2>Moje zápasy</h2>'+moje.map(z=>`<button class="mzm" data-mzzap="${z.id}"><span>${z.kolo}. ${nm(z.dom)}</span><b>${z.gd}:${z.gh}</b><span>${nm(z.hos)}</span></button>`).join('');
   if(s.strelci.length) h+='<h2>Strelci</h2>'+boardTable(s.strelci.map(x=>[x.meno+' ('+nm(x.tim)+')',x.goly]),'Góly');
@@ -2094,10 +2097,13 @@ function mzVyz(S){
 async function mzZapas(id){
   const j=await chatApi('/mz/zapas',{pin:CHPIN,meno:JA,id}).catch(e=>{ toast(e.message); return null; }); if(!j) return;
   const z=j.zapas, u=z.udalosti, ic={gol:'⚽',zk:'🟨',ck:'🟥',zran:'🚑'};
+  if(MZ.zOpen&&MZ.zOpen!==id&&!$('#ov').classList.contains('on')) MZ.zOpen=null;
+  MZ.zOpen=id; clearTimeout(MZ.zPoll);
+  if(z.live) MZ.zPoll=setTimeout(()=>{ if(MZ.zOpen===id&&$('#ov').classList.contains('on')) mzZapas(id); },15000);
   openSheet(`<h3><span>${z.vyzva?'Priateľák':z.kolo+'. kolo'}</span>${closeBtn}</h3>
     <div class="mzscore"><div>${esc(z.de)}<br>${esc(z.dn)}</div><b>${z.gd}:${z.gh}</b><div>${esc(z.he)}<br>${esc(z.hn)}</div></div>
-    <p class="note" style="text-align:center;margin-top:-4px">Šance (xG) ${String(u.xg[0]).replace('.',',')} : ${String(u.xg[1]).replace('.',',')}</p>`+
-    (u.ev.length?u.ev.map(e=>`<div class="mzev ${e.s}"><i>${e.m}'</i><span>${ic[e.t]} ${esc(e.h)}${e.t==='gol'?' – '+esc(e.ako):e.t==='zran'?` (${e.k} ${e.k===1?'kolo':'kolá'})`:''}</span></div>`).join(''):'<p class="note">Nudný zápas bez gólov a kariet.</p>')+
+    <p class="note" style="text-align:center;margin-top:-4px">${z.live?`<span class="mzlive">NAŽIVO</span> ${z.live}. minúta`:`Šance (xG) ${String(u.xg[0]).replace('.',',')} : ${String(u.xg[1]).replace('.',',')}`}</p>`+
+    (u.ev.length?(z.live?u.ev.slice().reverse():u.ev).map(e=>`<div class="mzev ${e.s}"><i>${e.m}'</i><span>${ic[e.t]} ${esc(e.h)}${e.t==='gol'?' – '+esc(e.ako):e.t==='zran'?` (${e.k} ${e.k===1?'kolo':'kolá'})`:''}</span></div>`).join(''):(z.live?'<p class="note">Zatiaľ sa nič nestalo.</p>':'<p class="note">Nudný zápas bez gólov a kariet.</p>'))+
     `<h2>Zostavy</h2><div class="mzsost"><div>${u.zd.map(esc).join('<br>')}</div><div>${u.zh.map(esc).join('<br>')}</div></div>`);
 }
 function mzSlot(i){
