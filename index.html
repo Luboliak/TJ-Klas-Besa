@@ -1675,7 +1675,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ===== HRY (for fun): tipovačka, simulácia sezóny, simulátor zápasu ===== */
-let hsub='tip'; try{ hsub=localStorage.getItem('hsub')||'tip'; }catch(e){}
+let hsub='kviz'; try{ hsub=localStorage.getItem('hsub')||'kviz'; }catch(e){}
 const realM=m=>m.home!==BYE&&m.away!==BYE;
 function kickTs(m){ return m.date&&m.time?new Date(m.date+'T'+m.time).getTime():null; }
 let VELKE=null; // veľké európske ligy (data/velke.json z football-data.org)
@@ -2541,7 +2541,7 @@ function vPK(){
   if(pv) h+=`<p class="note" style="margin-top:0">${PV_N} priamych kopov z rôznych miest pred šestnástkou. Múr kryje bližšiu žrď, brankár čaká na druhej strane. Ponad múr prejde len vysoká strela so silou v zelenom: slabá skončí v múre, prisilná nestihne klesnúť a letí ponad bránku.</p>`;
   else h+=`<p class="note" style="margin-top:0">Kopeš penalty, kým nepremeníš. V bráne sa striedajú naši dvaja brankári: <b>žltý</b> je pevnejší, v strede ho ťažko prekonáš, ale horné rohy mu robia problém. <b>Fialový</b> je vysoký a tenký, hore dočiahne, no k zemi sa dostane pomalšie. Ťukni do brány, kam mieriš, a potom ťukni znova, aby si zastavil silu v zelenom.</p>`;
   h+='<div class="pkw"><canvas id="pkc" aria-label="Pokutové kopy, hra"></canvas></div>';
-  if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
+  if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Kvíze zadáš klubový PIN a vyberieš meno.</p>';
   else if(PK.st==='over'&&PK.saved) h+='<p class="note">Séria zapísaná do poradia.</p>';
   else if(PK.st==='over'&&PK.saveErr) h+=`<p class="note" style="color:#e06666">Do poradia sa nezapísalo: ${esc(PK.saveErr)}</p>`;
   if(PROXY){ const D0=board(PK.mode,'pk')||{}, B=D0.best||[]; h+=boardErr(PK.mode);
@@ -2809,7 +2809,7 @@ function arkSync(){ if(ARK_SYNC||!(PROXY&&CHPIN&&JA)) return; ARK_SYNC=true;
 async function arkSave(hra,score){ if(!(PROXY&&CHPIN&&JA&&score>0)) return false; try{ await chatApi('/hra/save',{pin:CHPIN,meno:JA,hra,score}); delete BOARDS[hra]; return true; }catch(e){ return false; } }
 function arkHtml(hra,title,col){
   let h='';
-  if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Tipovačke zadáš klubový PIN a vyberieš meno.</p>';
+  if(!(PROXY&&CHPIN&&JA)) h+='<p class="note">Do poradia sa zapíšeš, keď si v Kvíze zadáš klubový PIN a vyberieš meno.</p>';
   if(PROXY){ const D0=board(hra,hra)||{}, B=D0.best||[]; h+=boardErr(hra);
     const t=(L,e)=>L.length?boardTable(L.map(x=>[x.meno,x.score]),col):`<p class="note">${e}</p>`;
     if(hra==='pk'){ const MF=['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'], m=D0.m||skToday().slice(0,7);
@@ -3041,8 +3041,8 @@ function vBloky(){
 }
 
 function vHry(){
-  const segs=[['tip','Tipovačka'],['fan','Fantasy'],['kviz','Kvíz'],['pk','Penalty'],['sez','Sezóna'],['zap','Simulátor'],['kos','Kosenie'],['beh','Beh'],['bloky','Bloky']];
-  if(!segs.some(x=>x[0]===hsub)) hsub='tip';
+  const segs=[['kviz','Kvíz'],['pk','Penalty'],['sez','Sezóna'],['zap','Simulátor'],['kos','Kosenie'],['beh','Beh'],['bloky','Bloky']];
+  if(!segs.some(x=>x[0]===hsub)) hsub='kviz';
   let h=`<div class="seg hseg">${segs.map(([k,n])=>`<button data-hs="${k}" class="${hsub===k?'on':''}">${n}</button>`).join('')}</div>`;
   return h+(hsub==='tip'?vTip():hsub==='fan'?vFan():hsub==='kviz'?vKviz():hsub==='pk'?vPK():hsub==='sez'?vSezona():hsub==='kos'?vKos():hsub==='beh'?vBeh():hsub==='bloky'?vBloky():vZapas());
 }
