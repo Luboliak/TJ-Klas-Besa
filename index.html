@@ -2108,7 +2108,7 @@ async function mzZapas(id){
   openSheet(`<h3><span>${z.vyzva?'Priateľák':z.kolo+'. kolo'}</span>${closeBtn}</h3>
     <div class="mzscore"><div>${esc(z.de)}<br>${esc(z.dn)}</div><b>${z.gd}:${z.gh}</b><div>${esc(z.he)}<br>${esc(z.hn)}</div></div>
     <p class="note" style="text-align:center;margin-top:-4px">${z.live?`<span class="mzlive">NAŽIVO</span> ${z.live}. minúta`:`Šance (xG) ${String(u.xg[0]).replace('.',',')} : ${String(u.xg[1]).replace('.',',')}`}</p>`+
-    (u.ev.length?(z.live?u.ev.slice().reverse():u.ev).map(e=>`<div class="mzev ${e.s}"><i>${e.m}'</i><span>${ic[e.t]||''} ${e.t==='gol'?`<b>GÓL! ${esc(e.h)}</b> – ${esc(e.ako)}${e.txt?'. '+esc(e.txt):''}`:e.t==='sanca'||e.t==='kom'?esc(e.txt):esc(e.h)+(e.t==='zran'?` sa zranil (${e.k} ${e.k===1?'kolo':'kolá'})`:e.t==='zk'?' – žltá karta':e.t==='ck'?' – červená karta!':'')}</span></div>`).join(''):(z.live?'<p class="note">Zatiaľ sa nič nestalo.</p>':'<p class="note">Nudný zápas bez gólov a kariet.</p>'))+
+    (u.ev.length?(z.live?u.ev.slice().reverse():u.ev).map(e=>`<div class="mzev ${e.s}"><i>${e.m}'</i><span>${ic[e.t]||''} ${e.t==='gol'?`<b>GÓL! ${esc(e.h)}</b> – ${esc(e.ako)}${e.txt?'. '+esc(e.txt):''}`:e.t==='sanca'||e.t==='kom'?esc(e.txt):esc(e.h)+(e.t==='zran'?` sa zranil${e.txt?', '+esc(e.txt):''} (${e.k} ${e.k===1?'kolo':'kolá'})`:e.t==='zk'?` – žltá karta${e.txt?', '+esc(e.txt):''}`:e.t==='ck'?' – červená karta!':'')}</span></div>`).join(''):(z.live?'<p class="note">Zatiaľ sa nič nestalo.</p>':'<p class="note">Nudný zápas bez gólov a kariet.</p>'))+
     `<h2>Zostavy</h2><div class="mzsost"><div>${u.zd.map(esc).join('<br>')}</div><div>${u.zh.map(esc).join('<br>')}</div></div>`);
 }
 function mzSlot(i){
