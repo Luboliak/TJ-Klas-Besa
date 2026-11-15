@@ -1984,7 +1984,7 @@ function board(key,sub){
 }
 const boardErr=key=>BOARDS[key]&&BOARDS[key].err&&!BOARDS[key].d?'<p class="note">Poradie sa nepodarilo načítať, skúsim znova o chvíľu.</p>':'';
 /* --- KVÍZ (12 otázok denne, vyhodnocuje server – víťaz mesiaca dostane bonus k výplate) --- */
-const BONUS={kviz:40, pk:20, mvp:15}; // € k výplate: víťaz mesiaca v kvíze, víťaz mesiaca v penaltách, hráč zápasu
+const BONUS={kviz:30, pk:15, mvp:15}; // € k výplate: víťaz mesiaca v kvíze, víťaz mesiaca v penaltách, hráč zápasu
 let KV={st:'start', stav:null, q:null, fb:null, picked:null, t0:0, left:0, timer:null, busy:false, err:''};
 async function kqApi(p,b){ return chatApi('/hra/kq/'+p,Object.assign({pin:CHPIN,meno:JA},b||{})); }
 async function kqStav(){ if(KV.busy) return; KV.busy=true;
