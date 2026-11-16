@@ -2183,13 +2183,13 @@ function mzClick(b){
 /* --- KVÍZ (12 otázok denne, vyhodnocuje server – víťaz mesiaca dostane bonus k výplate) --- */
 const BONUS={kviz:20, pk:10, mvp:15, manazer:20}; // € k výplate: víťaz mesiaca v kvíze, víťaz mesiaca v penaltách, hráč zápasu
 let KV={st:'start', stav:null, q:null, fb:null, picked:null, t0:0, left:0, timer:null, busy:false, err:''};
-async function kqApi(p,b){ return chatApi('/hra/kq/'+p,Object.assign({pin:CHPIN,meno:JA},b||{})); }
+async function kqApi(p,b){ return chatApi('/hra/kq/'+p,Object.assign({pin:CHPIN,meno:JA},p!=='stav'&&KV.den?{den:KV.den}:{},b||{})); }
 async function kqStav(){ if(KV.busy) return; KV.busy=true;
   try{ KV.stav=await kqApi('stav'); KV.err=''; }catch(e){ KV.err=e.message; }
   finally{ KV.busy=false; if(!hraBezi()) hr('kviz'); } }
 async function kvNext(){
   try{ const q=await kqApi('otazka');
-    if(q.koniec){ KV.st='start'; KV.q=null; clearInterval(KV.timer); KV.stav=null; kqStav(); return; }
+    if(q.koniec){ KV.st='start'; KV.q=null; KV.den=null; clearInterval(KV.timer); KV.stav=null; kqStav(); return; }
     KV.q=q; KV.fb=null; KV.picked=null; KV.st='q'; KV.t0=Date.now(); KV.left=q.zostava;
     clearInterval(KV.timer);
     KV.timer=setInterval(()=>{ if(KV.st!=='q'||KV.picked!=null) return;
@@ -2205,14 +2205,14 @@ async function kvAnswer(i){
   try{ KV.fb=await kqApi('odpoved',{k:i}); }catch(e){ KV.fb={error:e.message}; }
   hr('kviz');
   const f=KV.fb||{};
-  setTimeout(()=>{ if(f.koniec){ KV.st='start'; KV.q=null; clearInterval(KV.timer); KV.stav=null; delete BOARDS.kq; kqStav(); } else kvNext(); }, f.pozn?(f.ok?2600:3800):(f.ok?1000:2000));
+  setTimeout(()=>{ if(f.koniec){ KV.st='start'; KV.q=null; KV.den=null; clearInterval(KV.timer); KV.stav=null; delete BOARDS.kq; kqStav(); } else kvNext(); }, f.pozn?(f.ok?2600:3800):(f.ok?1000:2000));
 }
 function vKviz(){
   const intro=`<p class="note" style="margin-top:0">Každý deň 12 otázok a každý hráč má svoje vlastné – v ten istý deň nikto nedostane rovnakú otázku, takže si nemáte čo poradiť. Obťažnosť je pre všetkých rovnaká (4 ľahšie, 3 stredné, 3 ťažké a 2 príklady). Na otázku je len 10 sekúnd, takže sa nedá odpoveď dohľadať v mobile ani pýtať umelej inteligencie. Správne = 10 bodov + 1 bod za každú ušetrenú sekundu. Body sa sčítavajú za mesiac a za rok. <b>Víťaz mesiaca dostane ${BONUS.kviz} € k výplate.</b></p>`;
   const g=hryGate(intro); if(g) return g;
   if(KV.st==='q'&&KV.q){
     const q=KV.q, f=KV.fb, left=Math.max(0,KV.left-(Date.now()-KV.t0)/1000);
-    let h=`<div class="kvh"><span>Otázka ${q.n}/${q.z}</span><span>${f&&f.s!=null?f.s:q.s} b</span></div><div class="kvt"><i id="kvbar" style="width:${KV.picked!=null?0:left/10*100}%"></i></div><p class="kvtema">${esc(q.tema||'')}</p><p class="kvq">${esc(q.text)}</p><div class="kvo">`;
+    let h=(KV.den?`<p class="note" style="margin:0 0 6px">Dohrávaš kvíz z dňa ${dLabel(KV.den)}</p>`:'')+`<div class="kvh"><span>Otázka ${q.n}/${q.z}</span><span>${f&&f.s!=null?f.s:q.s} b</span></div><div class="kvt"><i id="kvbar" style="width:${KV.picked!=null?0:left/10*100}%"></i></div><p class="kvtema">${esc(q.tema||'')}</p><p class="kvq">${esc(q.text)}</p><div class="kvo">`;
     q.opts.forEach((o,i)=>{ let c=''; if(f&&f.spravna!=null){ if(i===f.spravna) c='ok'; else if(i===KV.picked) c='bad'; } else if(i===KV.picked) c='sel';
       h+=`<button data-kva="${i}" class="${c}"${KV.picked!=null?' disabled':''}>${esc(o)}</button>`; });
     h+='</div>';
@@ -2227,6 +2227,7 @@ function vKviz(){
   if(d&&d.i>=S.n&&!d.pend) h+=`<div class="tiles"><div><small>Dnes správne</small><b>${d.c}/${S.n}</b></div><div><small>Dnes body</small><b>${d.s}</b></div></div><p>Dnešný kvíz máš za sebou. Zajtra bude nový.</p>`;
   else if(d&&d.i>0) h+=`<button class="btn pri" data-kvgo="1" style="width:100%">Pokračovať (otázka ${Math.min(S.n,d.i+(d.pend?0:1))}/${S.n})</button><p class="note">Rozohraný kvíz – otázka, z ktorej si odišiel, sa počíta podľa času.</p>`;
   else h+=`<button class="btn pri" data-kvgo="1" style="width:100%">Spustiť dnešný kvíz (${S.n} otázok)</button>`;
+  if(S.zmeskane&&S.zmeskane.length) h+=`<div class="zbox" style="margin-top:12px"><b>Zmeškané kvízy</b>${S.zmeskane.map(z=>`<div><span>${dLabel(z.den)}${z.i?` · rozohraný (${z.i}/${S.n})`:''}</span><button class="btn sm pri" data-kvden="${z.den}">${z.i?'Pokračovať':'Dohrať'}</button></div>`).join('')}<p class="note" style="margin:6px 0 0">Zabudnutý kvíz sa dá dohrať najviac 3 dni dozadu, body sa pripíšu k tomu dňu. Na prelome mesiaca sa už minulý mesiac dohrať nedá.</p></div>`;
   const me=S.meno, mn=new Date(S.den+'T12:00'), MF=['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'];
   const tab=(L,empty)=>L.length?boardTable(L.map(x=>[x.meno,x.body,x.dni]),'Body','Dní',me):`<p class="note">${empty}</p>`;
   h+=`<h2>${MF[mn.getMonth()]} ${mn.getFullYear()} <small class="mute">víťaz +${BONUS.kviz} €</small></h2>`+tab(S.rebricek.mesiac,'Tento mesiac ešte nikto nehral.');
@@ -3117,7 +3118,8 @@ function hryClick(b){
     chatApi('/chat/history?pin='+encodeURIComponent(p)).then(()=>{ CHPIN=p; lsSet('chatPin',p); TIP.mine=null; FAN.mine=null; render(); }).catch(e=>toast(e.status===429?e.message:'Zlý PIN')); return true; }
   if(d.sezagain!==undefined){ SEZ.key=''; render(); return true; }
   if(d.sezone!==undefined){ const l=hryLeague(); SEZ.one=playOnce(l); SEZ.oneKey=l.id+'|'+(l.at||''); render(); return true; }
-  if(d.kvgo!==undefined){ kvNext(); return true; }
+  if(d.kvgo!==undefined){ KV.den=null; kvNext(); return true; }
+  if(d.kvden){ KV.den=d.kvden; kvNext(); return true; }
   if(d.kva!==undefined){ kvAnswer(+d.kva); return true; }
   if(d.fadd){ fanPicker(); return true; }
   if(d.fpick){ const E=FAN.edit; if(E&&E.picks.length<FAN_N&&!E.picks.includes(d.fpick)){ E.picks.push(d.fpick); if(!E.cap) E.cap=d.fpick; } closeSheet(); render(); return true; }

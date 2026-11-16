@@ -3,7 +3,9 @@
 // Meno hráča určuje server podľa osobného hesla (alebo správca v apke s klubovým PIN-om).
 import POOL from './kviz-klub-otazky.js';
 
-const N = 12, SEC = 10; // 10 s: nestihne sa odfotiť alebo nadiktovať otázku umelej inteligencii a čakať na odpoveď
+const N = 12, SEC = 10, DOZADU = 3; // zmeškaný kvíz sa dá dohrať najviac 3 dni dozadu (len v tom istom mesiaci)
+
+// // 10 s: nestihne sa odfotiť alebo nadiktovať otázku umelej inteligencii a čakať na odpoveď
 const NOSTORE = { 'Cache-Control': 'no-store' };
 // zloženie dennej sady: 4 ľahšie, 3 stredné, 3 ťažké otázky z banky + 2 príklady (počty a logika) – rovnaká obťažnosť pre všetkých
 const SKLAD = [1, 1, 1, 1, 2, 2, 'm2', 2, 3, 3, 'm3', 3];
@@ -84,7 +86,10 @@ export function klubKviz(room, path, body, meno, skDate) {
   const rows = (s, ...a) => [...sql(s, ...a)];
   const out = (o, st = 200) => new Response(JSON.stringify(o), { status: st, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', ...NOSTORE } });
   if (!meno) return out({ error: 'Chýba meno' }, 400);
-  const now = Date.now(), den = skDate(0);
+  const now = Date.now(), dnesDen = skDate(0);
+  // dni, ktoré sa ešte dajú dohrať: včera až 3 dni dozadu, len v aktuálnom mesiaci (víťaz minulého mesiaca je už uzavretý)
+  const dozadu = [...Array(DOZADU)].map((_, i) => skDate(-(i + 1))).filter(x => x.slice(0, 7) === dnesDen.slice(0, 7));
+  const den = body.den && dozadu.includes(String(body.den)) ? String(body.den) : dnesDen;
   const dnes = () => rows('SELECT i, s, c, r, pend, t0, sada FROM kq_dni WHERE meno=? AND den=?', meno, den)[0] || null;
   const sada = d => { let S = []; try { S = JSON.parse(d.sada || '[]'); } catch (e) {} if (S.length < N) { S = novaSada(rows, sql, meno, den); sql('UPDATE kq_dni SET sada=? WHERE meno=? AND den=?', JSON.stringify(S), meno, den); } return S; };
   const uzavriet = d => {
@@ -120,10 +125,11 @@ export function klubKviz(room, path, body, meno, skDate) {
 
   // stav: dnešok + rebríčky
   const d = uzavriet(dnes()), m = den.slice(0, 7), y = den.slice(0, 4);
+  const zmeskane = dozadu.map(x => { const r = rows('SELECT i, pend FROM kq_dni WHERE meno=? AND den=?', meno, x)[0]; return { den: x, i: r ? r.i : 0, hotovo: !!r && r.i >= N && !r.pend }; }).filter(x => !x.hotovo);
   const pm = new Date(Date.UTC(+y, +den.slice(5, 7) - 2, 15)).toISOString().slice(0, 7);
   return out({
     meno, den, n: N, sec: SEC,
-    dnes: d ? { i: d.i, s: d.s, c: d.c, r: d.r, pend: !!d.pend } : null,
+    dnes: d ? { i: d.i, s: d.s, c: d.c, r: d.r, pend: !!d.pend } : null, zmeskane,
     rebricek: { dnes: kqBoard(rows, den, den), mesiac: kqBoard(rows, m + '-01', m + '-31'), rok: kqBoard(rows, y + '-01-01', y + '-12-31') },
     minulyMesiac: { m: pm, top: kqBoard(rows, pm + '-01', pm + '-31').slice(0, 3) },
   });
