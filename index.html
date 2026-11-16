@@ -115,6 +115,20 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .mzscore{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;text-align:center;margin:6px 0 10px}.mzscore b{font-family:var(--cond);font-size:38px}
 .mzev{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line)}.mzev.n{justify-content:center;text-align:center;color:var(--mute);font-style:italic}.mzev.n i{display:none}.mzev i{font-style:normal;color:var(--mute);min-width:30px}.mzev.h{flex-direction:row-reverse;text-align:right}
 .mzlive{background:#d64545;color:#fff;font-size:11px;font-weight:700;border-radius:4px;padding:2px 6px;vertical-align:middle;letter-spacing:.5px}.mzmin{display:block;font-size:11px;color:#d64545;font-family:var(--sans,inherit);font-weight:600}
+.mzseg{display:grid;grid-template-columns:repeat(3,1fr)}.mzseg button{border-bottom:1px solid var(--line);font-size:14px;padding-left:2px;padding-right:2px}.mzseg button:nth-child(n+7){border-bottom:0}
+.mzdot{background:#d64545;color:#fff;border-radius:9px;font-size:11px;padding:0 6px;font-weight:700}
+.mzscroll{overflow-x:auto;margin:0 -4px}.mzk td.l{text-align:left;white-space:nowrap}.mzscroll table{min-width:560px}
+.mzpost td:first-child{box-shadow:inset 3px 0 #3fa35b}.mzzost td:first-child{box-shadow:inset 3px 0 #d64545}
+.mzforma i{font-style:normal;display:inline-block;width:15px;height:15px;line-height:15px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;margin-left:1px;text-align:center}.mzforma .V{background:#3fa35b}.mzforma .R{background:#8a8f98}.mzforma .P{background:#d64545}
+.mztn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}.mzforma{white-space:nowrap}
+.mzkolo{font-size:14px;margin:14px 0 2px;color:var(--mute);text-transform:uppercase;letter-spacing:.5px}
+.mzeko{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mzeko div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px}.mzeko small{display:block;color:var(--mute);font-size:12px}.mzeko b{font-family:var(--cond);font-size:22px}
+.mzlog{border-top:1px solid var(--line);padding:7px 0;font-size:14px}.mzlog small{color:var(--mute);margin-right:6px}
+.mzarch{border-top:1px solid var(--line);padding:8px 0;font-size:14px;line-height:1.55}
+.mztr2{border-top:1px solid var(--line);padding:8px 0}.mztrb{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px}.mztrb .btn{padding-left:2px;padding-right:2px}
+.mzponin{width:76px;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.chk{display:flex;gap:8px;align-items:center;margin:10px 0;font-size:14.5px}
+.mzpitch{width:100%;border-radius:10px;display:block}
 .mzsost{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13.5px}.mzsost div:last-child{text-align:right}
 /* dochádzka / výplata */
 .zbox{border:1px solid #e0a040;border-radius:10px;padding:10px 12px;margin:0 0 12px}.zbox>div{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:6px;font-size:14px}
@@ -1709,7 +1723,7 @@ function vedClick(b){
   if(ds.restore){ restoreFile(); return true; }
   return false;
 }
-document.addEventListener('change',e=>{ if(e.target.id==='mzForm'&&MZ.st&&MZ.st.tim){ mzApi('zostava',{form:e.target.value,takt:MZ.st.tim.takt,ids:[]}); } });
+document.addEventListener('change',e=>{ if(e.target.id==='mzForm'&&MZ.st&&MZ.st.tim){ mzApi('zostava',{form:e.target.value,takt:MZ.st.tim.takt,ids:[]}); } if(e.target.id==='mzVst'&&MZ.st&&MZ.st.tim){ mzApi('vstupne',{v:+e.target.value}); } });
 document.addEventListener('change',e=>{ const id=e.target.dataset&&e.target.dataset.pname; if(!id) return;
   const p=D.players.find(x=>x.id===id), v=e.target.value.trim(); if(p&&v){ p.name=v; save(); render(); } });
 document.addEventListener('keydown',e=>{
@@ -2056,6 +2070,9 @@ const boardErr=key=>BOARDS[key]&&BOARDS[key].err&&!BOARDS[key].d?'<p class="note
 let MZ={st:null, busy:false, err:'', sub:'tim'};
 const MZ_ERB=['🦖','🦕','🦅','🐺','🦁','🐗','🐻','🦊','⚡','🔥','⭐','🛡️','🐝','🐉','🐂','🦈','🍀','👑'];
 const MZ_POST={B:'B',O:'O',S:'S',U:'Ú'}, MZ_TAKT=[['utok','Útočne'],['vyrov','Vyrovnane'],['obrana','Obranne']];
+const MZ_ATTR=[['utok','Ú','útok'],['obrana','O','obrana'],['kond','K','kondícia'],['rychlost','R','rýchlosť'],['technika','T','technika'],['hlavicky','H','hlavičky'],['nervy','N','nervy']];
+const MZ_PRES={nizky:'Nízky (šetrí sily)',stredny:'Stredný',vysoky:'Vysoký (unavuje, viac fauluje)'}, MZ_STYL={kombinacia:'Kombinácia (technika)',kridla:'Cez krídla (rýchlosť)',dlhe:'Dlhé lopty (hlavičky)',protiutoky:'Protiútoky (rýchlosť)'};
+const MZ_AK={vzdy:'vždy',prehravame:'ak prehrávame',remiza:'ak je remíza',vyhravame:'ak vyhrávame'};
 async function mzApi(p,b,keep){
   if(MZ.busy) return null; MZ.busy=true;
   try{ const j=await chatApi('/mz/'+p,Object.assign({pin:CHPIN,meno:JA},b||{})); if(!keep) MZ.st=j; MZ.err=''; return j; }
@@ -2064,31 +2081,40 @@ async function mzApi(p,b,keep){
 }
 function mzDen(d){ return dLabel(d); }
 function mzErb(t,big){ return `<span class="mzerb${big?' big':''}" style="--f1:${t.f1||'#444'};--f2:${t.f2||'#fff'}">${esc(t.erb||'⚽')}</span>`; }
+function mzNm(S,m){ return esc((S.timy.find(t=>t.meno===m)||{}).nazov||m||'—'); }
 function vManazer(){
-  const intro=`<p class="note" style="margin-top:0">Postav si vlastný tím a hraj ligu proti spoluhráčom. Prvá sezóna začína 1. decembra, kolá sa hrajú každý deň o 20:00 a sezóna trvá aspoň mesiac (každý s každým aj viackrát). Majster sezóny dostane ${BONUS.manazer} € k výplate. Za každý tvoj skutočný tréning dostaneš tréningové body na zlepšenie hráčov, body z kvízu sa od začiatku súťaže menia na kredity na prestupy. Tím si môžeš založiť a pripraviť už teraz.</p>`;
+  const intro=`<p class="note" style="margin-top:0">Postav si vlastný tím a hraj ligu, pohár a superpohár proti spoluhráčom. Prvá sezóna začína 1. decembra, ligové kolá sa hrajú každý deň o 20:00, pohár o 18:00 a sezóna trvá aspoň mesiac. Majster sezóny dostane ${BONUS.manazer} € k výplate. Za každý tvoj skutočný tréning dostaneš tréningové body na zlepšenie hráčov, body z kvízu sa od začiatku súťaže menia na kredity. Tím si môžeš založiť a pripraviť už teraz.</p>`;
   const g=hryGate(intro); if(g) return '<h2 style="margin-top:0">Beša manažér</h2>'+g;
   if(!MZ.st&&!MZ.busy&&!MZ.err) mzApi('stav');
   const S=MZ.st;
   if(!S) return '<h2 style="margin-top:0">Beša manažér</h2>'+(MZ.err?`<div class="empty">${esc(MZ.err)}<br><br><button class="btn" data-mzr="1">Skúsiť znova</button></div>`:'<p class="note">Načítavam…</p>');
   if(!S.tim) return mzNovy(intro,S);
-  clearTimeout(MZ.poll); if((S.sez&&S.sez.posledne&&S.sez.posledne.some(z=>z.live))||(S.tim&&S.tim.vyzvy.some(z=>z.live))) MZ.poll=setTimeout(()=>{ if(tab==='mz'&&!MZ.busy) mzApi('stav'); },20000);
-  const T=S.tim, segs=[['tim','Tím'],['liga','Liga'],['tren','Tréning'],['trh','Prestupy'],['vyz','Priateľák']];
-  let h=`<div class="mzhead">${mzErb(T,1)}<div><b>${esc(T.nazov)}</b><small>${T.kredit} kreditov · ${T.tb} TB</small></div></div>`;
-  h+=`<div class="seg hseg">${segs.map(([k,n])=>`<button data-mzs="${k}" class="${MZ.sub===k?'on':''}">${n}</button>`).join('')}</div>`;
-  return h+(MZ.sub==='liga'?mzLiga(S):MZ.sub==='tren'?mzTren(S):MZ.sub==='trh'?mzTrh(S):MZ.sub==='vyz'?mzVyz(S):mzTim(S));
+  clearTimeout(MZ.poll); if((S.sez&&S.sez.ziveTeraz&&S.sez.ziveTeraz.length)||(S.tim&&S.tim.vyzvy.some(z=>z.live))) MZ.poll=setTimeout(()=>{ if(tab==='mz'&&!MZ.busy) mzApi('stav'); },20000);
+  const T=S.tim, np=T.ponukyPrijate.length, segs=[['tim','Zostava'],['takt','Taktika'],['liga','Liga'],['pohar','Pohár'],['klub','Klub'+(np?` <span class="mzdot">${np}</span>`:'')],['tren','Tréning'],['trh','Prestupy'],['vyz','Priateľák'],['stat','Štatistiky']];
+  let h=`<div class="mzhead">${mzErb(T,1)}<div><b>${esc(T.nazov)}</b><small>${T.kredit} kreditov · ${T.tb} TB · ${T.fans} fanúšikov</small></div></div>`;
+  h+=`<div class="seg mzseg">${segs.map(([k,n])=>`<button data-mzs="${k}" class="${MZ.sub===k?'on':''}">${n}</button>`).join('')}</div>`;
+  const f={liga:mzLiga,pohar:mzPohar,klub:mzKlub,tren:mzTren,trh:mzTrh,vyz:mzVyz,stat:mzStat,takt:mzTaktika}[MZ.sub]||mzTim;
+  return h+f(S);
 }
 const MZ_LEG=`<details class="mzleg"><summary>Čo znamenajú skratky?</summary><dl>
   <dt>B · O · S · Ú</dt><dd>Post hráča: brankár, obranca, záložník, útočník. Hráč mimo svojho postu má len 75 % sily, brankár v poli (alebo hráč v bránke) ešte menej.</dd>
-  <dt>Ú – útok</dt><dd>Ako dobre strieľa a tvorí šance. Najdôležitejší pre útočníkov a záložníkov.</dd>
-  <dt>O – obrana</dt><dd>Ako dobre bráni. Pri brankárovi je to chytanie. Najdôležitejšia pre brankára a obrancov.</dd>
-  <dt>K – kondícia</dt><dd>Ako rýchlo sa hráč unaví. S vyššou kondíciou môže hrať viac zápasov za sebou.</dd>
+  <dt>Ú – útok</dt><dd>Streľba a tvorenie šancí. Najdôležitejší pre útočníkov a záložníkov.</dd>
+  <dt>O – obrana</dt><dd>Bránenie, pri brankárovi chytanie (aj penált).</dd>
+  <dt>K – kondícia</dt><dd>Ako rýchlo sa hráč unaví počas zápasu aj medzi zápasmi.</dd>
+  <dt>R – rýchlosť</dt><dd>Dôležitá pri hre cez krídla a protiútokoch. Rýchli útočníci trestajú ofsajdovú pascu. Po tridsiatke klesá najrýchlejšie.</dd>
+  <dt>T – technika</dt><dd>Kombinačná hra a priame kopy. Dobrý exekútor rohov a priamych kopov má vysokú techniku.</dd>
+  <dt>H – hlavičky</dt><dd>Góly po rohoch a pri hre dlhými loptami.</dd>
+  <dt>N – nervy</dt><dd>Penalty a penaltové rozstrely. S vekom skôr rastú.</dd>
   <dt>F – forma</dt><dd>Aktuálna forma (25 – 85, priemer 50). Rastie po výhrach, klesá po prehrách a keď hráč dlho nehrá.</dd>
-  <dt>Ún – únava</dt><dd>0 = oddýchnutý, 100 = úplne vyčerpaný. Rastie s každým zápasom, klesá, keď hráč kolo vynechá. Unavený hráč hrá horšie.</dd>
-  <dt>G – góly</dt><dd>Koľko gólov dal hráč v ligových zápasoch.</dd>
-  <dt>Sila</dt><dd>Celkové hodnotenie hráča podľa jeho postu (z útoku, obrany a kondície).</dd>
-  <dt>🚑 / 🟥 stop</dt><dd>Zranený na toľko kôl / po červenej karte vynechá najbližšie ligové kolo.</dd>
-  <dt>TB – tréningové body</dt><dd>Za ne zlepšuješ útok, obranu a kondíciu. Dostávaš ich za skutočné tréningy a za odohrané kolá.</dd>
-  <dt>Kredity</dt><dd>Peniaze na prestupy. Za body z kvízu a za výsledky zápasov.</dd>
+  <dt>Ún – únava</dt><dd>0 = oddýchnutý, 100 = vyčerpaný. Rastie s každým zápasom (pri vysokom presingu rýchlejšie), klesá, keď hráč kolo vynechá.</dd>
+  <dt>G – góly</dt><dd>Góly v súťažných zápasoch (liga, pohár, superpohár).</dd>
+  <dt>Sila</dt><dd>Celkové hodnotenie hráča podľa jeho postu (zo všetkých schopností).</dd>
+  <dt>Vek a potenciál</dt><dd>Hráči do 24 rokov sa po každej sezóne zlepšujú smerom k svojmu potenciálu (⭐ = talent), po tridsiatke slabnú, po 35 končia kariéru.</dd>
+  <dt>🌱 odchovanec</dt><dd>Mladík z dorastu. Na začiatku sezóny dostane každý tím 1 – 2 nových.</dd>
+  <dt>🚑 / 🟥 stop</dt><dd>Zranený na toľko kôl / po červenej karte (aj po druhej žltej) vynechá najbližší zápas.</dd>
+  <dt>Plat</dt><dd>Koľko kreditov stojí hráč za každé ligové kolo. Lepší hráč = vyšší plat.</dd>
+  <dt>TB – tréningové body</dt><dd>Za ne zlepšuješ schopnosti hráčov. Dostávaš ich za skutočné tréningy a za odohrané kolá.</dd>
+  <dt>Kredity</dt><dd>Peniaze klubu: za body z kvízu, výsledky, vstupné; míňajú sa na platy, prestupy a štadión.</dd>
   <dt>xG – šance</dt><dd>Koľko gólov by tím „mal“ dať podľa šancí. Ukazuje, či výsledok bol zaslúžený alebo šťastný.</dd>
 </dl></details>`;
 function mzNovy(intro,S){
@@ -2097,80 +2123,184 @@ function mzNovy(intro,S){
   <div class="row2"><label class="f"><span>Farba dresu</span><input type="color" id="mzF1" value="#111111"></label><label class="f"><span>Druhá farba</span><input type="color" id="mzF2" value="#f2c200"></label></div>
   <p class="note" style="margin:8px 0 4px">Erb</p><div class="mzerbs">${MZ_ERB.map((e,i)=>`<button class="btn${i===0?' pri':''}" data-mzerb="${e}">${e}</button>`).join('')}</div>
   <button class="btn pri" style="width:100%;margin-top:12px" data-mzzaloz="1">Založiť tím</button>
-  <p class="note">Dostaneš 16 hráčov (2 brankári, 5 obrancov, 5 záložníkov, 4 útočníkov) a ${1000} kreditov. Všetci začínajú s rovnako silným kádrom.</p>`;
+  <p class="note">Dostaneš 16 hráčov (2 brankári, 5 obrancov, 5 záložníkov, 4 útočníkov) a 1000 kreditov. Všetci začínajú s rovnako silným kádrom.</p>`;
   if(S.timy.length) h+=`<h2>V lige sú</h2><p>${S.timy.map(t=>mzErb(t)+' '+esc(t.nazov)).join('<br>')}</p>`;
   return h;
 }
 function mzTim(S){
-  const T=S.tim, by=new Map(T.hraci.map(h=>[h.id,h]));
+  const T=S.tim, by=new Map(T.hraci.map(h=>[h.id,h])), tk=T.taktika;
   let h=`<div class="row2"><label class="f"><span>Rozostavenie</span><select id="mzForm">${S.pravidla.formacie.map(f=>`<option ${T.form===f?'selected':''}>${f}</option>`).join('')}</select></label></div>`;
   h+=`<div class="seg">${MZ_TAKT.map(([k,n])=>`<button data-mztakt="${k}" class="${T.takt===k?'on':''}">${n}</button>`).join('')}</div>`;
   h+=`<h2>Zostava <small class="mute">ťukni na hráča a vymeň ho</small></h2><div class="mzz">`;
-  T.zostava.forEach((z,i)=>{ const p=by.get(z.id); h+=`<button class="mzslot" data-mzslot="${i}"><i>${MZ_POST[z.p]}</i><span>${esc(p.meno)}${p.post!==z.p?' <small class="neg">mimo postu</small>':''}</span><b>${p.ovr}</b>${p.unava>40?'<small class="neg">unavený</small>':''}</button>`; });
+  T.zostava.forEach((z,i)=>{ const p=by.get(z.id); if(!p) return; const role=[tk.kap===p.id?'©':'',tk.pen===p.id?'pen':'',tk.roh===p.id?'roh':'',tk.pk===p.id?'pk':''].filter(Boolean).join(' '); h+=`<button class="mzslot" data-mzslot="${i}"><i>${MZ_POST[z.p]}</i><span>${esc(p.meno)}${role?` <small class="mute">${role}</small>`:''}${p.post!==z.p?' <small class="neg">mimo postu</small>':''}</span><b>${p.ovr}</b>${p.unava>40?'<small class="neg">unavený</small>':''}</button>`; });
   h+=`</div><button class="btn" style="width:100%;margin-top:8px" data-mzauto="1">Najlepšia zostava automaticky</button>`;
-  h+=`<h2>Káder (${T.hraci.length})</h2><table class="lt mzk"><thead><tr><th class="l">Hráč</th><th>Post</th><th title="Útok">Ú</th><th title="Obrana">O</th><th title="Kondícia">K</th><th title="Forma">F</th><th title="Únava">Ún</th><th title="Góly">G</th></tr></thead><tbody>`+
-    T.hraci.map(p=>`<tr class="${T.zostava.some(z=>z.id===p.id)?'us':''}"><td class="l">${esc(p.meno)}${p.zran?` <span class="neg">🚑 ${p.zran}</span>`:''}${p.trest?' <span class="neg">🟥 stop</span>':''}</td><td>${MZ_POST[p.post]}</td><td>${p.utok}</td><td>${p.obrana}</td><td>${p.kond}</td><td>${p.forma}</td><td>${p.unava}</td><td>${p.goly}</td></tr>`).join('')+'</tbody></table>';
+  h+=`<h2>Káder (${T.hraci.length})</h2><div class="mzscroll"><table class="lt mzk"><thead><tr><th class="l">Hráč</th><th>Post</th><th>Vek</th><th>Sila</th>${MZ_ATTR.map(a=>`<th title="${a[2]}">${a[1]}</th>`).join('')}<th title="Forma">F</th><th title="Únava">Ún</th><th title="Góly">G</th><th title="Plat za kolo">Plat</th></tr></thead><tbody>`+
+    T.hraci.map(p=>`<tr class="${T.zostava.some(z=>z.id===p.id)?'us':''}"><td class="l">${esc(p.meno)}${p.odchovanec?' 🌱':''}${p.potencial>p.ovr+8&&p.vek<=23?' ⭐':''}${p.zran?` <span class="neg">🚑 ${p.zran}</span>`:''}${p.trest?' <span class="neg">🟥 stop</span>':''}</td><td>${MZ_POST[p.post]}</td><td>${p.vek}</td><td><b>${p.ovr}</b></td>${MZ_ATTR.map(a=>`<td>${p[a[0]]}</td>`).join('')}<td>${p.forma}</td><td>${p.unava}</td><td>${p.goly}</td><td>${p.plat}</td></tr>`).join('')+'</tbody></table></div>';
+  h+=MZ_LEG;
   h+=`<h2>Erb a farby</h2><div class="mzerbs">${MZ_ERB.map(e=>`<button class="btn${T.erb===e?' pri':''}" data-mzerb2="${e}">${e}</button>`).join('')}</div>
     <div class="row2" style="margin-top:8px"><label class="f"><span>Farba dresu</span><input type="color" id="mzE1" value="${T.f1||'#111111'}"></label><label class="f"><span>Druhá farba</span><input type="color" id="mzE2" value="${T.f2||'#ffffff'}"></label></div>
     <button class="btn" style="width:100%;margin-top:8px" data-mzfarby="1">Uložiť farby</button>`;
   h+=`<h2>Zmazať tím</h2><p class="note">Tím aj všetci jeho hráči zmiznú natrvalo. Ak beží sezóna, tvoje zostávajúce zápasy sa už neodohrajú. Nový tím si môžeš založiť hneď, do ligy sa dostane od ďalšej sezóny.</p><button class="btn" style="width:100%;color:#e06666" data-mzzmaz="1">Zmazať môj tím</button>`;
-  h+=MZ_LEG;
-  h+='<p class="note">Únava rastie, keď hráč hrá, a klesá, keď oddychuje. Unavený alebo zranený hráč hrá horšie, oplatí sa striedať. Hráč mimo svojho postu má 75 % sily. Po červenej karte (aj po druhej žltej) hráč jedno ligové kolo nehrá.</p>';
   return h;
+}
+function mzTaktika(S){
+  const T=S.tim, tk=T.taktika, by=new Map(T.hraci.map(h=>[h.id,h])), zo=T.zostava.map(z=>by.get(z.id)).filter(Boolean), lav=T.hraci.filter(p=>!T.zostava.some(z=>z.id===p.id)&&!p.zran&&!p.trest);
+  const sel=(id,cur,L,attr)=>`<select id="${id}"><option value="">automaticky</option>${L.map(p=>`<option value="${p.id}" ${cur===p.id?'selected':''}>${esc(p.meno)}${attr?` (${MZ_ATTR.find(a=>a[0]===attr)[1]} ${p[attr]})`:''}</option>`).join('')}</select>`;
+  let h=`<p class="note" style="margin-top:0">Taktika platí pre ligu, pohár aj priateľáky. Zmeny sa prejavia od najbližšieho zápasu.</p>
+  <label class="f"><span>Presing</span><select id="mzPres">${Object.entries(MZ_PRES).map(([k,n])=>`<option value="${k}" ${tk.presing===k?'selected':''}>${n}</option>`).join('')}</select></label>
+  <label class="f"><span>Štýl hry</span><select id="mzStyl">${Object.entries(MZ_STYL).map(([k,n])=>`<option value="${k}" ${tk.styl===k?'selected':''}>${n}</option>`).join('')}</select></label>
+  <label class="chk"><input type="checkbox" id="mzPasca" ${tk.pasca?'checked':''}> Ofsajdová pasca <small class="mute">(funguje na pomalých útočníkov, rýchli ju trestajú)</small></label>
+  <div class="row2"><label class="f"><span>© Kapitán</span>${sel('mzKap',tk.kap,zo)}</label><label class="f"><span>Penalty</span>${sel('mzPen',tk.pen,zo,'nervy')}</label></div>
+  <div class="row2"><label class="f"><span>Rohy</span>${sel('mzRoh',tk.roh,zo,'technika')}</label><label class="f"><span>Priame kopy</span>${sel('mzPk',tk.pk,zo,'technika')}</label></div>
+  <button class="btn pri" style="width:100%;margin-top:8px" data-mztk="1">Uložiť taktiku</button>`;
+  h+=`<h2>Striedania počas zápasu</h2><p class="note">Najviac 5 pravidiel. Ak nenastavíš nič, tréner sám vystrieda unavených hráčov. Zraneného hráča vystrieda vždy automaticky.</p>`;
+  h+=(T.striedania.length?T.striedania.map((r,i)=>`<div class="mztr"><div><b>${r.min}'</b> ${MZ_AK[r.ak]}: ${esc((by.get(r.von)||{}).meno||'?')} ➜ ${esc((by.get(r.dnu)||{}).meno||'?')}</div><button class="btn sm" data-mzstrdel="${i}">✕</button></div>`).join(''):'<p class="note">Zatiaľ žiadne pravidlá.</p>');
+  if(T.striedania.length<5) h+=`<div class="mzstrf"><div class="row2"><label class="f"><span>Minúta</span><input type="number" id="mzSMin" min="1" max="89" value="60"></label><label class="f"><span>Kedy</span><select id="mzSAk">${Object.entries(MZ_AK).map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></label></div>
+    <div class="row2"><label class="f"><span>Ide von</span><select id="mzSVon">${zo.map(p=>`<option value="${p.id}">${MZ_POST[p.post]} ${esc(p.meno)}</option>`).join('')}</select></label><label class="f"><span>Ide dnu</span><select id="mzSDnu">${lav.map(p=>`<option value="${p.id}">${MZ_POST[p.post]} ${esc(p.meno)}</option>`).join('')}</select></label></div>
+    <button class="btn" style="width:100%" data-mzstradd="1" ${lav.length?'':'disabled'}>Pridať striedanie</button></div>`;
+  h+=`<details class="mzleg"><summary>Ako taktika funguje?</summary><dl>
+    <dt>Presing</dt><dd>Vysoký presing pridá útoku, ale hráči sa rýchlejšie unavia a viac faulujú (karty). Nízky šetrí sily a pomôže obrane.</dd>
+    <dt>Štýl hry</dt><dd>Určuje, ktorá schopnosť záložníkov a útočníkov sa najviac počíta: kombinácia = technika, krídla a protiútoky = rýchlosť, dlhé lopty = hlavičky.</dd>
+    <dt>Ofsajdová pasca</dt><dd>Proti pomalým útočníkom spevní obranu, proti rýchlym (R 60+) ju oslabí.</dd>
+    <dt>Kapitán a exekútori</dt><dd>Kapitán na ihrisku pridá celému tímu 2 %. Penalty kope hráč s dobrými nervami, rohy a priame kopy hráč s dobrou technikou.</dd>
+    <dt>Priebeh zápasu</dt><dd>Kto prehráva, po 70. minúte otvára hru, kto vedie, skôr bráni. Únava rastie počas zápasu, preto sa oplatí striedať.</dd></dl></details>`;
+  return h;
+}
+function mzTab(S,tab,i,dve){
+  const n=tab.length, P=S.pravidla.POSTUP;
+  return '<table class="lt"><thead><tr><th></th><th class="l">Tím</th><th>Z</th><th class="hide-s">V</th><th class="hide-s">R</th><th class="hide-s">P</th><th>Skóre</th><th>B</th><th class="hide-s">Forma</th></tr></thead><tbody>'+
+    tab.map((t,j)=>{ const zona=dve?(i===0&&j>=n-P?' mzzost':i===1&&j<P?' mzpost':''):''; return `<tr class="${t.meno===S.meno?'us':''}${zona}"><td>${j+1}.</td><td class="l mztn">${mzErb(t)} ${esc(t.nazov)}</td><td>${t.z}</td><td class="hide-s">${t.v}</td><td class="hide-s">${t.r}</td><td class="hide-s">${t.p}</td><td>${t.gs}:${t.gi}</td><td><b>${t.b}</b></td><td class="hide-s mzforma">${t.forma.slice(-3).map(f=>`<i class="${f}">${f}</i>`).join('')}</td></tr>`; }).join('')+'</tbody></table>';
+}
+function mzMatch(S,z,pre){
+  return `<button class="mzm${z.dom===S.meno||z.hos===S.meno?' us':''}" data-mzzap="${z.id}"><span>${pre||''}${mzNm(S,z.dom)}</span><b>${z.gd==null?'–':z.gd+':'+z.gh}${z.pen?`<small class="mzmin" style="color:var(--mute)">pk ${z.pen[0]}:${z.pen[1]}</small>`:''}${z.live?`<small class="mzmin">${z.live}'</small>`:''}</b><span>${mzNm(S,z.hos)}</span></button>`;
 }
 function mzLiga(S){
   const s=S.sez; let h='';
   if(!s) return '<div class="empty">Liga začne, keď budú založené aspoň 2 tímy.</div>';
-  if(s.pripravuje) return `<div class="empty">Sezóna začína ${mzDen(s.start)} o 20:00.<br>Prihlásené sú všetky tímy založené dovtedy (${S.timy.length}).</div>`+S.timy.map(t=>`<div>${mzErb(t)} ${esc(t.nazov)}</div>`).join('');
-  h+=`<p class="note" style="margin-top:0">Sezóna ${s.id} · ${s.odohrane}/${s.n} kôl${s.odohrane>=s.n?` · skončila, majster: <b>${esc((S.timy.find(t=>t.meno===s.majster)||{}).nazov||'')}</b>`:` · koniec ${mzDen(s.koniec)}`}${s.ucastnik?'':' · tvoj tím hrá od ďalšej sezóny'}</p>`;
-  h+='<table class="lt"><thead><tr><th></th><th class="l">Tím</th><th>Z</th><th class="hide-s">V</th><th class="hide-s">R</th><th class="hide-s">P</th><th>Skóre</th><th>B</th></tr></thead><tbody>'+
-    s.tabulka.map((t,i)=>`<tr class="${t.meno===S.meno?'us':''}"><td>${i+1}.</td><td class="l">${mzErb(t)} ${esc(t.nazov)}</td><td>${t.z}</td><td class="hide-s">${t.v}</td><td class="hide-s">${t.r}</td><td class="hide-s">${t.p}</td><td>${t.gs}:${t.gi}</td><td><b>${t.b}</b></td></tr>`).join('')+'</tbody></table>';
-  const nm=m=>esc((S.timy.find(t=>t.meno===m)||{}).nazov||m);
-  if(s.dalsie) h+=`<h2>${s.dalsie.kolo}. kolo · ${mzDen(s.dalsie.den)} 20:00</h2>`+s.dalsie.zapasy.map(([a,b])=>`<div class="mzm${a===S.meno||b===S.meno?' us':''}"><span>${nm(a)}</span><b>–</b><span>${nm(b)}</span></div>`).join('');
-  const live=s.posledne.some(z=>z.live);
-  if(s.posledne.length) h+=`<h2>${live?'<span class="mzlive">NAŽIVO</span> ':'Výsledky '}${s.posledne[0].kolo}. kola</h2>`+s.posledne.map(z=>`<button class="mzm${z.dom===S.meno||z.hos===S.meno?' us':''}" data-mzzap="${z.id}"><span>${nm(z.dom)}</span><b>${z.gd}:${z.gh}${z.live?`<small class="mzmin">${z.live}'</small>`:''}</b><span>${nm(z.hos)}</span></button>`).join('')+(live?'<p class="note">Kolo sa hrá naživo od 20:00 do 20:15. Tabuľka sa prepočíta po skončení.</p>':'');
+  if(s.pripravuje) return `<div class="empty">Sezóna začína ${mzDen(s.start)} o 20:00 (asi ${s.n} kôl).${s.dveLigy?'<br>Tímov je viac ako 12, hrajú sa dve ligy.':''}<br>Prihlásené sú všetky tímy založené dovtedy (${S.timy.length}).</div>`+(S.historia.length?`<p class="note">Minulá sezóna: majster <b>${esc(S.historia[0].majster||'—')}</b>. Celý archív je v Štatistikách.</p>`:'')+S.timy.map(t=>`<div>${mzErb(t)} ${esc(t.nazov)}</div>`).join('');
+  const ar=s.archiv;
+  h+=`<p class="note" style="margin-top:0">Sezóna ${s.id} · ${s.odohrane}/${s.n} kôl${ar?` · skončila, majster: <b>${mzNm(S,ar.majster)}</b>`:` · koniec ${mzDen(s.koniec)}`}${s.ucastnik?'':' · tvoj tím hrá od ďalšej sezóny'}</p>`;
+  const poradie=s.dveLigy?[s.mojaDiv-1,2-s.mojaDiv]:[0];
+  for(const i of poradie){ if(s.dveLigy) h+=`<h2>${i===0?'1. liga':'2. liga'}</h2>`; h+=mzTab(S,s.tabulky[i],i,s.dveLigy); }
+  if(s.dveLigy) h+=`<p class="note">Poslední ${S.pravidla.POSTUP} z 1. ligy zostupujú, prví ${S.pravidla.POSTUP} z 2. ligy postupujú. Majster 1. ligy dostane bonus ${BONUS.manazer} €.</p>`;
+  if(s.dalsie) h+=`<h2>${s.dalsie.kolo}. kolo · ${mzDen(s.dalsie.den)} 20:00</h2>`+s.dalsie.zapasy.filter(z=>!s.dveLigy||z[2]===s.mojaDiv).map(([a,b])=>`<div class="mzm${a===S.meno||b===S.meno?' us':''}"><span>${mzNm(S,a)}</span><b>–</b><span>${mzNm(S,b)}</span></div>`).join('');
+  const pos=s.posledne.filter(z=>!s.dveLigy||z.div===s.mojaDiv), live=pos.some(z=>z.live);
+  if(pos.length) h+=`<h2>${live?'<span class="mzlive">NAŽIVO</span> ':'Výsledky '}${pos[0].kolo}. kola</h2>`+pos.map(z=>mzMatch(S,z)).join('')+(live?'<p class="note">Kolo sa hrá naživo od 20:00 do 20:15. Tabuľka sa prepočíta po skončení.</p>':'');
   const moje=s.mojeZapasy.filter(z=>!s.posledne.some(p=>p.id===z.id));
-  if(moje.length) h+='<h2>Moje zápasy</h2>'+moje.map(z=>`<button class="mzm" data-mzzap="${z.id}"><span>${z.kolo}. ${nm(z.dom)}</span><b>${z.gd}:${z.gh}</b><span>${nm(z.hos)}</span></button>`).join('');
-  if(s.strelci.length) h+='<h2>Strelci</h2>'+boardTable(s.strelci.map(x=>[x.meno+' ('+nm(x.tim)+')',x.goly]),'Góly');
-  if(S.minuli.length) h+='<h2>Majstri</h2>'+S.minuli.map(m=>`<div>🏆 Sezóna ${m.id}: ${esc(m.nazov||m.majster)}</div>`).join('');
+  if(moje.length) h+='<h2>Moje zápasy</h2>'+moje.map(z=>mzMatch(S,z,z.kolo+'. ')).join('');
   return h;
+}
+function mzPohar(S){
+  const s=S.sez; if(!s||s.pripravuje) return '<div class="empty">Pohár sa vylosuje na začiatku sezóny.</div>';
+  let h='';
+  if(s.super){ h+=`<h2>Superpohár · ${mzDen(s.super.den)} 18:00</h2><p class="note" style="margin-top:0">Majster ligy proti víťazovi pohára z minulej sezóny.</p>`; h+=s.super.zapas?mzMatch(S,s.super.zapas):`<div class="mzm"><span>${mzNm(S,s.super.a)}</span><b>–</b><span>${mzNm(S,s.super.b)}</span></div>`; }
+  const p=s.pohar; if(!p) return h+'<div class="empty">V tejto sezóne sa pohár nehrá.</div>';
+  const meno=['Finále','Semifinále','Štvrťfinále','Osemfinále','1/16 finále'];
+  h+=`<h2>Pohár ${p.vitaz?`· víťaz ${mzErb(S.timy.find(t=>t.meno===p.vitaz)||{})} ${mzNm(S,p.vitaz)} 🏆`:''}</h2><p class="note" style="margin-top:0">Vyraďovačka všetkých tímov, hrá sa o 18:00. Pri remíze rozhodnú penalty (nervy!).</p>`;
+  p.kola.forEach((k,i)=>{ h+=`<h3 class="mzkolo">${meno[p.K-1-i]||(i+1)+'. kolo'} · ${mzDen(k.den)}</h3>`;
+    if(!k.pary){ h+='<p class="note">Dvojice sa určia po predchádzajúcom kole.</p>'; return; }
+    h+=k.pary.map(([a,b])=>{ const z=k.zapasy.find(x=>x.dom===a&&x.hos===b); if(z) return mzMatch(S,z); return `<div class="mzm${a===S.meno||b===S.meno?' us':''}"><span>${a?mzNm(S,a):'<i class="mute">voľný žreb</i>'}</span><b>–</b><span>${b?mzNm(S,b):'<i class="mute">voľný žreb</i>'}</span></div>`; }).join(''); });
+  return h;
+}
+function mzKlub(S){
+  const T=S.tim, ST=S.pravidla.stadion;
+  let h=`<h2 style="margin-top:0">Ekonomika</h2><div class="mzeko">
+    <div><small>Kredity</small><b>${T.kredit}</b></div><div><small>Platy za kolo</small><b>−${T.platy}</b></div>
+    <div><small>Štadión</small><b>${T.stadionKap}</b><small>miest</small></div><div><small>Fanúšikovia</small><b>${T.fans}</b></div></div>
+    <p class="note">Doma dostaneš vstupné: (menej z kapacity a počtu fanúšikov) × cena lístka, v pohári 1,5 ×. Fanúšikov pribúda po výhrach a ubúda po prehrách a pri drahých lístkoch.</p>
+    <label class="f"><span>Cena lístka (kredity)</span><select id="mzVst">${[1,2,3,4,5].map(v=>`<option ${T.vstupne===v?'selected':''}>${v}</option>`).join('')}</select></label>`;
+  h+=T.stadionDalsi?`<button class="btn pri" style="width:100%;margin-top:8px" data-mzstad="1" ${T.kredit<T.stadionDalsi.cena?'disabled':''}>Rozšíriť štadión na ${T.stadionDalsi.kap} miest za ${T.stadionDalsi.cena} kr.</button>`:'<p class="note">Štadión je na najvyššej úrovni.</p>';
+  if(T.ponukyPrijate.length) h+='<h2>Ponuky na tvojich hráčov</h2>'+T.ponukyPrijate.map(p=>`<div class="mztr"><div><b>${esc(p.hrac)}</b><small>${esc(p.kupecN)} ponúka ${p.cena} kreditov</small></div><button class="btn sm pri" data-mzpon="${p.id}" data-ok="1">Prijať</button><button class="btn sm" data-mzpon="${p.id}">Odmietnuť</button></div>`).join('');
+  if(T.ponukyMoje.length) h+='<h2>Moje ponuky</h2>'+T.ponukyMoje.map(p=>`<div class="mztr"><div><b>${esc(p.hrac||'hráč už nie je')}</b><small>${esc(p.predajcaN)} · ${p.cena} kr. · ${({caka:'čaká na odpoveď',prijata:'prijatá ✅',zamietnuta:'odmietnutá',zrusena:'zrušená'})[p.stav]}</small></div>${p.stav==='caka'?`<button class="btn sm" data-mzponz="${p.id}">Zrušiť</button>`:''}</div>`).join('');
+  h+=`<h2>Ostatné kluby</h2><p class="note" style="margin-top:0">Pozri si káder súpera a ponúkni mu za hráča kredity. Kým ponuku neprijme, kredity ti ostávajú.</p>`+S.timy.filter(t=>t.meno!==S.meno).map(t=>`<div class="mztr"><div>${mzErb(t)} <b>${esc(t.nazov)}</b></div><button class="btn sm" data-mzklub="${esc(t.meno)}">Káder</button></div>`).join('');
+  if(T.log.length) h+='<h2>Denník klubu</h2>'+T.log.map(l=>`<div class="mzlog"><small>${new Date(l.t).toLocaleDateString('sk-SK')}</small> ${esc(l.txt)}</div>`).join('');
+  return h;
+}
+async function mzKlubDetail(m){
+  const j=await chatApi('/mz/klub',{pin:CHPIN,meno:JA,klub:m}).catch(e=>{ toast(e.message); return null; }); if(!j) return;
+  const k=j.klub;
+  openSheet(`<h3><span>${mzErb(k)} ${esc(k.nazov)}</span>${closeBtn}</h3><p class="note" style="margin-top:0">Štadión ${k.stadion} miest · ${k.fans} fanúšikov</p>`+
+    k.hraci.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · ${p.vek} r. · sila ${p.ovr} · ${MZ_ATTR.map(a=>a[1]+' '+p[a[0]]).join(' · ')}${p.zran?' · 🚑':''}</small></div><input type="number" class="mzponin" id="mzP${p.id}" value="${p.cena}" min="10" step="10"><button class="btn sm pri" data-mzponuka="${p.id}">Ponúknuť</button></div>`).join(''));
+}
+function mzStat(S){
+  const s=S.sez, R=S.rekordy; let h='';
+  if(s&&!s.pripravuje&&s.strelci.length) h+='<h2 style="margin-top:0">Strelci sezóny</h2>'+boardTable(s.strelci.map(x=>[x.meno+' ('+mzNm(S,x.tim)+')',x.goly]),'Góly');
+  if(R.strelciVsetkych.length) h+='<h2>Najlepší strelci histórie</h2>'+boardTable(R.strelciVsetkych.map(x=>[x.meno+' ('+esc(x.tim)+')',x.goly]),'Góly');
+  if(R.vyhra||R.goly||R.seria) h+='<h2>Rekordy</h2>'+(R.vyhra?`<div class="mzlog">Najvyššia výhra: <b>${esc(R.vyhra.txt)}</b></div>`:'')+(R.goly?`<div class="mzlog">Najviac gólov v zápase: <b>${esc(R.goly.txt)}</b></div>`:'')+(R.seria?`<div class="mzlog">Najdlhšia séria výhier: <b>${esc(R.seria.tim)}</b> (${R.seria.n})</div>`:'');
+  if(S.historia.length) h+='<h2>Archív sezón</h2>'+S.historia.map(a=>`<div class="mzarch"><b>Sezóna ${a.id}</b><div>🏆 Majster: ${esc(a.majster||'—')}${a.majster2?` · 2. liga: ${esc(a.majster2)}`:''}</div>${a.pohar?`<div>🥇 Pohár: ${esc(a.pohar)}</div>`:''}${a.strelec?`<div>⚽ Kráľ strelcov: ${esc(a.strelec.meno)} (${esc(a.strelec.tim)}), ${a.strelec.goly} gólov</div>`:''}${a.postup.length?`<div>⬆️ Postup: ${a.postup.map(esc).join(', ')} · ⬇️ Zostup: ${a.zostup.map(esc).join(', ')}</div>`:''}</div>`).join('');
+  return h||'<div class="empty">Štatistiky sa zbierajú od prvého odohraného kola.</div>';
 }
 function mzTren(S){
   const T=S.tim;
   let h=MZ_LEG+`<p class="note" style="margin-top:0">Máš <b>${T.tb} TB</b>. Za každý tréning, na ktorom si v skutočnosti bol, dostaneš ${S.pravidla.TB_TRENING} TB (podľa dochádzky vedenia) a za každé odohrané kolo ${S.pravidla.TB_KOLO} TB. Vyššie hodnoty stoja viac TB.</p>`;
-  h+=T.hraci.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · sila ${p.ovr}</small></div>
-    <button class="btn sm" data-mztr="${p.id}" data-a="utok" ${T.tb<p.tbU?'disabled':''}>Ú ${p.utok}<small>+1 za ${p.tbU}</small></button>
-    <button class="btn sm" data-mztr="${p.id}" data-a="obrana" ${T.tb<p.tbO?'disabled':''}>O ${p.obrana}<small>+1 za ${p.tbO}</small></button>
-    <button class="btn sm" data-mztr="${p.id}" data-a="kond" ${T.tb<p.tbK?'disabled':''}>K ${p.kond}<small>+1 za ${p.tbK}</small></button></div>`).join('');
+  h+=T.hraci.map(p=>`<div class="mztr2"><div><b>${esc(p.meno)}</b> <small class="mute">${MZ_POST[p.post]} · ${p.vek} r. · sila ${p.ovr}</small></div><div class="mztrb">`+
+    MZ_ATTR.map(([k,s])=>`<button class="btn sm" data-mztr="${p.id}" data-a="${k}" ${T.tb<p.tb[k]?'disabled':''}>${s} ${p[k]}<small>+1 za ${p.tb[k]}</small></button>`).join('')+'</div></div>').join('');
   return h;
 }
 function mzTrh(S){
   const T=S.tim;
-  let h=`<p class="note" style="margin-top:0">Máš <b>${T.kredit} kreditov</b>. Kredity dostávaš za body z kvízu od začiatku súťaže (1 bod = 1 kredit) a za zápasy (výhra 300, remíza 150, prehra 60, gól +20). Trh sa obnovuje každý deň. V kádri môžeš mať ${S.pravidla.MIN_KADER} – ${S.pravidla.MAX_KADER} hráčov.</p><h2>Voľní hráči</h2>`;
-  h+=MZ_LEG+S.trh.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${({B:"brankár",O:"obranca",S:"záložník",U:"útočník"})[p.post]} · ${p.vek} r. · útok ${p.utok} · obrana ${p.obrana} · kondícia ${p.kond} · sila ${p.ovr}</small></div><button class="btn sm pri" data-mzkup="${p.id}" ${T.kredit<p.cena?'disabled':''}>${p.cena} kr.</button></div>`).join('');
-  h+='<h2>Predať hráča</h2><p class="note">Za predaj dostaneš polovicu jeho ceny.</p>'+T.hraci.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · sila ${p.ovr}</small></div><button class="btn sm" data-mzpred="${p.id}">+${Math.round(p.cena/2)} kr.</button></div>`).join('');
+  let h=`<p class="note" style="margin-top:0">Máš <b>${T.kredit} kreditov</b>. Trh sa obnovuje každý deň. V kádri môžeš mať ${S.pravidla.MIN_KADER} – ${S.pravidla.MAX_KADER} hráčov. Hráča od spoluhráča kúpiš cez ponuku v časti Klub.</p><h2>Voľní hráči</h2>`;
+  h+=MZ_LEG+S.trh.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${({B:"brankár",O:"obranca",S:"záložník",U:"útočník"})[p.post]} · ${p.vek} r. · sila ${p.ovr} · plat ${p.plat}<br>${MZ_ATTR.map(a=>a[1]+' '+p[a[0]]).join(' · ')}</small></div><button class="btn sm pri" data-mzkup="${p.id}" ${T.kredit<p.cena?'disabled':''}>${p.cena} kr.</button></div>`).join('');
+  h+='<h2>Predať hráča na trh</h2><p class="note">Za predaj dostaneš polovicu jeho ceny.</p>'+T.hraci.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · ${p.vek} r. · sila ${p.ovr}</small></div><button class="btn sm" data-mzpred="${p.id}">+${Math.round(p.cena/2)} kr.</button></div>`).join('');
   return h;
 }
 function mzVyz(S){
   const ine=S.timy.filter(t=>t.meno!==S.meno);
-  let h=`<p class="note" style="margin-top:0">Priateľský zápas proti tímu spoluhráča s aktuálnymi zostavami, hrá sa naživo 5 minút. Nepočíta sa do tabuľky, hráči sa neunavia ani nezrania. Denne najviac ${S.pravidla.VYZVY_DEN}.</p>`;
+  let h=`<p class="note" style="margin-top:0">Priateľský zápas proti tímu spoluhráča s aktuálnymi zostavami a taktikou, hrá sa naživo 5 minút. Nepočíta sa do tabuľky, hráči sa neunavia ani nezrania. Denne najviac ${S.pravidla.VYZVY_DEN}.</p>`;
   if(!ine.length) return h+'<div class="empty">Zatiaľ nie je proti komu hrať.</div>';
   h+=ine.map(t=>`<div class="mztr"><div>${mzErb(t)} <b>${esc(t.nazov)}</b></div><button class="btn sm pri" data-mzvyz="${esc(t.meno)}">Hrať</button></div>`).join('');
-  const nm=m=>esc((S.timy.find(t=>t.meno===m)||{}).nazov||m);
-  if(S.tim.vyzvy.length) h+='<h2>Posledné priateľáky</h2>'+S.tim.vyzvy.map(z=>`<button class="mzm" data-mzzap="${z.id}"><span>${nm(z.dom)}</span><b>${z.gd}:${z.gh}${z.live?`<small class="mzmin">${z.live}'</small>`:''}</b><span>${nm(z.hos)}</span></button>`).join('');
+  if(S.tim.vyzvy.length) h+='<h2>Posledné priateľáky</h2>'+S.tim.vyzvy.map(z=>mzMatch(S,z)).join('');
   return h;
 }
 async function mzZapas(id){
   const j=await chatApi('/mz/zapas',{pin:CHPIN,meno:JA,id}).catch(e=>{ toast(e.message); return null; }); if(!j) return;
-  const z=j.zapas, u=z.udalosti, ic={gol:'⚽',zk:'🟨',ck:'🟥',zran:'🚑',sanca:'🎯',kom:'💬'};
+  const z=j.zapas, u=z.udalosti, ic={gol:'⚽',zk:'🟨',ck:'🟥',zran:'🚑',sanca:'🎯',kom:'💬',stried:'🔄'};
   if(MZ.zOpen&&MZ.zOpen!==id&&!$('#ov').classList.contains('on')) MZ.zOpen=null;
-  MZ.zOpen=id; clearTimeout(MZ.zPoll);
+  MZ.zOpen=id; MZ.zData=z; clearTimeout(MZ.zPoll); clearInterval(MZ.anim);
   if(z.live) MZ.zPoll=setTimeout(()=>{ if(MZ.zOpen===id&&$('#ov').classList.contains('on')) mzZapas(id); },z.vyzva?5000:15000);
-  openSheet(`<h3><span>${z.vyzva?'Priateľák':z.kolo+'. kolo'}</span>${closeBtn}</h3>
+  const nazov=z.vyzva?'Priateľák':z.typ==='pohar'?'Pohár':z.typ==='super'?'Superpohár':z.kolo+'. kolo';
+  const evTxt=e=>e.t==='gol'?`<b>GÓL! ${esc(e.h)}</b> – ${esc(e.ako)}${e.txt?'. '+esc(e.txt):''}`:e.t==='sanca'||e.t==='kom'?esc(e.txt):e.t==='stried'?`${esc(e.h)} ide na ihrisko${e.von?' za '+esc(e.von):''} (${esc(e.txt)})`:esc(e.h)+(e.t==='zran'?` sa zranil${e.txt?', '+esc(e.txt):''} (${e.k} ${e.k===1?'kolo':'kolá'})`:e.t==='zk'?` – žltá karta${e.txt?', '+esc(e.txt):''}`:e.t==='ck'?` – červená karta${e.txt?' ('+esc(e.txt)+')':''}!`:'');
+  openSheet(`<h3><span>${nazov}</span>${closeBtn}</h3>
     <div class="mzscore"><div>${esc(z.de)}<br>${esc(z.dn)}</div><b>${z.gd}:${z.gh}</b><div>${esc(z.he)}<br>${esc(z.hn)}</div></div>
-    <p class="note" style="text-align:center;margin-top:-4px">${z.live?`<span class="mzlive">NAŽIVO</span> ${z.live}. minúta`:`Šance (xG) ${String(u.xg[0]).replace('.',',')} : ${String(u.xg[1]).replace('.',',')}`}</p>`+
-    (u.ev.length?(z.live?u.ev.slice().reverse():u.ev).map(e=>`<div class="mzev ${e.s}"><i>${e.m}'</i><span>${ic[e.t]||''} ${e.t==='gol'?`<b>GÓL! ${esc(e.h)}</b> – ${esc(e.ako)}${e.txt?'. '+esc(e.txt):''}`:e.t==='sanca'||e.t==='kom'?esc(e.txt):esc(e.h)+(e.t==='zran'?` sa zranil${e.txt?', '+esc(e.txt):''} (${e.k} ${e.k===1?'kolo':'kolá'})`:e.t==='zk'?` – žltá karta${e.txt?', '+esc(e.txt):''}`:e.t==='ck'?' – červená karta!':'')}</span></div>`).join(''):(z.live?'<p class="note">Zatiaľ sa nič nestalo.</p>':'<p class="note">Nudný zápas bez gólov a kariet.</p>'))+
+    <p class="note" style="text-align:center;margin-top:-4px">${z.live?`<span class="mzlive">NAŽIVO</span> ${z.live}. minúta`:`Šance (xG) ${String(u.xg[0]).replace('.',',')} : ${String(u.xg[1]).replace('.',',')}${z.pen?` · penalty ${z.pen[0]}:${z.pen[1]}`:''}`}</p>`+
+    (!z.live&&u.ev.length?`<div id="mz2d">${mz2dSvg(z)}</div><button class="btn" style="width:100%;margin:6px 0 10px" data-mz2d="1">▶ Prehrať zápas v 2D</button>`:'')+
+    (u.ev.length?(z.live?u.ev.slice().reverse():u.ev).map(e=>`<div class="mzev ${e.s}"><i>${e.m}'</i><span>${ic[e.t]||''} ${evTxt(e)}</span></div>`).join(''):(z.live?'<p class="note">Zatiaľ sa nič nestalo.</p>':'<p class="note">Nudný zápas bez gólov a kariet.</p>'))+
     `<h2>Zostavy</h2><div class="mzsost"><div>${u.zd.map(esc).join('<br>')}</div><div>${u.zh.map(esc).join('<br>')}</div></div>`);
+}
+function mzPoz(form,dom){ // pozície hráčov na ihrisku 100×64 (domáci zľava)
+  const f=(form||'4-4-2').split('-').map(Number), P=[[4,32]];
+  f.forEach((n,r)=>{ const x=13+r*(31/Math.max(1,f.length-1)); for(let i=0;i<n;i++) P.push([x,(64/(n+1))*(i+1)]); });
+  return P.map(([x,y])=>dom?[x,y]:[100-x,y]);
+}
+function mz2dSvg(z){
+  const c1=(z.df||['#2b6cb0','#fff'])[0], c2=(z.hf||['#c53030','#fff'])[0], st=(c,x,y)=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.9" fill="${c}" stroke="#fff" stroke-width=".5"/>`;
+  return `<svg viewBox="0 0 100 64" class="mzpitch"><rect width="100" height="64" fill="#2f7d3a"/>${[0,1,2,3,4,5,6,7,8,9].map(i=>i%2?`<rect x="${i*10}" width="10" height="64" fill="#2a7334"/>`:'').join('')}
+  <g fill="none" stroke="#e8f5e9" stroke-width=".4" opacity=".8"><rect x="1" y="1" width="98" height="62"/><line x1="50" y1="1" x2="50" y2="63"/><circle cx="50" cy="32" r="8"/><rect x="1" y="17" width="14" height="30"/><rect x="85" y="17" width="14" height="30"/><rect x="1" y="26" width="5" height="12"/><rect x="94" y="26" width="5" height="12"/></g>
+  <rect x="-0.5" y="28" width="1.5" height="8" fill="#fff"/><rect x="99" y="28" width="1.5" height="8" fill="#fff"/>
+  <g id="mzpd">${mzPoz(z.dform,1).map(([x,y])=>st(c1,x,y)).join('')}</g><g id="mzph">${mzPoz(z.hform,0).map(([x,y])=>st(c2,x,y)).join('')}</g>
+  <circle id="mzlopta" cx="50" cy="32" r="1.3" fill="#fff" stroke="#111" stroke-width=".3" style="transition:cx .6s ease,cy .6s ease"/>
+  <text id="mzmin" x="50" y="6" text-anchor="middle" font-size="4" fill="#fff" font-weight="700">0'</text>
+  <text id="mzskore" x="50" y="60" text-anchor="middle" font-size="5" fill="#fff" font-weight="700">0:0</text>
+  <text id="mzhlas" x="50" y="20" text-anchor="middle" font-size="6" fill="#ffd54a" font-weight="800" opacity="0">GÓL!</text></svg><div id="mz2dtxt" class="note" style="text-align:center;min-height:2.6em;margin:4px 0 0"></div>`;
+}
+function mz2dPlay(){
+  const z=MZ.zData; if(!z) return; clearInterval(MZ.anim);
+  const ev=z.udalosti.ev.filter(e=>e.t!=='kom'||/Polčas|Koniec|Penaltový/.test(e.txt)), b=$('#mzlopta'), mn=$('#mzmin'), sk=$('#mzskore'), hl=$('#mzhlas'), tx=$('#mz2dtxt');
+  if(!b) return; let i=0, gd=0, gh=0;
+  const pohni=(g,dx,dy)=>{ g&&g.querySelectorAll('circle').forEach(c=>{ c.setAttribute('transform',`translate(${dx} ${dy})`); }); };
+  MZ.anim=setInterval(()=>{
+    if(!$('#mzlopta')){ clearInterval(MZ.anim); return; }
+    if(i>=ev.length){ clearInterval(MZ.anim); b.setAttribute('cx',50); b.setAttribute('cy',32); return; }
+    const e=ev[i++], d=e.s==='d', cil=d?97:3;
+    mn.textContent=e.m+"'"; hl.setAttribute('opacity',0);
+    if(e.t==='gol'){ d?gd++:gh++; b.setAttribute('cx',d?99:1); b.setAttribute('cy',30+Math.random()*4); hl.setAttribute('opacity',1); }
+    else if(e.t==='sanca'){ b.setAttribute('cx',d?88+Math.random()*8:4+Math.random()*8); b.setAttribute('cy',20+Math.random()*24); }
+    else if(e.s==='n'){ b.setAttribute('cx',50); b.setAttribute('cy',32); }
+    else { b.setAttribute('cx',20+Math.random()*60); b.setAttribute('cy',8+Math.random()*48); }
+    const sh=e.s==='n'?0:(d?6:-6); pohni($('#mzpd'),sh,0); pohni($('#mzph'),sh,0);
+    sk.textContent=gd+':'+gh;
+    tx.innerHTML=`<b>${e.m}'</b> ${({gol:'⚽',zk:'🟨',ck:'🟥',zran:'🚑',sanca:'🎯',stried:'🔄'})[e.t]||''} ${e.t==='gol'?'GÓL! '+esc(e.h)+' – '+esc(e.ako):e.h&&e.t!=='sanca'?esc(e.h)+(e.t==='zk'?' – žltá':e.t==='ck'?' – červená':e.t==='zran'?' – zranenie':e.t==='stried'?' ide na ihrisko':''):esc(e.txt||'')}`;
+  },1300);
 }
 function mzSlot(i){
   const T=MZ.st.tim, z=T.zostava[i], vo=T.hraci.filter(p=>!p.zran&&!p.trest);
@@ -2186,6 +2316,15 @@ function mzClick(b){
   if(d.mzauto){ mzApi('zostava',{ids:[]}); return true; }
   if(d.mzslot){ mzSlot(+d.mzslot); return true; }
   if(d.mzswap){ const ids=MZ.st.tim.zostava.map(z=>z.id), i=+d.mzswap, id=+d.id, j=ids.indexOf(id); if(j>=0) ids[j]=ids[i]; ids[i]=id; closeSheet(); mzApi('zostava',{ids}); return true; }
+  if(d.mztk){ mzApi('taktika',{presing:$('#mzPres').value,styl:$('#mzStyl').value,pasca:$('#mzPasca').checked,kap:+$('#mzKap').value||null,pen:+$('#mzPen').value||null,roh:+$('#mzRoh').value||null,pk:+$('#mzPk').value||null}).then(j=>{ if(j) toast('Taktika uložená'); }); return true; }
+  if(d.mzstradd){ const L=MZ.st.tim.striedania.concat([{min:+$('#mzSMin').value,ak:$('#mzSAk').value,von:+$('#mzSVon').value,dnu:+$('#mzSDnu').value}]); mzApi('striedania',{str:L}); return true; }
+  if(d.mzstrdel){ const L=MZ.st.tim.striedania.filter((_,i)=>i!==+d.mzstrdel); mzApi('striedania',{str:L}); return true; }
+  if(d.mzstad){ if(!confirmTwice(b,'Naozaj? Ťukni znova')) return true; mzApi('stadion'); return true; }
+  if(d.mzklub){ mzKlubDetail(d.mzklub); return true; }
+  if(d.mzponuka){ const c=+$('#mzP'+d.mzponuka).value; mzApi('ponuka',{id:+d.mzponuka,cena:c}).then(j=>{ if(j){ closeSheet(); toast('Ponuka odoslaná'); } }); return true; }
+  if(d.mzpon){ if(d.ok&&!confirmTwice(b,'Predať?')) return true; mzApi('ponuka_odpoved',{id:+d.mzpon,prijat:!!d.ok}); return true; }
+  if(d.mzponz){ mzApi('ponuka_zrus',{id:+d.mzponz}); return true; }
+  if(d.mz2d){ mz2dPlay(); return true; }
   if(d.mztr){ mzApi('trening',{id:+d.mztr,attr:d.a}); return true; }
   if(d.mzkup){ mzApi('kup',{id:+d.mzkup}); return true; }
   if(d.mzpred){ if(!confirmTwice(b,'Naozaj?')) return true; mzApi('predaj',{id:+d.mzpred}); return true; }
