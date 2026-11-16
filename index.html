@@ -2094,12 +2094,12 @@ function mzTim(S){
   T.zostava.forEach((z,i)=>{ const p=by.get(z.id); h+=`<button class="mzslot" data-mzslot="${i}"><i>${MZ_POST[z.p]}</i><span>${esc(p.meno)}${p.post!==z.p?' <small class="neg">mimo postu</small>':''}</span><b>${p.ovr}</b>${p.unava>40?'<small class="neg">unavený</small>':''}</button>`; });
   h+=`</div><button class="btn" style="width:100%;margin-top:8px" data-mzauto="1">Najlepšia zostava automaticky</button>`;
   h+=`<h2>Káder (${T.hraci.length})</h2><table class="lt mzk"><thead><tr><th class="l">Hráč</th><th>Post</th><th title="Útok">Ú</th><th title="Obrana">O</th><th title="Kondícia">K</th><th title="Forma">F</th><th title="Únava">Ún</th><th title="Góly">G</th></tr></thead><tbody>`+
-    T.hraci.map(p=>`<tr class="${T.zostava.some(z=>z.id===p.id)?'us':''}"><td class="l">${esc(p.meno)}${p.zran?` <span class="neg">🚑 ${p.zran}</span>`:''}</td><td>${MZ_POST[p.post]}</td><td>${p.utok}</td><td>${p.obrana}</td><td>${p.kond}</td><td>${p.forma}</td><td>${p.unava}</td><td>${p.goly}</td></tr>`).join('')+'</tbody></table>';
+    T.hraci.map(p=>`<tr class="${T.zostava.some(z=>z.id===p.id)?'us':''}"><td class="l">${esc(p.meno)}${p.zran?` <span class="neg">🚑 ${p.zran}</span>`:''}${p.trest?' <span class="neg">🟥 stop</span>':''}</td><td>${MZ_POST[p.post]}</td><td>${p.utok}</td><td>${p.obrana}</td><td>${p.kond}</td><td>${p.forma}</td><td>${p.unava}</td><td>${p.goly}</td></tr>`).join('')+'</tbody></table>';
   h+=`<h2>Erb a farby</h2><div class="mzerbs">${MZ_ERB.map(e=>`<button class="btn${T.erb===e?' pri':''}" data-mzerb2="${e}">${e}</button>`).join('')}</div>
     <div class="row2" style="margin-top:8px"><label class="f"><span>Farba dresu</span><input type="color" id="mzE1" value="${T.f1||'#111111'}"></label><label class="f"><span>Druhá farba</span><input type="color" id="mzE2" value="${T.f2||'#ffffff'}"></label></div>
     <button class="btn" style="width:100%;margin-top:8px" data-mzfarby="1">Uložiť farby</button>`;
   h+=`<h2>Zmazať tím</h2><p class="note">Tím aj všetci jeho hráči zmiznú natrvalo. Ak beží sezóna, tvoje zostávajúce zápasy sa už neodohrajú. Nový tím si môžeš založiť hneď, do ligy sa dostane od ďalšej sezóny.</p><button class="btn" style="width:100%;color:#e06666" data-mzzmaz="1">Zmazať môj tím</button>`;
-  h+='<p class="note">Únava rastie, keď hráč hrá, a klesá, keď oddychuje. Unavený alebo zranený hráč hrá horšie, oplatí sa striedať. Hráč mimo svojho postu má 75 % sily.</p>';
+  h+='<p class="note">Únava rastie, keď hráč hrá, a klesá, keď oddychuje. Unavený alebo zranený hráč hrá horšie, oplatí sa striedať. Hráč mimo svojho postu má 75 % sily. Po červenej karte (aj po druhej žltej) hráč jedno ligové kolo nehrá.</p>';
   return h;
 }
 function mzLiga(S){
@@ -2157,7 +2157,7 @@ async function mzZapas(id){
     `<h2>Zostavy</h2><div class="mzsost"><div>${u.zd.map(esc).join('<br>')}</div><div>${u.zh.map(esc).join('<br>')}</div></div>`);
 }
 function mzSlot(i){
-  const T=MZ.st.tim, z=T.zostava[i], vo=T.hraci.filter(p=>!p.zran);
+  const T=MZ.st.tim, z=T.zostava[i], vo=T.hraci.filter(p=>!p.zran&&!p.trest);
   openSheet(`<h3><span>${MZ_POST[z.p]} – vyber hráča</span>${closeBtn}</h3>`+vo.sort((a,b)=>(b.post===z.p)-(a.post===z.p)||b.ovr-a.ovr).map(p=>`<button class="mzslot" data-mzswap="${i}" data-id="${p.id}"><i>${MZ_POST[p.post]}</i><span>${esc(p.meno)}${T.zostava.some(x=>x.id===p.id)?' <small class="mute">v zostave</small>':''}</span><b>${p.ovr}</b>${p.unava>40?'<small class="neg">únava '+p.unava+'</small>':''}</button>`).join(''));
 }
 function mzClick(b){

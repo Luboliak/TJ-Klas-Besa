@@ -124,6 +124,7 @@ const plusDni = (d, n) => new Date(Date.parse(d + 'T12:00:00Z') + n * 864e5).toI
 export function mzInit(sql) {
   sql(`CREATE TABLE IF NOT EXISTS mz_tim (meno TEXT PRIMARY KEY, nazov TEXT, f1 TEXT, f2 TEXT, erb TEXT, kredit INTEGER, tb INTEGER, tb_tren INTEGER DEFAULT 0, kviz_od TEXT, kviz_kr INTEGER DEFAULT 0, form TEXT, takt TEXT, zostava TEXT, vznik INTEGER)`);
   sql(`CREATE TABLE IF NOT EXISTS mz_hrac (id INTEGER PRIMARY KEY AUTOINCREMENT, tim TEXT, meno TEXT, post TEXT, utok INTEGER, obrana INTEGER, kond INTEGER, forma INTEGER DEFAULT 50, unava INTEGER DEFAULT 0, zran INTEGER DEFAULT 0, goly INTEGER DEFAULT 0, zapasy INTEGER DEFAULT 0, vek INTEGER, trh_den TEXT)`);
+  try { sql(`ALTER TABLE mz_hrac ADD COLUMN trest INTEGER DEFAULT 0`); } catch (e) {}
   sql(`CREATE TABLE IF NOT EXISTS mz_sez (id INTEGER PRIMARY KEY AUTOINCREMENT, start TEXT, n INTEGER, timy TEXT, rozpis TEXT, odohrane INTEGER DEFAULT 0, majster TEXT)`);
   sql(`CREATE TABLE IF NOT EXISTS mz_zapas (id INTEGER PRIMARY KEY AUTOINCREMENT, sez INTEGER, kolo INTEGER, dom TEXT, hos TEXT, gd INTEGER, gh INTEGER, udalosti TEXT, den TEXT, vyzva INTEGER DEFAULT 0)`);
   try { sql(`ALTER TABLE mz_zapas ADD COLUMN hotovo INTEGER DEFAULT 1`); } catch (e) {}
@@ -166,7 +167,7 @@ export function manazer(room, path, body, meno, rows, sql) {
 
   // --- sila tímu pre zápas
   const auto = (H, form) => {
-    const [o, s, u] = FORM[form] || FORM['4-4-2'], vol = H.filter(h => !h.zran), used = new Set(), slot = [];
+    const [o, s, u] = FORM[form] || FORM['4-4-2'], vol = H.filter(h => !h.zran && !h.trest), used = new Set(), slot = [];
     const fit = (h, p) => (h.post === p ? 1 : (p === 'B' || h.post === 'B') ? 0.35 : 0.75);
     const val = (h, p) => (p === 'B' ? h.obrana : p === 'O' ? h.obrana : p === 'S' ? (h.utok + h.obrana) / 2 : h.utok) * fit(h, p) * (1 - h.unava / 220);
     for (const [p, n] of [['B', 1], ['O', o], ['S', s], ['U', u]]) for (let i = 0; i < n; i++) {
@@ -179,7 +180,7 @@ export function manazer(room, path, body, meno, rows, sql) {
     const H = hraci(t.meno), form = FORM[t.form] ? t.form : '4-4-2';
     let ids = []; try { ids = JSON.parse(t.zostava || '[]'); } catch (e) {}
     const by = new Map(H.map(h => [h.id, h]));
-    if (ids.length !== 11 || new Set(ids).size !== 11 || ids.some(id => !by.has(id) || by.get(id).zran)) ids = auto(H, form);
+    if (ids.length !== 11 || new Set(ids).size !== 11 || ids.some(id => !by.has(id) || by.get(id).zran || by.get(id).trest)) ids = auto(H, form);
     const [o, s] = FORM[form], posty = ['B', ...Array(o).fill('O'), ...Array(s).fill('S'), ...Array(11 - 1 - o - s).fill('U')];
     return { form, takt: TAKT[t.takt] ? t.takt : 'vyrov', hraci: ids.map((id, i) => ({ h: by.get(id), p: posty[i] })).filter(x => x.h) };
   };
@@ -206,17 +207,34 @@ export function manazer(room, path, body, meno, rows, sql) {
     for (const [g, z, s] of [[gA, zA, 'd'], [gB, zB, 'h']]) for (let i = 0; i < g; i++) { const h = strelec(z); ev.push({ m: 1 + rnd(90), t: 'gol', s, h: h.meno, id: h.id, ako: ch(SP), txt: Math.random() < 0.6 ? ch(K_GOL) : '' }); }
     // nepremenené šance a komentár
     const sub = (x, h, z2, t) => x.replace(/\{h\}/g, h).replace(/\{b\}/g, (z2.hraci[0] || { h: { meno: 'brankár' } }).h.meno).replace(/\{t\}/g, t);
-    for (const [l, z, z2, s] of [[lA, zA, zB, 'd'], [lB, zB, zA, 'h']]) for (let i = poisson(1.5 + l * 1.6); i > 0; i--) { const h = strelec(z); ev.push({ m: 1 + rnd(90), t: 'sanca', s, h: h.meno, txt: sub(ch(K_SANCA), h.meno, z2, '') }); }
+    for (const [l, z, z2, s] of [[lA, zA, zB, 'd'], [lB, zB, zA, 'h']]) for (let i = poisson(1.5 + l * 1.6); i > 0; i--) { const h = strelec(z); ev.push({ m: 1 + rnd(90), t: 'sanca', s, h: h.meno, id: h.id, txt: sub(ch(K_SANCA), h.meno, z2, '') }); }
     for (let i = 3 + rnd(4); i > 0; i--) { const s = rnd(2) ? 'd' : 'h', t = s === 'd' ? tA.nazov : tB.nazov; ev.push({ m: 2 + rnd(87), t: 'kom', s: 'n', txt: sub(ch(K_KOM), '', s === 'd' ? zB : zA, t) }); }
     ev.push({ m: 1, t: 'kom', s: 'n', txt: 'Rozhodca pískol, zápas sa začína!' }, { m: 45, t: 'kom', s: 'n', txt: 'Polčas. V šatni sa podáva čaj a výčitky.' }, { m: 90, t: 'kom', s: 'n', txt: 'Koniec zápasu!' });
     for (const [z, s] of [[zA, 'd'], [zB, 'h']]) {
-      for (let i = poisson(1.7); i > 0; i--) { const h = ch(z.hraci).h; ev.push({ m: 1 + rnd(90), t: 'zk', s, h: h.meno, txt: ch(K_ZK) }); }
-      if (Math.random() < 0.05) { const h = ch(z.hraci).h; ev.push({ m: 20 + rnd(70), t: 'ck', s, h: h.meno }); }
+      for (let i = poisson(1.4); i > 0; i--) { const h = ch(z.hraci).h; ev.push({ m: 1 + rnd(90), t: 'zk', s, h: h.meno, id: h.id, txt: ch(K_ZK) }); }
+      if (Math.random() < 0.05) { const h = ch(z.hraci).h; ev.push({ m: 20 + rnd(70), t: 'ck', s, h: h.meno, id: h.id }); }
       if (ostry) for (const { h } of z.hraci) if (Math.random() < 0.025) { const k = 1 + rnd(3); ev.push({ m: 1 + rnd(90), t: 'zran', s, h: h.meno, id: h.id, k, txt: ch(K_ZRAN) }); }
     }
     const por = e => e.txt === 'Koniec zápasu!' ? 2 : e.txt === 'Rozhodca pískol, zápas sa začína!' ? -1 : e.t === 'kom' && e.m === 45 ? 1 : 0;
     ev.sort((a, b) => a.m - b.m || por(a) - por(b));
-    return { gA, gB, ev, zA, zB, xg: [Math.round(lA * 10) / 10, Math.round(lB * 10) / 10] };
+    // karty: druhá žltá = červená; vylúčený hráč už nič nerobí a tím v desiatich občas o gól príde
+    const von = {}, zlte = {}, cerv = { d: 99, h: 99 }, goly = { d: 0, h: 0 }, Z = { d: zA, h: zB }, ev2 = [];
+    const nahrad = (s, m) => { const c = Z[s].hraci.filter(x => x.p !== 'B' && !(von[x.h.id] <= m)); return c.length ? ch(c).h : null; };
+    for (const e of ev) {
+      if (e.id != null && von[e.id] != null && e.m >= von[e.id]) {
+        if (e.t !== 'gol') continue;
+        const h = nahrad(e.s, e.m); if (!h) continue; e.h = h.meno; e.id = h.id;
+      }
+      if (e.t === 'gol' && e.m >= cerv[e.s] && Math.random() < 0.3) continue;
+      if (e.t === 'zk' && (zlte[e.id] = (zlte[e.id] || 0) + 1) === 2) {
+        ev2.push(e, { m: e.m, t: 'ck', s: e.s, h: e.h, id: e.id, txt: 'druhá žltá karta' }); von[e.id] = e.m; cerv[e.s] = Math.min(cerv[e.s], e.m); continue;
+      }
+      if (e.t === 'ck') { von[e.id] = e.m; cerv[e.s] = Math.min(cerv[e.s], e.m); }
+      if (e.t === 'gol') goly[e.s]++;
+      ev2.push(e);
+    }
+    ev.length = 0; ev.push(...ev2);
+    return { gA: goly.d, gB: goly.h, ev, zA, zB, xg: [Math.round(lA * 10) / 10, Math.round(lB * 10) / 10] };
   };
   const poZapase = (t, z, g, gs, ev, s) => {
     const hrali = new Set(z.hraci.map(x => x.h.id)), vyhra = g > gs, rem = g === gs;
@@ -225,8 +243,9 @@ export function manazer(room, path, body, meno, rows, sql) {
       const un = hral ? cl(h.unava + Math.max(6, 20 - Math.round(h.kond / 6)), 0, 100) : cl(h.unava - 25, 0, 100);
       const fo = cl(h.forma + rnd(9) - 4 + (hral ? (vyhra ? 3 : rem ? 0 : -3) : -1), 25, 85);
       const zr = ev.find(e => e.t === 'zran' && e.id === h.id) ? ev.find(e => e.t === 'zran' && e.id === h.id).k : Math.max(0, h.zran - 1);
+      const tr = ev.some(e => e.t === 'ck' && e.id === h.id) ? 1 : Math.max(0, (h.trest || 0) - 1); // červená = stop na 1 kolo
       const gl = ev.filter(e => e.t === 'gol' && e.id === h.id).length;
-      sql('UPDATE mz_hrac SET unava=?, forma=?, zran=?, goly=goly+?, zapasy=zapasy+? WHERE id=?', un, fo, zr, gl, hral ? 1 : 0, h.id);
+      sql('UPDATE mz_hrac SET unava=?, forma=?, zran=?, trest=?, goly=goly+?, zapasy=zapasy+? WHERE id=?', un, fo, zr, tr, gl, hral ? 1 : 0, h.id);
     }
     sql('UPDATE mz_tim SET kredit=kredit+?, tb=tb+? WHERE meno=?', (vyhra ? 300 : rem ? 150 : 60) + 20 * g, TB_KOLO, t.meno);
   };
@@ -328,7 +347,7 @@ export function manazer(room, path, body, meno, rows, sql) {
   if (path === '/mz/zostava' && t) {
     const form = FORM[body.form] ? body.form : t.form, takt = TAKT[body.takt] ? body.takt : t.takt;
     const ids = Array.isArray(body.ids) ? body.ids.map(Number).slice(0, 11) : [];
-    const moji = new Set(hraci(meno).filter(h => !h.zran).map(h => h.id));
+    const moji = new Set(hraci(meno).filter(h => !h.zran && !h.trest).map(h => h.id));
     sql('UPDATE mz_tim SET form=?, takt=?, zostava=? WHERE meno=?', form, takt, JSON.stringify(ids.length === 11 && ids.every(i => moji.has(i)) && new Set(ids).size === 11 ? ids : []), meno);
   }
   if (path === '/mz/trening' && t) {
