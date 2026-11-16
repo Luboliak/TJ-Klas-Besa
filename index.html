@@ -110,6 +110,7 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .mzm span:last-child{text-align:right}.mzm b{font-family:var(--cond);font-size:18px;min-width:38px;text-align:center}.mzm.us{font-weight:600}
 .mztr{display:flex;gap:6px;align-items:center;border-top:1px solid var(--line);padding:8px 0}.mztr>div{flex:1;min-width:0}.mztr>div small{display:block;color:var(--mute);font-size:12.5px}
 .mztr .btn small{display:block;font-size:10px;opacity:.75}
+.mzleg{margin:12px 0;border:1px solid var(--line);border-radius:10px;padding:8px 12px}.mzleg summary{cursor:pointer;font-weight:600}.mzleg dl{margin:8px 0 0;font-size:13.5px}.mzleg dt{font-weight:700;margin-top:8px}.mzleg dd{margin:2px 0 0;color:var(--mute)}
 .mzk td,.mzk th{padding-left:4px;padding-right:4px}
 .mzscore{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;text-align:center;margin:6px 0 10px}.mzscore b{font-family:var(--cond);font-size:38px}
 .mzev{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line)}.mzev.n{justify-content:center;text-align:center;color:var(--mute);font-style:italic}.mzev.n i{display:none}.mzev i{font-style:normal;color:var(--mute);min-width:30px}.mzev.h{flex-direction:row-reverse;text-align:right}
@@ -2076,6 +2077,20 @@ function vManazer(){
   h+=`<div class="seg hseg">${segs.map(([k,n])=>`<button data-mzs="${k}" class="${MZ.sub===k?'on':''}">${n}</button>`).join('')}</div>`;
   return h+(MZ.sub==='liga'?mzLiga(S):MZ.sub==='tren'?mzTren(S):MZ.sub==='trh'?mzTrh(S):MZ.sub==='vyz'?mzVyz(S):mzTim(S));
 }
+const MZ_LEG=`<details class="mzleg"><summary>Čo znamenajú skratky?</summary><dl>
+  <dt>B · O · S · Ú</dt><dd>Post hráča: brankár, obranca, záložník, útočník. Hráč mimo svojho postu má len 75 % sily, brankár v poli (alebo hráč v bránke) ešte menej.</dd>
+  <dt>Ú – útok</dt><dd>Ako dobre strieľa a tvorí šance. Najdôležitejší pre útočníkov a záložníkov.</dd>
+  <dt>O – obrana</dt><dd>Ako dobre bráni. Pri brankárovi je to chytanie. Najdôležitejšia pre brankára a obrancov.</dd>
+  <dt>K – kondícia</dt><dd>Ako rýchlo sa hráč unaví. S vyššou kondíciou môže hrať viac zápasov za sebou.</dd>
+  <dt>F – forma</dt><dd>Aktuálna forma (25 – 85, priemer 50). Rastie po výhrach, klesá po prehrách a keď hráč dlho nehrá.</dd>
+  <dt>Ún – únava</dt><dd>0 = oddýchnutý, 100 = úplne vyčerpaný. Rastie s každým zápasom, klesá, keď hráč kolo vynechá. Unavený hráč hrá horšie.</dd>
+  <dt>G – góly</dt><dd>Koľko gólov dal hráč v ligových zápasoch.</dd>
+  <dt>Sila</dt><dd>Celkové hodnotenie hráča podľa jeho postu (z útoku, obrany a kondície).</dd>
+  <dt>🚑 / 🟥 stop</dt><dd>Zranený na toľko kôl / po červenej karte vynechá najbližšie ligové kolo.</dd>
+  <dt>TB – tréningové body</dt><dd>Za ne zlepšuješ útok, obranu a kondíciu. Dostávaš ich za skutočné tréningy a za odohrané kolá.</dd>
+  <dt>Kredity</dt><dd>Peniaze na prestupy. Za body z kvízu a za výsledky zápasov.</dd>
+  <dt>xG – šance</dt><dd>Koľko gólov by tím „mal“ dať podľa šancí. Ukazuje, či výsledok bol zaslúžený alebo šťastný.</dd>
+</dl></details>`;
 function mzNovy(intro,S){
   let h='<h2 style="margin-top:0">Beša manažér</h2>'+intro+`<h2>Založ si tím</h2>
   <label class="f"><span>Názov tímu</span><input type="text" id="mzN" maxlength="28" placeholder="napr. FC Kosačky Beša"></label>
@@ -2099,6 +2114,7 @@ function mzTim(S){
     <div class="row2" style="margin-top:8px"><label class="f"><span>Farba dresu</span><input type="color" id="mzE1" value="${T.f1||'#111111'}"></label><label class="f"><span>Druhá farba</span><input type="color" id="mzE2" value="${T.f2||'#ffffff'}"></label></div>
     <button class="btn" style="width:100%;margin-top:8px" data-mzfarby="1">Uložiť farby</button>`;
   h+=`<h2>Zmazať tím</h2><p class="note">Tím aj všetci jeho hráči zmiznú natrvalo. Ak beží sezóna, tvoje zostávajúce zápasy sa už neodohrajú. Nový tím si môžeš založiť hneď, do ligy sa dostane od ďalšej sezóny.</p><button class="btn" style="width:100%;color:#e06666" data-mzzmaz="1">Zmazať môj tím</button>`;
+  h+=MZ_LEG;
   h+='<p class="note">Únava rastie, keď hráč hrá, a klesá, keď oddychuje. Unavený alebo zranený hráč hrá horšie, oplatí sa striedať. Hráč mimo svojho postu má 75 % sily. Po červenej karte (aj po druhej žltej) hráč jedno ligové kolo nehrá.</p>';
   return h;
 }
@@ -2121,7 +2137,7 @@ function mzLiga(S){
 }
 function mzTren(S){
   const T=S.tim;
-  let h=`<p class="note" style="margin-top:0">Máš <b>${T.tb} TB</b>. Za každý tréning, na ktorom si v skutočnosti bol, dostaneš ${S.pravidla.TB_TRENING} TB (podľa dochádzky vedenia) a za každé odohrané kolo ${S.pravidla.TB_KOLO} TB. Vyššie hodnoty stoja viac TB.</p>`;
+  let h=MZ_LEG+`<p class="note" style="margin-top:0">Máš <b>${T.tb} TB</b>. Za každý tréning, na ktorom si v skutočnosti bol, dostaneš ${S.pravidla.TB_TRENING} TB (podľa dochádzky vedenia) a za každé odohrané kolo ${S.pravidla.TB_KOLO} TB. Vyššie hodnoty stoja viac TB.</p>`;
   h+=T.hraci.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · sila ${p.ovr}</small></div>
     <button class="btn sm" data-mztr="${p.id}" data-a="utok" ${T.tb<p.tbU?'disabled':''}>Ú ${p.utok}<small>+1 za ${p.tbU}</small></button>
     <button class="btn sm" data-mztr="${p.id}" data-a="obrana" ${T.tb<p.tbO?'disabled':''}>O ${p.obrana}<small>+1 za ${p.tbO}</small></button>
@@ -2131,7 +2147,7 @@ function mzTren(S){
 function mzTrh(S){
   const T=S.tim;
   let h=`<p class="note" style="margin-top:0">Máš <b>${T.kredit} kreditov</b>. Kredity dostávaš za body z kvízu od začiatku súťaže (1 bod = 1 kredit) a za zápasy (výhra 300, remíza 150, prehra 60, gól +20). Trh sa obnovuje každý deň. V kádri môžeš mať ${S.pravidla.MIN_KADER} – ${S.pravidla.MAX_KADER} hráčov.</p><h2>Voľní hráči</h2>`;
-  h+=S.trh.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · ${p.vek} r. · Ú ${p.utok} O ${p.obrana} K ${p.kond} · sila ${p.ovr}</small></div><button class="btn sm pri" data-mzkup="${p.id}" ${T.kredit<p.cena?'disabled':''}>${p.cena} kr.</button></div>`).join('');
+  h+=MZ_LEG+S.trh.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${({B:"brankár",O:"obranca",S:"záložník",U:"útočník"})[p.post]} · ${p.vek} r. · útok ${p.utok} · obrana ${p.obrana} · kondícia ${p.kond} · sila ${p.ovr}</small></div><button class="btn sm pri" data-mzkup="${p.id}" ${T.kredit<p.cena?'disabled':''}>${p.cena} kr.</button></div>`).join('');
   h+='<h2>Predať hráča</h2><p class="note">Za predaj dostaneš polovicu jeho ceny.</p>'+T.hraci.map(p=>`<div class="mztr"><div><b>${esc(p.meno)}</b><small>${MZ_POST[p.post]} · sila ${p.ovr}</small></div><button class="btn sm" data-mzpred="${p.id}">+${Math.round(p.cena/2)} kr.</button></div>`).join('');
   return h;
 }
