@@ -34,6 +34,6 @@ V záložke **Actions** otvor posledný beh a krok „Stiahnuť ligy zo Sportnet
 ## Kvíz partie (samostatná appka pre partiu)
 Adresa: `https://luboliak.github.io/TJ-Klas-Besa/kviz/`
 - Partii pošli odkaz a heslo (na začiatku `partia`). Každý si zadá meno, na novom telefóne rovnaké meno = pokračuje.
-- Zmeškané dni aktuálneho týždňa (od pondelka) sa dajú dohrať, najviac 2 dohrávky za deň + dnešný kvíz. Body idú do pôvodného dňa. Limit je `MAX_ZA_DEN` v `cloudflare/kviz.js`.
+- Zmeškaný kvíz sa dá dohrať najviac 3 dni dozadu v rámci mesiaca (rovnako ako kvíz v klubovej appke). Body idú do pôvodného dňa. Počet dní je `DOZADU` v `cloudflare/kviz.js`.
 - Heslo zmeníš na prihlasovacej obrazovke cez **Správca**. Prvý PIN, ktorý tam zadáš, sa uloží ako správcovský.
 - Otázky sú v `cloudflare/kviz-otazky.js`, logika na serveri v `cloudflare/kviz.js` (nasadí sa spolu s workerom).

@@ -3,7 +3,7 @@
 // Všetko sa vyhodnocuje tu na serveri: správne odpovede ani čas sa nedajú obísť z telefónu.
 import POOL from './kviz-otazky.js';
 
-const N = 12, SEC = 20, MAX_ZA_DEN = 3, START = '2026-11-12', SEED = 20261112, HESLO = 'partia';
+const N = 12, SEC = 20, DOZADU = 3, START = '2026-11-12', SEED = 20261112, HESLO = 'partia';
 const NOSTORE = { 'Cache-Control': 'no-store' };
 
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -89,10 +89,9 @@ export async function kviz(room, path, body, h) {
   // ---- všetko ostatné potrebuje prihláseného hráča ----
   const me = rows('SELECT token, meno FROM kp_hraci WHERE token=?', String(body.token || ''))[0];
   if (!me) return out({ error: 'Prihlás sa znova.', odhlasit: true }, 401);
-  // Dohrať sa dá zmeškaný deň z aktuálneho týždňa (od pondelka), najviac MAX_ZA_DEN kvízov za deň spolu s dnešným.
-  // Body sa rátajú do pôvodného dňa, takže týždenný rebríček sa uzavrie v nedeľu ako doteraz.
-  const zaciatok = tyz > START ? tyz : START;
-  const dniTyzdna = () => { const o = []; for (let x = new Date(zaciatok + 'T12:00:00Z'); x.toISOString().slice(0, 10) <= den; x.setUTCDate(x.getUTCDate() + 1)) o.push(x.toISOString().slice(0, 10)); return o; };
+  // Rovnaké pravidlo ako kvíz v klubovej appke: zmeškaný deň sa dá dohrať najviac 3 dni dozadu, len v aktuálnom mesiaci.
+  // Body sa rátajú do pôvodného dňa.
+  const dozadu = [...Array(DOZADU)].map((_, i) => skDate(-(i + 1))).filter(x => x.slice(0, 7) === den.slice(0, 7) && x >= START);
   const zDna = dd => rows('SELECT i, s, c, r, pend, t0, hrane FROM kp_dni WHERE token=? AND den=?', me.token, dd)[0] || null;
   const uzavriet = (dd, d) => {
     if (d && d.pend && now - d.t0 > (SEC + 2) * 1000) {
@@ -101,21 +100,18 @@ export async function kviz(room, path, body, h) {
     }
     return d;
   };
-  const dohrateDnes = () => rows('SELECT COUNT(*) AS n FROM kp_dni WHERE token=? AND hrane=? AND den<>? AND i>0', me.token, den, den)[0].n;
-  const hraneDnes = () => rows('SELECT COUNT(*) AS n FROM kp_dni WHERE token=? AND hrane=? AND i>0', me.token, den)[0].n;
   const zvolDen = () => {
     const dd = String(body.den || den);
-    if (dd !== den && !(dd >= zaciatok && dd < den)) return null;
+    if (dd !== den && !dozadu.includes(dd)) return null;
     return dd;
   };
 
   if (path === '/kp/otazka') {
     const dd = zvolDen();
-    if (!dd) return out({ error: 'Tento deň sa už dohrať nedá. Dohrávať môžeš len dni z tohto týždňa.' }, 400);
+    if (!dd) return out({ error: 'Tento deň sa už dohrať nedá. Dohrať sa dajú najviac 3 dni dozadu v rámci mesiaca.' }, 400);
     const sada = dennaSada(dd);
     let d = uzavriet(dd, zDna(dd));
     if (!d || d.i === 0) {
-      if (dd !== den && dohrateDnes() >= MAX_ZA_DEN - 1) return out({ error: `Dnes si už dohral ${MAX_ZA_DEN - 1} zmeškané kvízy. Ďalší môžeš dohrať zajtra.` }, 429);
       if (!d) sql('INSERT INTO kp_dni (token, den, hrane) VALUES (?, ?, ?)', me.token, dd, den);
       else sql('UPDATE kp_dni SET hrane=? WHERE token=? AND den=?', den, me.token, dd);
       d = zDna(dd);
@@ -168,7 +164,7 @@ export async function kviz(room, path, body, h) {
   const minTyz = weekStart(skDate(-7));
   const minB = board(minTyz, nedela(minTyz))[0] || null, minC = ceny(minTyz)[0] || null;
   const d = uzavriet(den, zDna(den));
-  const zmeskane = dniTyzdna().filter(x => x < den).map(x => {
+  const zmeskane = dozadu.slice().reverse().map(x => {
     const z = uzavriet(x, zDna(x));
     return { den: x, i: z ? z.i : 0, s: z ? z.s : 0, c: z ? z.c : 0, r: z ? z.r : '' };
   }).filter(z => z.i < N);
@@ -176,7 +172,7 @@ export async function kviz(room, path, body, h) {
     meno: me.meno, den, tyzden: tyz, tyzdenDo: nedela(tyz),
     dnes: d ? { i: d.i, s: d.s, c: d.c, r: d.r, pend: !!d.pend } : null,
     temy: [...new Set(dennaSada(den).map(q => q.tema))],
-    zmeskane, dohrateDnes: dohrateDnes(), maxDohrat: MAX_ZA_DEN - 1,
+    zmeskane,
     rebricek: { dnes: board(den, den), tyzden: board(tyz, nedela(tyz)), mesiac: board(den.slice(0, 7) + '-01', den.slice(0, 7) + '-31'), rok: board(den.slice(0, 4) + '-01-01', den.slice(0, 4) + '-12-31') },
     ceny: ceny(tyz).map(c => ({ id: c.id, text: c.text, hlasy: c.hlasy, moja: !!c.moja })),
     mojHlas: (rows('SELECT cena FROM kp_hlasy WHERE tyzden=? AND token=?', tyz, me.token)[0] || {}).cena || null,

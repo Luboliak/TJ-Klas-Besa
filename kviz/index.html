@@ -211,7 +211,7 @@ function renderToday(){
       <p class="muted small" style="margin:0">Nová séria 12 otázok naskočí zajtra o polnoci.</p></div>`;
   } else {
     main = `<div class="card"><span class="eyebrow">Dnešný kvíz · ${fmtD(st.den)}</span><h2>${started?'Rozohraný kvíz':'12 nových otázok'}</h2>
-      <p class="muted small" style="margin:0">Na každú otázku máš ${SEC} sekúnd. Správna odpoveď = 10 bodov a bonus za rýchlosť (najviac 10). Každý deň má svoju sériu. Zmeškané dni tohto týždňa sa dajú dohrať, najviac 2 za deň. Otvorená otázka sa po zatvorení appky počíta ako zlá.</p>
+      <p class="muted small" style="margin:0">Na každú otázku máš ${SEC} sekúnd. Správna odpoveď = 10 bodov a bonus za rýchlosť (najviac 10). Každý deň má svoju sériu. Zmeškaný kvíz sa dá dohrať najviac 3 dni dozadu. Otvorená otázka sa po zatvorení appky počíta ako zlá.</p>
       ${started?`<div class="dots">${dotsHtml(d.r,d.r.length)}</div>`:''}
       <button class="btn" data-act="start" ${S.busy?'disabled':''}>${started?`Pokračovať (otázka ${d.r.length+1})`:'Začať kvíz'}</button>
       <span class="small muted">Dnešné témy: ${st.temy.map(esc).join(', ')}</span></div>`;
@@ -225,11 +225,10 @@ function renderToday(){
 }
 function zmeskaneCard(){
   const st=S.stav, z=st.zmeskane||[]; if(!z.length) return '';
-  const zost = Math.max(0, st.maxDohrat - st.dohrateDnes);
-  return `<div class="card"><span class="eyebrow">Zmeškané kvízy tohto týždňa</span>
-    <p class="muted small" style="margin:0">${zost?`Dnes môžeš dohrať ešte ${zost} ${zost===1?'zmeškaný kvíz':'zmeškané kvízy'}. Body sa rátajú do týždňa ako zvyčajne. Dohrávať sa dá do nedele.`:'Dnes si už dohral, čo sa dalo. Ďalšie zmeškané kvízy môžeš dohrať zajtra.'}</p>
+  return `<div class="card"><span class="eyebrow">Zmeškané kvízy</span>
+    <p class="muted small" style="margin:0">Zmeškaný kvíz sa dá dohrať najviac 3 dni dozadu, len v rámci mesiaca. Body sa pripíšu do toho dňa.</p>
     <div class="plist">${z.map(x=>{ const roz=x.i>0; return `<div class="pitem"><div class="t">${denNazov(x.den)} ${fmtD(x.den)}<div class="small muted" style="font-weight:400">${roz?`Rozohraný · ${x.r.length}/12 · ${x.s} bodov`:'Nezahraný'}</div></div>
-      <button class="v" data-dohraj="${x.den}" ${(!roz&&!zost)||S.busy?'disabled':''}>${roz?'Pokračovať':'Dohrať'}</button></div>`; }).join('')}</div></div>`;
+      <button class="v" data-dohraj="${x.den}" ${S.busy?'disabled':''}>${roz?'Pokračovať':'Dohrať'}</button></div>`; }).join('')}</div></div>`;
 }
 function tableHtml(rows){
   return `<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Hráč</th><th class="n">Dni</th><th class="n">Správne</th><th class="n">Body</th></tr></thead><tbody>${
