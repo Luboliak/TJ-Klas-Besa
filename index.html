@@ -127,6 +127,7 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .mzarch{border-top:1px solid var(--line);padding:8px 0;font-size:14px;line-height:1.55}
 .mztr2{border-top:1px solid var(--line);padding:8px 0}.mztrb{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px}.mztrb .btn{padding-left:2px;padding-right:2px}
 .mzponin{width:76px;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.psopr{border:1px solid var(--line);border-radius:10px;padding:10px;margin:10px 0}
 .chk{display:flex;gap:8px;align-items:center;margin:10px 0;font-size:14.5px}
 .mzpitch{width:100%;border-radius:10px;display:block}
 .mzsost{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13.5px}.mzsost div:last-child{text-align:right}
@@ -1641,6 +1642,9 @@ function partnerStat(){
   if(!PSTAT) return '';
   return '<h2>Partneri – štatistika</h2>'+PARTNERI.map(p=>{ const x=(PSTAT.partneri||{})[p.id]||{}; return `<div class="mztr"><div><b>${esc(p.nazov)}</b><small>za 30 dní: ${x.zobr30||0} zobrazení, ${x.klik30||0} preklikov · spolu ${x.zobr||0} / ${x.klik||0}</small></div></div>`; }).join('')+'<p class="note">Zobrazenie = niekto otvoril appku (raz za návštevu). Preklik = ťukol na odkaz partnera. Tieto čísla môžeš ukázať sponzorovi.</p>';
 }
+function psOpravy(){ // heslá, ktorých meno sa líši od súpisky len diakritikou / veľkými písmenami
+  const R=(D.players||[]).map(p=>p.name); return (PS.list||[]).map(p=>{ const c=R.filter(n=>normN(n)===normN(p.meno)&&n!==p.meno); return c.length===1?{kod:p.kod,stare:p.meno,nove:c[0]}:null; }).filter(Boolean);
+}
 function vHesla(){
   if(!PROXY) return '<div class="empty">Server nie je nastavený.</div>';
   if(!PS.pin) return `<p>Na správu hesiel zadaj správcovský PIN chatu (ten, ktorým sa v Chate prihlasuješ ako správca).</p><div class="acts"><input type="text" id="psPin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Správcovský PIN" style="flex:1"><button class="btn pri" data-pspin="1">Pokračovať</button></div>${PS.err?`<p class="note" style="color:#d64545">${esc(PS.err)}</p>`:''}`;
@@ -1650,6 +1654,7 @@ function vHesla(){
     <div class="acts"><select id="psMeno" style="flex:1"><option value="">– vyber hráča –</option>${cand.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>
     <div class="acts" style="margin-top:6px"><input id="psIne" placeholder="alebo napíš iné meno" style="flex:1"><button class="btn pri" data-psnew="1">Vytvoriť heslo</button></div>`;
   if(cand.length>1) h+=`<button class="btn" data-psall="1" style="width:100%;margin-top:6px">Vytvoriť heslá všetkým bez hesla (${cand.length})</button>`;
+  const opr=psOpravy(); if(opr.length) h+=`<div class="psopr"><p class="note" style="margin:0 0 6px">Tieto heslá majú meno inak napísané ako v súpiske (napr. bez diakritiky): ${opr.map(o=>`<b>${esc(o.stare)}</b> → ${esc(o.nove)}`).join(', ')}</p><button class="btn pri" style="width:100%" data-psopr="1">Opraviť mená podľa súpisky (${opr.length})</button></div>`;
   h+=`<h2>Heslá (${PS.list.length})</h2>`;
   if(!PS.list.length) h+='<div class="empty">Zatiaľ nikto nemá heslo.</div>';
   PS.list.forEach(p=>{ const st=p.blok?'<b style="color:#d64545">zablokované</b>':p.sparovane?`spárované s telefónom${p.posledne?' · naposledy '+new Date(p.posledne).toLocaleDateString('sk-SK'):''}`:'zatiaľ nepoužité';
@@ -1657,6 +1662,7 @@ function vHesla(){
       <button class="btn" data-psshare="${p.kod}">Poslať</button>
       ${p.sparovane&&!p.blok?`<button class="btn" data-psakc="uvolni" data-kod="${p.kod}">Uvoľniť</button>`:''}
       <button class="btn" data-psakc="${p.blok?'odblok':'blok'}" data-kod="${p.kod}">${p.blok?'Odblokovať':'Blokovať'}</button>
+      <button class="btn" data-psren="${p.kod}">Premenovať</button>
       <button class="btn" data-psakc="zmaz" data-kod="${p.kod}">Zmazať</button></div></div>`; });
   return h+'<p class="note">Tvoja Android apka heslo nepotrebuje. Heslo platí len pre webovú appku.</p>'+partnerStat();
 }
@@ -1671,6 +1677,12 @@ function vedClick(b){
     if(ds.psakc==='zmaz'&&!confirmTwice(b,'Naozaj zmazať?')) return true;
     if(ds.psakc==='uvolni') toast('Heslo uvoľnené – môže sa prihlásiť na novom telefóne');
     psApi(ds.psakc,{kod:ds.kod}); return true; }
+  if(ds.psopr){ const opr=psOpravy(); (async()=>{ for(const o of opr) await psApi('premenuj',{kod:o.kod,meno:o.nove}); toast('Opravené mená: '+opr.length); render(); })(); return true; }
+  if(ds.psren){ const p=PS.list.find(x=>x.kod===ds.psren); if(!p) return true; const nm=normN(p.meno), roster=D.players.map(x=>x.name);
+    openSheet(`<h3><span>Premenovať heslo</span>${closeBtn}</h3><p class="note" style="margin-top:0">Teraz: <b>${esc(p.meno)}</b>. Hráč ostane prihlásený, jeho body z kvízu, hier, manažéra aj správy v chate sa prenesú na nové meno.</p>
+      <label class="f"><span>Nové meno</span><input id="psRen" value="${esc(roster.find(n=>normN(n)===nm)||p.meno)}" list="psRenL"></label><datalist id="psRenL">${roster.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+      <button class="btn pri" style="width:100%;margin-top:8px" data-psrenok="${p.kod}">Uložiť</button>`); return true; }
+  if(ds.psrenok){ const m=(($('#psRen')||{}).value||'').trim(); if(!m) return true; psApi('premenuj',{kod:ds.psrenok,meno:m}).then(j=>{ if(j){ closeSheet(); toast('Premenované na '+m); render(); } }); return true; }
   if(ds.psshare){ const p=PS.list.find(x=>x.kod===ds.psshare); const t=psMsg(p);
     if(navigator.share) navigator.share({text:t}).catch(()=>{}); else location.href='https://wa.me/?text='+encodeURIComponent(t); return true; }
   if(ds.vs){ vsub=ds.vs; try{ localStorage.setItem('vsub',vsub); }catch(e){} render(); return true; }
@@ -3545,7 +3557,9 @@ else{
   let P=null; try{ P=JSON.parse(lsGet('pristup')||'null'); }catch(e){}
   if(!P) gateShow();
   else{ pristupPin(); boot(); // overenie na pozadí: zablokované alebo presunuté heslo appku zavrie
-    gateLogin(P.kod).then(R=>{ if(R.status===403){ lsSet('pristup',''); gateShow(R.j.error); } }).catch(()=>{}); }
+    gateLogin(P.kod).then(R=>{ if(R.status===403){ lsSet('pristup',''); gateShow(R.j.error); return; }
+      // správca mohol meno opraviť (napr. doplniť diakritiku) – prevezmi nové
+      if(R.ok&&R.j.meno&&R.j.meno!==P.meno){ const st=P.meno; P.meno=R.j.meno; lsSet('pristup',JSON.stringify(P)); if(!JA||JA===st||normN(JA)===normN(st)){ JA=R.j.meno; try{ localStorage.setItem('ja',JA); }catch(e){} } if(typeof MZ!=='undefined') MZ.st=null; render(); } }).catch(()=>{}); }
 }
 </script>
 </body>

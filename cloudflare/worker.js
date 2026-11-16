@@ -348,7 +348,15 @@ export class ChatRoom {
         this.ctx.storage.sql.exec('INSERT INTO pristup (kod, meno, vytvor) VALUES (?, ?, ?)', k, meno, Date.now());
         return json({ ok: true, kod: k, meno });
       }
-      if (a === 'uvolni') this.ctx.storage.sql.exec('UPDATE pristup SET dev=NULL, prve=NULL WHERE kod=?', kod);
+      if (a === 'premenuj') {
+        // oprava mena (napr. doplnenie diakritiky) – prenesie sa aj všetko, čo hráč pod starým menom nahral
+        const r = this.rows('SELECT meno FROM pristup WHERE kod=?', kod)[0], nove = String(body.meno || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+        if (!r || !nove) return json({ error: 'Zlé údaje' }, 400);
+        if (r.meno !== nove && this.rows('SELECT 1 FROM pristup WHERE meno=? AND kod<>?', nove, kod).length) return json({ error: 'Toto meno už má iné heslo' }, 409);
+        if (r.meno !== nove) this.premenuj(r.meno, nove);
+        this.ctx.storage.sql.exec('UPDATE pristup SET meno=? WHERE kod=?', nove, kod);
+      }
+      else if (a === 'uvolni') this.ctx.storage.sql.exec('UPDATE pristup SET dev=NULL, prve=NULL WHERE kod=?', kod);
       else if (a === 'blok') this.ctx.storage.sql.exec('UPDATE pristup SET blok=1 WHERE kod=?', kod);
       else if (a === 'odblok') this.ctx.storage.sql.exec('UPDATE pristup SET blok=0 WHERE kod=?', kod);
       else if (a === 'zmaz') this.ctx.storage.sql.exec('DELETE FROM pristup WHERE kod=?', kod);
@@ -665,6 +673,14 @@ export class ChatRoom {
     const g = j[0] ? [+j[0].lat, +j[0].lon] : null;
     this.ctx.storage.sql.exec('INSERT OR REPLACE INTO km_geo (q, lat, lon, at) VALUES (?, ?, ?, ?)', q.toLowerCase(), g ? g[0] : null, g ? g[1] : null, Date.now());
     return g;
+  }
+  premenuj(stare, nove) {
+    const ex = (q, ...a) => { try { this.ctx.storage.sql.exec(q, ...a); } catch (e) {} };
+    const T = [['msgs', 'meno'], ['mvp_votes', 'voter'], ['mvp_votes', 'za'], ['tips', 'meno'], ['hry', 'meno'], ['fantasy', 'meno'], ['ark_sess', 'meno'], ['ziadosti', 'meno'], ['kq_dni', 'meno'], ['kq_seen', 'meno'],
+      ['mz_tim', 'meno'], ['mz_hrac', 'tim'], ['mz_zapas', 'dom'], ['mz_zapas', 'hos'], ['mz_ponuka', 'kupec'], ['mz_ponuka', 'predajca'], ['mz_log', 'tim'], ['mz_stat', 'tim'], ['mz_sez', 'majster']];
+    for (const [t, c] of T) ex(`UPDATE OR IGNORE ${t} SET ${c}=? WHERE ${c}=?`, nove, stare);
+    const js = JSON.stringify(stare), jn = JSON.stringify(nove);
+    for (const c of ['timy', 'rozpis', 'divizie', 'pohar', 'super', 'archiv']) ex(`UPDATE mz_sez SET ${c}=replace(${c}, ?, ?) WHERE ${c} LIKE ?`, js, jn, '%' + js + '%');
   }
   async kmTrasy(list) {
     const out = [];
