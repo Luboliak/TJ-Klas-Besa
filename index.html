@@ -34,7 +34,8 @@ button{cursor:pointer}
 /* hlavička */
 header{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
 header img{width:40px;height:40px;object-fit:contain}
-.hname{min-width:0;flex:1}.hname b,.hname span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hname{min-width:0;flex:1}
+@media (max-width:430px){ header .ibtn{width:38px;height:38px} header .ibtn svg{width:20px;height:20px} header img{width:34px;height:34px} }.hname b,.hname span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hname{flex:1;min-width:0}
 .hname b{display:block;font-family:var(--cond);font-size:20px;letter-spacing:.3px;line-height:1.1}
 .hname span{color:var(--mute);font-size:13px}
@@ -1527,13 +1528,34 @@ function newEvent(type){
   const d=ym(today())===curMonth?today():curMonth+'-01';
   eventSheet({id:uid(), type, date:d, time:type==='trening'?'17:45':'', note:'', present:[], matchId:''});
 }
+// zlúčenie dvoch záznamov toho istého hráča (napr. „Lubos Skacan“ a „Ľuboš Skačan“ zo Sportnetu)
+function pMerge(fromId,toId){
+  const a=D.players.find(p=>p.id===fromId), t=D.players.find(p=>p.id===toId); if(!a||!t||a===t) return;
+  D.events.forEach(e=>{ if(e.present.includes(fromId)){ e.present=e.present.filter(x=>x!==fromId); if(!e.present.includes(toId)) e.present.push(toId); } });
+  Object.keys(D.paid).forEach(k=>{ const [m,id]=k.split('|'); if(id!==fromId) return; const tk=m+'|'+toId, x=D.paid[k];
+    if(D.paid[tk]) D.paid[tk]={date:D.paid[tk].date>x.date?D.paid[tk].date:x.date, amount:Math.round(((+D.paid[tk].amount||0)+(+x.amount||0))*100)/100}; else D.paid[tk]=x; delete D.paid[k]; });
+  (D.fines||[]).forEach(f=>{ if(f.pid===fromId) f.pid=toId; });
+  for(const k of ['rt','rz','km','byd']) if((t[k]==null||t[k]==='')&&a[k]!=null&&a[k]!=='') t[k]=a[k];
+  if(a.active!==false) t.active=true;
+  D.players=D.players.filter(p=>p.id!==fromId); save();
+}
+function pDupl(){
+  const N=p=>normN(p.name), sq=new Set(squad().map(normN)), out=[], seen=new Set();
+  const key=p=>{ const w=N(p).split(' '); return w.length>1?w[w.length-1]+'|'+w[0].slice(0,3):N(p); };
+  for(let i=0;i<D.players.length;i++) for(let j=i+1;j<D.players.length;j++){
+    const a=D.players[i], b=D.players[j]; if(seen.has(a.id)||seen.has(b.id)) continue;
+    if(N(a)===N(b)||key(a)===key(b)){ const keepB=sq.has(N(b))&&!sq.has(N(a))||(/[^\x00-\x7f]/.test(b.name)&&!/[^\x00-\x7f]/.test(a.name)); out.push(keepB?[a,b]:[b,a]); seen.add(a.id); seen.add(b.id); }
+  }
+  return out; // [zlúčiť tohto, do tohto]
+}
 function playersSheet(){
-  const known=new Set(D.players.map(p=>p.name));
-  const fromSquad=squad().filter(n=>!known.has(n));
+  const known=new Set(D.players.map(p=>normN(p.name)));
+  const fromSquad=squad().filter(n=>!known.has(normN(n))), dup=pDupl();
   openSheet(`<h3><span>Hráči</span>${closeBtn}</h3>
     <div class="row2" style="margin-bottom:12px"><input type="text" id="pNew" placeholder="Meno a priezvisko"><button class="btn pri" style="flex:0 0 auto" data-addp="1">Pridať</button></div>
+    ${dup.length?`<div class="zbox"><b>Pravdepodobne ten istý hráč dvakrát</b>${dup.map(([a,b])=>`<div><span>${esc(a.name)} → <b>${esc(b.name)}</b></span><button class="btn sm pri" data-pmrg="${a.id}" data-to="${b.id}">Zlúčiť</button></div>`).join('')}<p class="note" style="margin:6px 0 0">Dochádzka, výplaty, pokuty, bonusy aj sadzby sa presunú k menu vpravo, druhý záznam zmizne.</p></div>`:''}
     ${fromSquad.length?`<div class="acts"><button class="btn sm grow" data-addsquad="1">Pridať zo súpisky (${fromSquad.length})</button></div>`:''}
-    ${D.players.map(p=>`<div class="row2" style="margin-bottom:6px;align-items:center"><input type="text" value="${esc(p.name)}" data-pname="${p.id}"><button class="btn sm" style="flex:0 0 96px" data-pact="${p.id}">${p.active===false?'Neaktívny':'Aktívny'}</button></div>`).join('')}
+    ${D.players.map(p=>`<div class="row2" style="margin-bottom:6px;align-items:center"><input type="text" value="${esc(p.name)}" data-pname="${p.id}"><button class="btn sm" style="flex:0 0 auto" data-pmsel="${p.id}" title="Zlúčiť s iným hráčom">⇄</button><button class="btn sm" style="flex:0 0 96px" data-pact="${p.id}">${p.active===false?'Neaktívny':'Aktívny'}</button></div>`).join('')}
     <p class="note">Neaktívny hráč sa neponúka v novej dochádzke, ale jeho staré záznamy a výplaty ostávajú. Mená napíš rovnako ako na Sportnete, potom funguje aj označenie podľa Prídem.</p>`);
 }
 function ratesSheet(){
@@ -1639,7 +1661,10 @@ function vedClick(b){
   if(ds.open==='players'){ playersSheet(); return true; }
   if(ds.open==='rates'){ ratesSheet(); return true; }
   if(ds.addp){ const n=$('#pNew').value.trim(); if(!n) return true; D.players.push({id:uid(),name:n,active:true}); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); save(); playersSheet(); render(); return true; }
-  if(ds.addsquad){ const known=new Set(D.players.map(p=>p.name)); squad().filter(n=>!known.has(n)).forEach(n=>D.players.push({id:uid(),name:n,active:true})); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); save(); playersSheet(); render(); toast('Hráči pridaní'); return true; }
+  if(ds.pmrg){ if(!confirmTwice(b,'Naozaj zlúčiť?')) return true; pMerge(ds.pmrg,ds.to); playersSheet(); render(); toast('Hráči zlúčení'); return true; }
+  if(ds.pmsel){ const a=D.players.find(p=>p.id===ds.pmsel);
+    openSheet(`<h3><span>Zlúčiť „${esc(a.name)}“ do…</span>${closeBtn}</h3><p class="note" style="margin-top:-6px">Vyber meno, ktoré má ostať. Všetko od „${esc(a.name)}“ sa k nemu presunie.</p>`+D.players.filter(p=>p.id!==a.id).sort((x,y)=>{ const n=normN(a.name).split(' ').pop(); return (normN(y.name).includes(n))-(normN(x.name).includes(n))||x.name.localeCompare(y.name,'sk'); }).map(p=>`<div class="mztr"><div><b>${esc(p.name)}</b></div><button class="btn sm pri" data-pmrg="${a.id}" data-to="${p.id}">Zlúčiť sem</button></div>`).join('')); return true; }
+  if(ds.addsquad){ const known=new Set(D.players.map(p=>normN(p.name))); squad().filter(n=>!known.has(normN(n))).forEach(n=>D.players.push({id:uid(),name:n,active:true})); D.players.sort((a,c)=>a.name.localeCompare(c.name,'sk')); save(); playersSheet(); render(); toast('Hráči pridaní'); return true; }
   if(ds.pact){ const p=D.players.find(x=>x.id===ds.pact); p.active=p.active===false; save(); b.textContent=p.active===false?'Neaktívny':'Aktívny'; return true; }
   if(ds.saveRates){ D.rates={trening:+$('#rT').value||0,zapas:+$('#rZ').value||0,km:+String($('#rKm').value).replace(',','.')||0,strh:+$('#rS').value||0,volno:$('#rV').value===''?1:Math.max(0,+$('#rV').value|0)}; D.syncOd=$('#rOd').value||SYNC_OD_DEF;
     document.querySelectorAll('[data-km]').forEach(i=>{ const p=D.players.find(x=>x.id===i.dataset.km); if(p) p.km=i.value===''?null:+i.value; });
