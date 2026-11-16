@@ -146,6 +146,8 @@ const S = { token:null, stav:null, tab:'dnes', period:'tyzden', quiz:null, err:'
 const ls = { get(k){ try{return localStorage.getItem(k)}catch(e){return null} }, set(k,v){ try{ v==null?localStorage.removeItem(k):localStorage.setItem(k,v) }catch(e){} } };
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const MONTHS = ['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'];
+const DNI = ['nedeľa','pondelok','utorok','streda','štvrtok','piatok','sobota'];
+const denNazov = d => DNI[new Date(d+'T12:00:00Z').getUTCDay()];
 const hl = n => n===1?'hlas':(n>=2&&n<=4?'hlasy':'hlasov');
 const fmtD = d => { const [y,m,dd]=d.split('-').map(Number); return dd+'. '+m+'.'; };
 function toast(t){ const el=document.createElement('div'); el.className='toast'; el.setAttribute('role','status'); el.textContent=t; document.body.appendChild(el); setTimeout(()=>el.remove(),2600); }
@@ -209,7 +211,7 @@ function renderToday(){
       <p class="muted small" style="margin:0">Nová séria 12 otázok naskočí zajtra o polnoci.</p></div>`;
   } else {
     main = `<div class="card"><span class="eyebrow">Dnešný kvíz · ${fmtD(st.den)}</span><h2>${started?'Rozohraný kvíz':'12 nových otázok'}</h2>
-      <p class="muted small" style="margin:0">Na každú otázku máš ${SEC} sekúnd. Správna odpoveď = 10 bodov a bonus za rýchlosť (najviac 10). Hrá sa raz za deň, otvorená otázka sa po zatvorení appky počíta ako zlá.</p>
+      <p class="muted small" style="margin:0">Na každú otázku máš ${SEC} sekúnd. Správna odpoveď = 10 bodov a bonus za rýchlosť (najviac 10). Každý deň má svoju sériu. Zmeškané dni tohto týždňa sa dajú dohrať, najviac 2 za deň. Otvorená otázka sa po zatvorení appky počíta ako zlá.</p>
       ${started?`<div class="dots">${dotsHtml(d.r,d.r.length)}</div>`:''}
       <button class="btn" data-act="start" ${S.busy?'disabled':''}>${started?`Pokračovať (otázka ${d.r.length+1})`:'Začať kvíz'}</button>
       <span class="small muted">Dnešné témy: ${st.temy.map(esc).join(', ')}</span></div>`;
@@ -219,7 +221,15 @@ function renderToday(){
     ${wk.length?tableHtml(wk):'<p class="muted small" style="margin:0">Tento týždeň ešte nikto nehral. Buď prvý.</p>'}</div>`;
   const m = st.minuly;
   const last = m?`<div class="card"><span class="eyebrow">Minulý týždeň vyhral</span><div class="row"><h3 class="nm">${esc(m.meno)}</h3><span class="muted small">${m.body} bodov${m.cena?` · hralo sa o: ${esc(m.cena)}`:''}</span></div></div>`:'';
-  return prizeCard()+main+mini+last;
+  return prizeCard()+main+zmeskaneCard()+mini+last;
+}
+function zmeskaneCard(){
+  const st=S.stav, z=st.zmeskane||[]; if(!z.length) return '';
+  const zost = Math.max(0, st.maxDohrat - st.dohrateDnes);
+  return `<div class="card"><span class="eyebrow">Zmeškané kvízy tohto týždňa</span>
+    <p class="muted small" style="margin:0">${zost?`Dnes môžeš dohrať ešte ${zost} ${zost===1?'zmeškaný kvíz':'zmeškané kvízy'}. Body sa rátajú do týždňa ako zvyčajne. Dohrávať sa dá do nedele.`:'Dnes si už dohral, čo sa dalo. Ďalšie zmeškané kvízy môžeš dohrať zajtra.'}</p>
+    <div class="plist">${z.map(x=>{ const roz=x.i>0; return `<div class="pitem"><div class="t">${denNazov(x.den)} ${fmtD(x.den)}<div class="small muted" style="font-weight:400">${roz?`Rozohraný · ${x.r.length}/12 · ${x.s} bodov`:'Nezahraný'}</div></div>
+      <button class="v" data-dohraj="${x.den}" ${(!roz&&!zost)||S.busy?'disabled':''}>${roz?'Pokračovať':'Dohrať'}</button></div>`; }).join('')}</div></div>`;
 }
 function tableHtml(rows){
   return `<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Hráč</th><th class="n">Dni</th><th class="n">Správne</th><th class="n">Body</th></tr></thead><tbody>${
@@ -249,12 +259,12 @@ function themeLabel(){ return document.documentElement.getAttribute('data-theme'
 
 /* ---------- quiz ---------- */
 let tick=null;
-async function dalsia(){
+async function dalsia(den){
   if(S.busy) return; S.busy=true;
   try{
-    const q = await api('otazka');
+    const q = await api('otazka', den?{den}:{});
     if(q.koniec){ S.quiz=null; S.busy=false; await nacitaj(); return; }
-    S.quiz = { q, t0: Date.now() - (SEC - q.zostava)*1000, ans:null, r:q.r, s:q.s };
+    S.quiz = { den:q.den, q, t0: Date.now() - (SEC - q.zostava)*1000, ans:null, r:q.r, s:q.s };
     render(); clearInterval(tick);
     tick=setInterval(()=>{ if(!S.quiz||S.quiz.ans) return; const left=SEC-(Date.now()-S.quiz.t0)/1000;
       const bar=document.querySelector('.timer i'), lab=document.getElementById('secLeft');
@@ -266,13 +276,13 @@ async function dalsia(){
 async function odpovedz(k){
   const Q=S.quiz; if(!Q||Q.ans||Q.sending) return; Q.sending=true; clearInterval(tick);
   document.querySelectorAll('.ans button').forEach(b=>b.disabled=true);
-  try{ const a = await api('odpoved',{k}); Q.ans=Object.assign({k},a); Q.r=a.r; Q.s=a.s; }
+  try{ const a = await api('odpoved',{k, den:Q.den}); Q.ans=Object.assign({k},a); Q.r=a.r; Q.s=a.s; }
   catch(e){ toast(e.message); Q.ans={k,ok:false,body:0,spravna:-1,pozn:'',koniec:false,chyba:true}; }
   render();
 }
 function renderQuiz(){
   const Q=S.quiz, q=Q.q, A=Q.ans;
-  view.innerHTML = `<div class="card"><div class="qtop"><span>Otázka ${q.n} / ${PER_DAY}</span><span>${Q.s} bodov</span><span id="secLeft">${A?'':Math.ceil(q.zostava)+' s'}</span></div>
+  view.innerHTML = `<div class="card"><div class="qtop"><span>${Q.den!==S.stav?.den?'Dohrávka '+fmtD(Q.den)+' · ':''}Otázka ${q.n} / ${PER_DAY}</span><span>${Q.s} bodov</span><span id="secLeft">${A?'':Math.ceil(q.zostava)+' s'}</span></div>
     <div class="dots">${dotsHtml(Q.r, A?-1:Q.r.length)}</div>
     ${A?'':'<div class="timer"><i></i></div>'}
     <span class="topic" style="align-self:flex-start">${esc(q.tema)}</span>
@@ -293,8 +303,9 @@ view.addEventListener('click', async e=>{
   if(b.dataset.del){ if(!b.dataset.confirm){ b.dataset.confirm='1'; b.textContent='Naozaj?'; return; }
     try{ S.stav=await api('zmaz',{cena:+b.dataset.del}); render(); }catch(err){ toast(err.message); } return; }
   const a=b.dataset.act;
+  if(b.dataset.dohraj){ dalsia(b.dataset.dohraj); return; }
   if(a==='start') dalsia();
-  else if(a==='next'){ if(S.quiz&&S.quiz.ans&&S.quiz.ans.koniec){ S.quiz=null; S.tab='dnes'; S.stav=null; render(); nacitaj(); } else dalsia(); }
+  else if(a==='next'){ if(S.quiz&&S.quiz.ans&&S.quiz.ans.koniec){ S.quiz=null; S.tab='dnes'; S.stav=null; render(); nacitaj(); } else dalsia(S.quiz&&S.quiz.den); }
   else if(a==='reload') nacitaj();
   else if(a==='logout'){ S.token=null; ls.set('kp_token',null); S.stav=null; render(); }
   else if(a==='admin'){ S.admin=true; S.adminMsg=''; render(); }
