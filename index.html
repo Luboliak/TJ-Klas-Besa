@@ -103,6 +103,9 @@ nav small{display:block;font-size:11px;opacity:.6;font-family:Roboto,sans-serif}
 .mzslot{display:grid;grid-template-columns:28px 1fr auto;gap:2px 10px;align-items:center;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);margin-bottom:4px}
 .mzslot i{font-style:normal;font-weight:700;color:var(--mute)}.mzslot b{font-family:var(--cond);font-size:17px}.mzslot>small{grid-column:2/4}
 .neg{color:#e06666}
+.partner{margin:18px 0 6px}.partner>small{display:block;color:var(--mute);font-size:11px;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}
+.partner a{display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);text-decoration:none}
+.partner a b{font-family:var(--cond);font-size:18px}.partner a span{grid-column:1;color:var(--mute);font-size:13px}.partner a i{grid-row:1/3;grid-column:2;font-style:normal;font-size:24px;color:var(--mute)}
 .mzm{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0;color:var(--ink);text-align:left}
 .mzm span:last-child{text-align:right}.mzm b{font-family:var(--cond);font-size:18px;min-width:38px;text-align:center}.mzm.us{font-weight:600}
 .mztr{display:flex;gap:6px;align-items:center;border-top:1px solid var(--line);padding:8px 0}.mztr>div{flex:1;min-width:0}.mztr>div small{display:block;color:var(--mute);font-size:12.5px}
@@ -569,6 +572,7 @@ function render(){
   const v=$('#view');
   const draft=$('#chText'), dv=draft?draft.value:null, df=draft&&document.activeElement===draft;
   v.innerHTML=(tab==='chat'?'':hint())+(tab==='tab'?vTable():tab==='zap'?vMatches():tab==='live'?vLive():tab==='tren'?vTren():tab==='chat'?vChat():tab==='ved'&&APP?vVedenie():tab==='hry'?vHry():tab==='mz'?vManazer():tab==='ja'&&PPIN?vJa():vKlub())
+    +(['tab','zap','klub'].includes(tab)||(tab==='ja'&&PPIN)?partnerHtml():'')
     +(['tab','zap','live'].includes(tab)?'<p class="src">Zdroj údajov: <a href="https://sportnet.sme.sk/futbalnet/" target="_blank" rel="noopener">Sportnet / Futbalnet</a> (SFZ). Neoficiálna klubová appka TJ Klas Beša.</p>':'');
   navBadge(); fillWx(v); fillRsvp(v); fillMvp(v);
   if(tab==='hry') hryAfterRender(v);
@@ -1606,6 +1610,21 @@ async function psApi(akcia,extra){
   finally{ if(tab==='ved'&&vsub==='hesla') render(); }
 }
 function psMsg(p){ return `Ahoj ${p.meno.split(' ')[0]}, tvoje osobné heslo do appky TJ Klas Beša: ${fmtKod(p.kod)}\nOtvor ${WEB_URL} a zadaj ho. Heslo funguje len na jednom telefóne, nikomu ho neposielaj.`; }
+/* Partneri klubu: odkaz na stránku sponzora, server počíta zobrazenia a prekliky */
+const PARTNERI=[{id:'steiner', nazov:'Steiner Modular', popis:'Modulové a mobilné kontajnery na mieru · Štúrovo', url:'https://steinermodular.sk/'}];
+let PART_ZOBR=false;
+function partnerHtml(){
+  if(!PARTNERI.length) return '';
+  if(!PART_ZOBR&&PROXY){ PART_ZOBR=true; PARTNERI.forEach(p=>{ try{ fetch(PROXY+'/partner/zobr?id='+p.id,{method:'POST',keepalive:true}); }catch(e){} }); }
+  return '<div class="partner"><small>Partner klubu</small>'+PARTNERI.map(p=>`<a href="${p.url}" target="_blank" rel="noopener" data-partner="${p.id}"><b>${esc(p.nazov)}</b><span>${esc(p.popis)}</span><i>›</i></a>`).join('')+'</div>';
+}
+document.addEventListener('click',e=>{ const a=e.target.closest&&e.target.closest('[data-partner]'); if(a&&PROXY){ try{ navigator.sendBeacon?navigator.sendBeacon(PROXY+'/partner/klik?id='+a.dataset.partner):fetch(PROXY+'/partner/klik?id='+a.dataset.partner,{method:'POST',keepalive:true}); }catch(err){} } },true);
+let PSTAT=null;
+function partnerStat(){
+  if(PSTAT===null&&PROXY){ PSTAT=false; fetch(PROXY+'/partner/stat').then(r=>r.json()).then(j=>{ PSTAT=j; if(tab==='ved') render(); }).catch(()=>{}); }
+  if(!PSTAT) return '';
+  return '<h2>Partneri – štatistika</h2>'+PARTNERI.map(p=>{ const x=(PSTAT.partneri||{})[p.id]||{}; return `<div class="mztr"><div><b>${esc(p.nazov)}</b><small>za 30 dní: ${x.zobr30||0} zobrazení, ${x.klik30||0} preklikov · spolu ${x.zobr||0} / ${x.klik||0}</small></div></div>`; }).join('')+'<p class="note">Zobrazenie = niekto otvoril appku (raz za návštevu). Preklik = ťukol na odkaz partnera. Tieto čísla môžeš ukázať sponzorovi.</p>';
+}
 function vHesla(){
   if(!PROXY) return '<div class="empty">Server nie je nastavený.</div>';
   if(!PS.pin) return `<p>Na správu hesiel zadaj správcovský PIN chatu (ten, ktorým sa v Chate prihlasuješ ako správca).</p><div class="acts"><input type="text" id="psPin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Správcovský PIN" style="flex:1"><button class="btn pri" data-pspin="1">Pokračovať</button></div>${PS.err?`<p class="note" style="color:#d64545">${esc(PS.err)}</p>`:''}`;
@@ -1623,7 +1642,7 @@ function vHesla(){
       ${p.sparovane&&!p.blok?`<button class="btn" data-psakc="uvolni" data-kod="${p.kod}">Uvoľniť</button>`:''}
       <button class="btn" data-psakc="${p.blok?'odblok':'blok'}" data-kod="${p.kod}">${p.blok?'Odblokovať':'Blokovať'}</button>
       <button class="btn" data-psakc="zmaz" data-kod="${p.kod}">Zmazať</button></div></div>`; });
-  return h+'<p class="note">Tvoja Android apka heslo nepotrebuje. Heslo platí len pre webovú appku.</p>';
+  return h+'<p class="note">Tvoja Android apka heslo nepotrebuje. Heslo platí len pre webovú appku.</p>'+partnerStat();
 }
 function vedClick(b){
   const ds=b.dataset;
@@ -3354,7 +3373,7 @@ function gateShow(msg){
   let g=$('#gate'); if(!g){ g=document.createElement('div'); g.id='gate'; document.body.appendChild(g); }
   g.innerHTML=`<form id="gateF" autocomplete="off"><img src="logo.png" alt="" width="84" height="84"><h1>TJ Klas Beša</h1><p class="mute">Zadaj svoje osobné heslo</p>
     <input id="gateK" placeholder="ABC-123" maxlength="7" autocapitalize="characters" spellcheck="false" aria-label="Heslo"><button class="btn pri" type="submit">Vstúpiť</button>
-    <p class="gerr" role="alert">${esc(msg||'')}</p><small class="mute">Heslo funguje len na jednom telefóne. Ak ho nemáš, napíš správcovi klubu.</small></form><p class="gcit">„Najvernejší člen tímu nikdy nedal gól. Kosí trávnik.“</p>`;
+    <p class="gerr" role="alert">${esc(msg||'')}</p><small class="mute">Heslo funguje len na jednom telefóne. Ak ho nemáš, napíš správcovi klubu.</small></form><div style="margin-top:14px">${partnerHtml()}</div><p class="gcit">„Najvernejší člen tímu nikdy nedal gól. Kosí trávnik.“</p>`;
   $('#gateF').onsubmit=async e=>{ e.preventDefault(); const kod=$('#gateK').value.toUpperCase().replace(/[^A-Z0-9]/g,''), err=$('#gateF .gerr');
     if(kod.length!==6){ err.textContent='Heslo má 6 znakov'; return; }
     err.textContent='Overujem…';

@@ -182,6 +182,7 @@ export class ChatRoom {
       // osobné heslá na web: jedno heslo = jeden telefón
       kqInit((q, ...a) => ctx.storage.sql.exec(q, ...a));
       mzInit((q, ...a) => ctx.storage.sql.exec(q, ...a));
+      ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS partner (id TEXT, den TEXT, zobr INTEGER DEFAULT 0, klik INTEGER DEFAULT 0, PRIMARY KEY (id, den))`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS ark_sess (tok TEXT PRIMARY KEY, meno TEXT, hra TEXT, t0 INTEGER, done INTEGER DEFAULT 0, score INTEGER, dur INTEGER)`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS ziadosti (mn TEXT, meno TEXT, m TEXT, at INTEGER, PRIMARY KEY (mn, m))`);
       ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS km_geo (q TEXT PRIMARY KEY, lat REAL, lon REAL, at INTEGER)`);
@@ -246,6 +247,17 @@ export class ChatRoom {
     if (path === '/tip/board') return json(await this.tipBoard(), 200, { 'Cache-Control': 'public, max-age=120' });
     if (path === '/fan/board') return json(await this.fanBoard(), 200, { 'Cache-Control': 'public, max-age=120' });
     if (path === '/hra/board') return json(this.hraBoard(url.searchParams.get('hra') || ''), 200, { 'Cache-Control': 'public, max-age=60' });
+    // partneri: zobrazenia a prekliky (verejné, bez osobných údajov)
+    if (path === '/partner/zobr' || path === '/partner/klik') {
+      const id = String(url.searchParams.get('id') || '').slice(0, 30), d = skDate(0);
+      if (/^[a-z0-9-]+$/.test(id)) this.ctx.storage.sql.exec(`INSERT INTO partner (id, den, zobr, klik) VALUES (?, ?, ?, ?) ON CONFLICT (id, den) DO UPDATE SET zobr = zobr + excluded.zobr, klik = klik + excluded.klik`, id, d, path.endsWith('zobr') ? 1 : 0, path.endsWith('klik') ? 1 : 0);
+      return json({ ok: true });
+    }
+    if (path === '/partner/stat') {
+      const od = skDate(-30), out = {};
+      for (const r of this.rows('SELECT id, SUM(zobr) AS zobr, SUM(klik) AS klik, SUM(CASE WHEN den >= ? THEN zobr ELSE 0 END) AS zobr30, SUM(CASE WHEN den >= ? THEN klik ELSE 0 END) AS klik30 FROM partner GROUP BY id', od, od)) out[r.id] = r;
+      return json({ partneri: out }, 200, { 'Cache-Control': 'no-store' });
+    }
     if (path === '/mvp/summary') return json({ polls: this.mvpSummary() }, 200, { 'Cache-Control': 'public, max-age=300' });
     // víťazi ukončených mesiacov (kvíz, penalty) a hráči zápasu – podľa toho appka správcu pridá bonusy k výplate
     if (path === '/hra/vitazi') {
@@ -700,7 +712,7 @@ export default {
         if (!env.CHAT) return json({ error: 'Kvíz nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('kviz-partia')).fetch(request);
       }
-      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/') || path.startsWith('/pristup/') || path.startsWith('/profil/') || path.startsWith('/mz/')) {
+      if (path.startsWith('/chat/') || path.startsWith('/mvp/') || path.startsWith('/tip/') || path.startsWith('/fan/') || path.startsWith('/hra/') || path.startsWith('/pristup/') || path.startsWith('/profil/') || path.startsWith('/mz/') || path.startsWith('/partner/')) {
         if (!env.CHAT) return json({ error: 'Chat nie je nasadený' }, 503);
         return await env.CHAT.get(env.CHAT.idFromName('klub')).fetch(request);
       }
