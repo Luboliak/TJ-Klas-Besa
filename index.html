@@ -3376,7 +3376,7 @@ function gateShow(msg){
   let g=$('#gate'); if(!g){ g=document.createElement('div'); g.id='gate'; document.body.appendChild(g); }
   g.innerHTML=`<form id="gateF" autocomplete="off"><img src="logo.png" alt="" width="84" height="84"><h1>TJ Klas Beša</h1><p class="mute">Zadaj svoje osobné heslo</p>
     <input id="gateK" placeholder="ABC-123" maxlength="7" autocapitalize="characters" spellcheck="false" aria-label="Heslo"><button class="btn pri" type="submit">Vstúpiť</button>
-    <p class="gerr" role="alert">${esc(msg||'')}</p><small class="mute">Heslo funguje len na jednom telefóne. Ak ho nemáš, napíš správcovi klubu.</small></form><div style="margin-top:14px">${partnerHtml()}</div><p class="gcit">„Najvernejší člen tímu nikdy nedal gól. Kosí trávnik.“</p>`;
+    <p class="gerr" role="alert">${esc(msg||'')}</p><small class="mute">Heslo funguje len na jednom telefóne. Ak ho nemáš, napíš správcovi klubu.</small></form><p class="gcit">„Najvernejší člen tímu nikdy nedal gól. Kosí trávnik.“</p>`;
   $('#gateF').onsubmit=async e=>{ e.preventDefault(); const kod=$('#gateK').value.toUpperCase().replace(/[^A-Z0-9]/g,''), err=$('#gateF .gerr');
     if(kod.length!==6){ err.textContent='Heslo má 6 znakov'; return; }
     err.textContent='Overujem…';
