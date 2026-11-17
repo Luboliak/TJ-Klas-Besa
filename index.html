@@ -1531,7 +1531,7 @@ async function vedSync(manual){
           if(any||!names.length){ done.add(src); D.bonDone.push(src); } };
         Object.entries(V.kq||{}).forEach(([m,ns])=>give('kq:'+m,ns,BONUS.kviz,last(m),'víťaz kvízu za '+MESF[+m.slice(5)-1]));
         Object.entries(V.pk||{}).forEach(([m,ns])=>give('pk:'+m,ns,BONUS.pk,last(m),'víťaz penált za '+MESF[+m.slice(5)-1],n=>{ const x=(V.pkInfo||{})[m+'|'+n]||{}; return {score:x.score,dur:x.dur}; }));
-        (V.mz||[]).forEach(x=>give('mz:'+x.id,[x.majster],BONUS.manazer,x.koniec,'majster Beša manažéra – sezóna '+x.id));
+        (V.mz||[]).forEach(x=>give('mz:'+x.id,[x.vitaz||x.majster],BONUS.manazer,x.koniec,'víťaz pohára v Beša manažérovi – sezóna '+x.id));
         (V.mvp||[]).forEach(p=>{ const mt=findMatch(p.id), d=(mt&&mt.date)||iso(new Date(p.closes)); give('mvp:'+p.id,p.mena||[],BONUS.mvp,d,'hráč zápasu'+(mt?' – '+(mt.home===US?mt.away:mt.home):'')); });
       } }catch(e){ err++; } }
     D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save(); kmFetch(); if(!nNew&&!nUpd) profSchedule();
@@ -2125,7 +2125,7 @@ function mzDen(d){ return dLabel(d); }
 function mzErb(t,big){ return `<span class="mzerb${big?' big':''}" style="--f1:${t.f1||'#444'};--f2:${t.f2||'#fff'}">${esc(t.erb||'⚽')}</span>`; }
 function mzNm(S,m){ return esc((S.timy.find(t=>t.meno===m)||{}).nazov||m||'—'); }
 function vManazer(){
-  const intro=`<p class="note" style="margin-top:0">Postav si vlastný tím a hraj ligu, pohár a superpohár proti spoluhráčom. Prvá sezóna začína 1. decembra. Liga trvá asi 20 dní, každý s každým hrá raz doma a raz vonku, kolá sú o 20:00 (pri menej tímoch s voľnými dňami medzi kolami). Potom horná polovica tabuľky, najviac 8 tímov, hrá vyraďovací pohár. Majster sezóny dostane ${BONUS.manazer} € k výplate. Za každý tvoj skutočný tréning dostaneš tréningové body na zlepšenie hráčov, body z kvízu sa od začiatku súťaže menia na kredity. Tím si môžeš založiť a pripraviť už teraz.</p>`;
+  const intro=`<p class="note" style="margin-top:0">Postav si vlastný tím a hraj ligu, pohár a superpohár proti spoluhráčom. Prvá sezóna začína 1. decembra. Liga trvá asi 20 dní, každý s každým hrá raz doma a raz vonku, kolá sú o 20:00 (pri menej tímoch s voľnými dňami medzi kolami). Potom horná polovica tabuľky, najviac 8 tímov, hrá vyraďovací pohár. Víťaz pohára dostane ${BONUS.manazer} € k výplate. Za každý tvoj skutočný tréning dostaneš tréningové body na zlepšenie hráčov, body z kvízu sa od začiatku súťaže menia na kredity. Tím si môžeš založiť a pripraviť už teraz.</p>`;
   const g=hryGate(intro); if(g) return '<h2 style="margin-top:0">Beša manažér</h2>'+g;
   if(!MZ.st&&!MZ.busy&&!MZ.err) mzApi('stav');
   const S=MZ.st;
@@ -2224,7 +2224,7 @@ function mzLiga(S){
   h+=`<p class="note" style="margin-top:0">Sezóna ${s.id} · ${s.odohrane}/${s.n} kôl${ar?` · skončila, majster: <b>${mzNm(S,ar.majster)}</b>`:` · koniec ${mzDen(s.koniec)}`}${s.ucastnik?'':' · tvoj tím hrá od ďalšej sezóny'}</p>`;
   const poradie=s.dveLigy?[s.mojaDiv-1,2-s.mojaDiv]:[0];
   for(const i of poradie){ if(s.dveLigy) h+=`<h2>${i===0?'1. liga':'2. liga'}</h2>`; h+=mzTab(S,s.tabulky[i],i,s.dveLigy); }
-  if(s.dveLigy) h+=`<p class="note">Poslední ${S.pravidla.POSTUP} z 1. ligy zostupujú, prví ${S.pravidla.POSTUP} z 2. ligy postupujú. Majster 1. ligy dostane bonus ${BONUS.manazer} €.</p>`;
+  if(s.dveLigy) h+=`<p class="note">Poslední ${S.pravidla.POSTUP} z 1. ligy zostupujú, prví ${S.pravidla.POSTUP} z 2. ligy postupujú.</p>`;
   if(s.dalsie) h+=`<h2>${s.dalsie.kolo}. kolo · ${mzDen(s.dalsie.den)} 20:00</h2>`+s.dalsie.zapasy.filter(z=>!s.dveLigy||z[2]===s.mojaDiv).map(([a,b])=>`<div class="mzm${a===S.meno||b===S.meno?' us':''}"><span>${mzNm(S,a)}</span><b>–</b><span>${mzNm(S,b)}</span></div>`).join('');
   const pos=s.posledne.filter(z=>!s.dveLigy||z.div===s.mojaDiv), live=pos.some(z=>z.live);
   if(pos.length) h+=`<h2>${live?'<span class="mzlive">NAŽIVO</span> ':'Výsledky '}${pos[0].kolo}. kola</h2>`+pos.map(z=>mzMatch(S,z)).join('')+(live?'<p class="note">Kolo sa hrá naživo od 20:00 do 20:15. Tabuľka sa prepočíta po skončení.</p>':'');
@@ -2239,7 +2239,7 @@ function mzPohar(S){
   const p=s.pohar; if(!p) return h+`<h2>Pohár</h2><div class="empty">Pohár sa začne deň po poslednom ligovom kole (${mzDen(s.koniec)}). Postúpi horná polovica tabuľky${s.dveLigy?' 1. ligy':''}, najviac ${s.pohar_max||8} tímov, prvý z tabuľky hrá s posledným postupujúcim.</div>`;
   if(!p.K) return h+'<h2>Pohár</h2><div class="empty">Do pohára postúpili menej ako 2 tímy, v tejto sezóne sa nehrá.</div>';
   const meno=['Finále','Semifinále','Štvrťfinále','Osemfinále','1/16 finále'];
-  h+=`<h2>Pohár ${p.vitaz?`· víťaz ${mzErb(S.timy.find(t=>t.meno===p.vitaz)||{})} ${mzNm(S,p.vitaz)} 🏆`:''}</h2><p class="note" style="margin-top:0">Hrá horná polovica ligovej tabuľky${p.timy?' ('+p.timy.length+' tímov)':''}, nasadení podľa poradia. Kolá sú každý deň o 20:00 naživo, pri remíze rozhodnú penalty (nervy!).</p>`;
+  h+=`<h2>Pohár ${p.vitaz?`· víťaz ${mzErb(S.timy.find(t=>t.meno===p.vitaz)||{})} ${mzNm(S,p.vitaz)} 🏆`:''}</h2><p class="note" style="margin-top:0">Hrá horná polovica ligovej tabuľky${p.timy?' ('+p.timy.length+' tímov)':''}, nasadení podľa poradia. Kolá sú každý deň o 20:00 naživo, pri remíze rozhodnú penalty (nervy!). <b>Víťaz pohára dostane ${BONUS.manazer} € k výplate.</b></p>`;
   p.kola.forEach((k,i)=>{ h+=`<h3 class="mzkolo">${meno[p.K-1-i]||(i+1)+'. kolo'} · ${mzDen(k.den)}</h3>`;
     if(!k.pary){ h+='<p class="note">Dvojice sa určia po predchádzajúcom kole.</p>'; return; }
     h+=k.pary.map(([a,b])=>{ const z=k.zapasy.find(x=>x.dom===a&&x.hos===b); if(z) return mzMatch(S,z); return `<div class="mzm${a===S.meno||b===S.meno?' us':''}"><span>${a?mzNm(S,a):'<i class="mute">voľný žreb</i>'}</span><b>–</b><span>${b?mzNm(S,b):'<i class="mute">voľný žreb</i>'}</span></div>`; }).join(''); });
@@ -2380,7 +2380,7 @@ function mzClick(b){
 }
 
 /* --- KVÍZ (12 otázok denne, vyhodnocuje server – víťaz mesiaca dostane bonus k výplate) --- */
-const BONUS={kviz:20, pk:10, mvp:15, manazer:20}; // € k výplate: víťaz mesiaca v kvíze, víťaz mesiaca v penaltách, hráč zápasu
+const BONUS={kviz:20, pk:10, mvp:15, manazer:20}; // € k výplate: víťaz mesiaca v kvíze, víťaz mesiaca v penaltách, hráč zápasu, víťaz pohára v manažérovi
 let KV={st:'start', stav:null, q:null, fb:null, picked:null, t0:0, left:0, timer:null, busy:false, err:''};
 async function kqApi(p,b){ return chatApi('/hra/kq/'+p,Object.assign({pin:CHPIN,meno:JA},p!=='stav'&&KV.den?{den:KV.den}:{},b||{})); }
 async function kqStav(){ if(KV.busy) return; KV.busy=true;
@@ -3419,7 +3419,7 @@ function jaNavod(r){ // stručný prehľad pre hráča: čo môže v appke robi�
     <li><b>Kvíz:</b> každý deň 12 otázok, víťaz mesiaca <b>+${eu(BONUS.kviz)}</b>. Zmeškaný kvíz dohráš do 3 dní.</li>
     <li><b>Penalty</b> (Hry): najdlhšia séria v mesiaci, víťaz <b>+${eu(BONUS.pk)}</b>.</li>
     <li><b>Hráč zápasu / turnaja:</b> po zápase hlasujete (nie za seba), víťaz <b>+${eu(BONUS.mvp)}</b>.</li>
-    <li><b>Beša manažér</b> (štít hore): vlastný tím, liga a pohár, majster sezóny <b>+${eu(BONUS.manazer)}</b>. Za každý tvoj tréning dostaneš body na zlepšenie hráčov, body z kvízu sa menia na kredity.</li></ul>
+    <li><b>Beša manažér</b> (štít hore): vlastný tím, liga a pohár, víťaz pohára <b>+${eu(BONUS.manazer)}</b>. Za každý tvoj tréning dostaneš body na zlepšenie hráčov, body z kvízu sa menia na kredity.</li></ul>
   <h3>📱 Ďalej v appke</h3><ul>
     <li><b>Prídem / Neprídem</b> pri tréningu, zápase aj turnaji – podľa toho vedenie ráta dochádzku, tak to vyplň.</li>
     <li>Zápasy, tabuľky a výsledky zo Sportnetu, živé zápasy, chat tímu, fotky a štatistiky.</li>
