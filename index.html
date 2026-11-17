@@ -3403,7 +3403,8 @@ async function jaLoad(){
   finally{ JAP.busy=false; if(tab==='ja') render(); }
 }
 function jaNavod(r){ // stručný prehľad pre hráča: čo môže v appke robiť a za čo dostane peniaze
-  const zap=r&&r.rz?r.rz:0, str=r&&r.strhR?r.strhR:0, vol=r&&r.volno!=null?r.volno:0, eu=x=>x+' €'; // bez výpočtu od vedenia ukáž nuly
+  // sadzby ukáž, len keď má hráč od vedenia niečo zapísané (zápas, tréning, neúčasť); inak nuly, aby si nik nenárokoval, čo nemá
+  const zap0=!r||!(r.z||r.t||r.abs), zap=zap0?0:(r.rz||0), str=zap0?0:(r.strhR||0), vol=zap0?0:(r.volno??0), eu=x=>x+' €';
   return `<details class="janav"${JAP.navod?' open':''}><summary>Čo tu môžem robiť a za čo dostanem peniaze</summary>
   <h3>💶 Výplata</h3><ul>
     <li><b>Zápas:</b> ${eu(zap)} za každý majstrovský zápas, v ktorom si podľa zápisu na Sportnete.</li>
@@ -3439,7 +3440,7 @@ function vJa(){
     h+='<div class="jaw">';
     const os=r.ospr??Math.min(r.abs||0,r.volno||0);
     h+=r.rt?row('Tréningy',`${r.t}${os?` + ${os} ospr.`:''} × ${eur(r.rt)}`,eur((r.t+os)*r.rt)):row('Tréningy','účasť (bez príplatku)',`${r.t}×`);
-    h+=row('Zápasy',`${r.z} × ${eur(r.rz)}`,eur(r.z*r.rz));
+    h+=row('Zápasy',r.z?`${r.z} × ${eur(r.rz)}`:'žiadny zápas',eur(r.z*r.rz));
     if(r.abs) h+=row('Neúčasť na tréningu',`${r.abs}×, ${Math.min(r.abs,r.volno)} ospr.${r.strhN?`<br>${r.strhN} × ${eur(r.strhR)}`:''}`,r.strh?'−'+eur(r.strh):'0 €',r.strh?'neg':'');
     r.fines.forEach(f=>{ h+=f.b?row('Bonus',`${dLabel(f.d)}${f.n?' · '+esc(f.n):''}`,'+'+eur(f.a),'pos'):row('Pokuta',`${dLabel(f.d)}${f.n?' · '+esc(f.n):''}`,'−'+eur(f.a),'neg'); });
     h+=row('Spolu','',eur(r.sum),'jsum');
