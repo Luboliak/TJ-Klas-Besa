@@ -1338,6 +1338,8 @@ async function mvpPinSubmit(id){
 /* ===== VEDENIE (len v Android appke): dochádzka a výplaty, údaje ostávajú v telefóne ===== */
 const K_DATA='tjklas.data.v1';
 let D=(()=>{ try{ return JSON.parse(localStorage.getItem(K_DATA)); }catch(e){ return null; } })() || {players:[], events:[], rates:{trening:0, zapas:0}, paid:{}};
+// celoklubová sadzba za zápas nie je – jednorazovo vynuluj staré prednastavených 150 €, sumy sa dávajú hráčom jednotlivo
+if(D.rates&&+D.rates.zapas===150&&!D.zap0){ D.rates.zapas=0; D.zap0=1; try{ localStorage.setItem(K_DATA,JSON.stringify(D)); }catch(e){} }
 const SYNC_OD_DEF='2027-01-01';
 const BONUS_OD='2026-12-01'; // od decembra sa víťazi súťaží v appke rátajú do výplat
 /* Cestovné: z bydliska hráča na ihrisko (tréning a domáci zápas = Beša, zápas vonku = ihrisko súpera), tam aj späť.
@@ -1380,6 +1382,7 @@ function save(){ try{ localStorage.setItem(K_DATA, JSON.stringify(D)); }catch(e)
 /* Môj profil: výpočty sa posielajú na server, každý hráč vidí len svoj (cez osobné heslo) */
 const PROF={t:0, err:'', pin:()=>lsGet('admPin')||CHADMIN||''};
 function profSchedule(){ if(!APP||!PROXY) return; clearTimeout(PROF.t); PROF.t=setTimeout(profPublish,2500); }
+if(D.zap0===1){ D.zap0=2; setTimeout(save,3000); } // po vynulovaní sadzby pošli hráčom nové výpočty
 function profData(){
   const months=[...new Set(D.events.map(e=>ym(e.date)).concat((D.fines||[]).map(f=>ym(f.date))))].sort().slice(-12);
   const by=new Map();
