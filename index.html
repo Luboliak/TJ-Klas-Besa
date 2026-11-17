@@ -3403,22 +3403,16 @@ async function jaLoad(){
   finally{ JAP.busy=false; if(tab==='ja') render(); }
 }
 function jaNavod(r){ // stručný prehľad pre hráča: čo môže v appke robiť a za čo dostane peniaze
-  const zap=r&&r.rz?r.rz:150, str=r&&r.strhR?r.strhR:10, vol=r&&r.volno!=null?r.volno:1, eu=x=>x+' €';
-  return `<details class="janav"${JAP.navod?' open':''}><summary>Čo tu môžem robiť a za čo dostanem peniaze</summary>
-  <h3>💶 Výplata</h3><ul>
-    <li><b>Zápas:</b> ${eu(zap)} za každý majstrovský zápas, v ktorom si podľa zápisu na Sportnete.</li>
-    <li><b>Tréning:</b> chodiť treba. Za každú neúčasť sa strháva ${eu(str)}, ${vol===1?'1 tréning mesačne':vol+' tréningy mesačne'} môžeš mať ospravedlnený bez strhnutia.</li>
-    <li><b>Pokuty a bonusy</b> zapisuje vedenie, uvidíš ich vo výpočte nižšie.</li>
-    <li>Výplata je raz za mesiac, o skoršie vyplatenie môžeš požiadať tlačidlom pri výpočte.</li></ul>
-  <h3>🏆 Súťaže v appke (od decembra 2026 sa rátajú do výplaty)</h3><ul>
+  const eu=x=>x+' €';
+  return `<details class="janav"${JAP.navod?' open':''}><summary>Čo tu môžem robiť a odmeny za súťaže</summary>
+  <h3>🏆 Súťaže v appke (odmeny platia od decembra 2026)</h3><ul>
     <li><b>Kvíz:</b> každý deň 12 otázok, víťaz mesiaca <b>+${eu(BONUS.kviz)}</b>. Zmeškaný kvíz dohráš do 3 dní.</li>
     <li><b>Penalty</b> (Hry): najdlhšia séria v mesiaci, víťaz <b>+${eu(BONUS.pk)}</b>.</li>
     <li><b>Hráč zápasu / turnaja:</b> po zápase hlasujete (nie za seba), víťaz <b>+${eu(BONUS.mvp)}</b>.</li>
     <li><b>Beša manažér</b> (štít hore): vlastný tím, liga a pohár, majster sezóny <b>+${eu(BONUS.manazer)}</b>. Za každý tvoj tréning dostaneš body na zlepšenie hráčov, body z kvízu sa menia na kredity.</li></ul>
   <h3>📱 Ďalej v appke</h3><ul>
     <li><b>Prídem / Neprídem</b> pri tréningu, zápase aj turnaji – podľa toho vedenie ráta dochádzku, tak to vyplň.</li>
-    <li>Zápasy, tabuľky a výsledky zo Sportnetu, živé zápasy, chat tímu, fotky a štatistiky.</li>
-    <li>V tomto profile vidíš len svoj výpočet a štatistiky, ostatní ich nevidia.</li></ul></details>`;
+    <li>Zápasy, tabuľky a výsledky zo Sportnetu, živé zápasy, chat tímu, fotky a štatistiky.</li></ul></details>`;
 }
 function vJa(){
   const meno=jaMeno(), nm=normN(meno);
