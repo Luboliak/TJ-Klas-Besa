@@ -3,7 +3,7 @@
 // Tréningové body (TB) za skutočné tréningy (podľa dochádzky vedenia), kredity za body z kvízu a za zápasy, vstupné a platy.
 
 const LIGA_START = '2026-12-01', LIVE_MIN = 15, VYZVA_MIN = 5; // prvá sezóna; body z kvízu sa rátajú až odtiaľto
-const MIN_KOL = 30, KOLO_HOD = 20, POHAR_HOD = 18, TB_TRENING = 3, TB_KOLO = 1, START_KREDIT = 1000, MAX_KADER = 22, MIN_KADER = 14, VYZVY_DEN = 3, DIV_LIMIT = 12, POSTUP = 2;
+const LIGA_DNI = 20, POHAR_MAX = 8, KOLO_HOD = 20, POHAR_HOD = 18, TB_TRENING = 3, TB_KOLO = 1, START_KREDIT = 1000, MAX_KADER = 22, MIN_KADER = 14, VYZVY_DEN = 3, DIV_LIMIT = 12, POSTUP = 2;
 const FORM = { '4-4-2': [4, 4, 2], '4-3-3': [4, 3, 3], '3-5-2': [3, 5, 2], '5-3-2': [5, 3, 2], '4-5-1': [4, 5, 1], '3-4-3': [3, 4, 3] };
 const TAKT = { utok: [1.12, 0.9], vyrov: [1, 1], obrana: [0.88, 1.12] };
 const PRESING = { nizky: { a: 0.95, d: 1.04, u: 0.8, f: 0.7 }, stredny: { a: 1, d: 1, u: 1, f: 1 }, vysoky: { a: 1.07, d: 0.97, u: 1.35, f: 1.4 } };
@@ -140,7 +140,7 @@ export function mzInit(sql) {
   for (const c of ['trest INTEGER DEFAULT 0', 'rychlost INTEGER', 'technika INTEGER', 'hlavicky INTEGER', 'nervy INTEGER', 'potencial INTEGER DEFAULT 0', 'odchovanec INTEGER DEFAULT 0']) tryS(`ALTER TABLE mz_hrac ADD COLUMN ${c}`);
   sql(`UPDATE mz_hrac SET rychlost = kond + (abs(random()) % 11) - 5, technika = (utok + obrana) / 2 + (abs(random()) % 11) - 5, hlavicky = (utok + obrana) / 2 + (abs(random()) % 13) - 6, nervy = 45 + (abs(random()) % 15) WHERE rychlost IS NULL`);
   sql(`CREATE TABLE IF NOT EXISTS mz_sez (id INTEGER PRIMARY KEY AUTOINCREMENT, start TEXT, n INTEGER, timy TEXT, rozpis TEXT, odohrane INTEGER DEFAULT 0, majster TEXT)`);
-  for (const c of ['divizie TEXT', 'pohar TEXT', 'super TEXT', 'archiv TEXT']) tryS(`ALTER TABLE mz_sez ADD COLUMN ${c}`);
+  for (const c of ['divizie TEXT', 'pohar TEXT', 'super TEXT', 'archiv TEXT', 'dni TEXT']) tryS(`ALTER TABLE mz_sez ADD COLUMN ${c}`);
   sql(`CREATE TABLE IF NOT EXISTS mz_zapas (id INTEGER PRIMARY KEY AUTOINCREMENT, sez INTEGER, kolo INTEGER, dom TEXT, hos TEXT, gd INTEGER, gh INTEGER, udalosti TEXT, den TEXT, vyzva INTEGER DEFAULT 0)`);
   for (const c of ['hotovo INTEGER DEFAULT 1', 't0 INTEGER', "typ TEXT DEFAULT 'liga'", 'div INTEGER DEFAULT 1', 'hod INTEGER DEFAULT 20', 'pen TEXT']) tryS(`ALTER TABLE mz_zapas ADD COLUMN ${c}`);
   sql(`CREATE TABLE IF NOT EXISTS mz_stat (sez INTEGER, hid INTEGER, meno TEXT, tim TEXT, goly INTEGER DEFAULT 0, zapasy INTEGER DEFAULT 0, PRIMARY KEY (sez, hid))`);
@@ -354,10 +354,10 @@ export function manazer(room, path, body, meno, rows, sql) {
 
   // --- sezóna
   const aktSez = () => rows('SELECT * FROM mz_sez ORDER BY id DESC LIMIT 1')[0];
-  const rr = T0 => { // každý s každým, opakované aspoň MIN_KOL kôl
+  const rr = T0 => { // každý s každým dvakrát: doma a vonku
     const T = T0.slice(); if (T.length % 2) T.push(null);
     const R1 = []; for (let k = 0; k < T.length - 1; k++) { const kolo = []; for (let i = 0; i < T.length / 2; i++) { const a = T[i], b = T[T.length - 1 - i]; if (a && b) kolo.push(k % 2 ? [b, a] : [a, b]); } R1.push(kolo); T.splice(1, 0, T.pop()); }
-    const R = []; for (let c = 0; R.length < MIN_KOL && R1.length; c++) for (const k of R1) R.push(c % 2 ? k.map(([a, b]) => [b, a]) : k);
+    const R = R1.concat(R1.map(k => k.map(([a, b]) => [b, a])));
     return R;
   };
   const vlozZapas = (s, typ, kolo, a, b, r, den, hod, div) => {
@@ -373,14 +373,12 @@ export function manazer(room, path, body, meno, rows, sql) {
     const div = poradie.length > DIV_LIMIT ? [poradie.slice(0, Math.ceil(poradie.length / 2)), poradie.slice(Math.ceil(poradie.length / 2))] : [poradie];
     const Rd = div.map(d => rr(shuffle(d.slice()))), n = Math.max(...Rd.map(R => R.length)), roz = [];
     for (let k = 0; k < n; k++) roz.push(Rd.flatMap((R, i) => (R[k] || []).map(([a, b]) => [a, b, i + 1])));
-    // pohár: vyraďovačka všetkých tímov, kolá rozložené počas sezóny o 18:00
-    const P = 2 ** Math.ceil(Math.log2(Math.max(2, timy.length))), K = Math.log2(P), T = shuffle(timy.slice()); while (T.length < P) T.splice(rnd(T.length + 1), 0, null);
-    const pary = []; for (let i = 0; i < P; i += 2) pary.push([T[i], T[i + 1]]);
-    const kola = [...Array(K)].map((_, r) => ({ den: plusDni(s.start, Math.max(1, Math.round((r + 1) * (n - 1) / (K + 1)))), pary: r === 0 ? pary : null }));
+    // liga trvá aspoň LIGA_DNI dní: pri menej kolách sú medzi nimi voľné dni, pri viac kolách sa hrá každý deň
+    const D = Math.max(LIGA_DNI, n), dni = [...Array(n)].map((_, k) => Math.floor(k * D / n));
     // superpohár: majster a víťaz pohára minulej sezóny
     let sup = null;
     if (pa.majster && pa.pohar && pa.majster !== pa.pohar && timy.includes(pa.majster) && timy.includes(pa.pohar)) sup = { den: s.start, a: pa.majster, b: pa.pohar };
-    sql('UPDATE mz_sez SET n=?, timy=?, rozpis=?, divizie=?, pohar=?, super=? WHERE id=?', n, JSON.stringify(timy), JSON.stringify(roz), JSON.stringify(div), JSON.stringify({ K, kola, vitaz: null }), sup ? JSON.stringify(sup) : null, s.id);
+    sql('UPDATE mz_sez SET n=?, timy=?, rozpis=?, divizie=?, pohar=NULL, super=?, dni=? WHERE id=?', n, JSON.stringify(timy), JSON.stringify(roz), JSON.stringify(div), sup ? JSON.stringify(sup) : null, JSON.stringify(dni), s.id);
     // dorast: každý tím dostane 1 – 2 mladíkov
     for (const m of timy) { const pocet = 1 + rnd(2); for (let i = 0; i < pocet && hraci(m).length < MAX_KADER; i++) { const h = novyHrac(ch(['O', 'S', 'S', 'U', 'B', 'O', 'U']), 36 + rnd(10), m, null, 16 + rnd(3), true); log(m, `Z dorastu prišiel ${h.meno} (${POSTY[h.post]}, ${h.vek} r.)${h.potencial >= 75 ? ' – veľký talent!' : ''}`); } }
     return aktSez();
@@ -417,7 +415,7 @@ export function manazer(room, path, body, meno, rows, sql) {
     let s = aktSez();
     const timy = rows('SELECT meno FROM mz_tim').map(r => r.meno);
     if (!s && timy.length >= 2) { const st = plusDni(now.den, 2); sql('INSERT INTO mz_sez (start, n) VALUES (?, 0)', st > LIGA_START ? st : LIGA_START); s = aktSez(); }
-    else if (s && s.rozpis && s.archiv && plusDni(s.start, s.n + 1) <= now.den) { sql('INSERT INTO mz_sez (start, n) VALUES (?, 0)', plusDni(now.den, 1)); s = aktSez(); }
+    else if (s && s.rozpis && s.archiv) { sql('INSERT INTO mz_sez (start, n) VALUES (?, 0)', plusDni(now.den, 1)); s = aktSez(); }
     if (!s) return null;
     if (!s.rozpis) { if (!nadosah(s.start, POHAR_HOD)) return s; s = zaciatok(s); if (!s.rozpis) return s; }
     // superpohár
@@ -430,12 +428,25 @@ export function manazer(room, path, body, meno, rows, sql) {
     // ligové kolá
     const roz = JSON.parse(s.rozpis);
     while (s.odohrane < s.n) {
-      const k = s.odohrane + 1, den = plusDni(s.start, k - 1);
+      const k = s.odohrane + 1, den = denKola(s, k);
       if (!nadosah(den, KOLO_HOD)) break;
       for (const [a, b, d] of roz[k - 1]) { const tA = tim(a), tB = tim(b); if (!tA || !tB) continue; vlozZapas(s, 'liga', k, a, b, simuluj(tA, tB, true), den, KOLO_HOD, d); }
       sql('UPDATE mz_sez SET odohrane=? WHERE id=?', k, s.id); s = aktSez();
     }
-    // pohár
+    poZapasoch(s);
+    // pohár: po skončení ligy horná polovica tabuľky 1. ligy (najviac POHAR_MAX), nasadení podľa poradia, kolá každý deň o 20:00
+    if (s.odohrane >= s.n && !s.pohar && !rows("SELECT 1 FROM mz_zapas WHERE sez=? AND vyzva=0 AND hotovo=0 AND typ='liga'", s.id).length) {
+      const q = tabulka(s, 1).slice(0, Math.min(POHAR_MAX, Math.floor(J(s.divizie, [[]])[0].length / 2))).map(x => x.meno);
+      let pg0 = { K: 0, kola: [], vitaz: null, timy: q };
+      if (q.length >= 2) {
+        const P = 2 ** Math.ceil(Math.log2(q.length)), K = Math.log2(P);
+        let ord = [1]; while (ord.length < P) { const m = ord.length * 2 + 1; ord = ord.flatMap(x => [x, m - x]); }
+        const pary = []; for (let i = 0; i < P; i += 2) pary.push([q[ord[i] - 1] || null, q[ord[i + 1] - 1] || null]);
+        const start = plusDni(denKola(s, s.n), 1); // deň po poslednom ligovom kole
+        pg0 = { K, kola: [...Array(K)].map((_, r) => ({ den: plusDni(start, r), pary: r === 0 ? pary : null })), vitaz: null, timy: q };
+      }
+      sql('UPDATE mz_sez SET pohar=? WHERE id=?', JSON.stringify(pg0), s.id); s = aktSez();
+    }
     const pg = J(s.pohar, null);
     if (pg) {
       let zmena = false;
@@ -443,13 +454,13 @@ export function manazer(room, path, body, meno, rows, sql) {
         const kolo = pg.kola[r];
         if (kolo.hotove) continue;
         if (!kolo.pary) { const prev = pg.kola[r - 1]; if (!prev || !prev.hotove) break; const w = prev.vitazi; kolo.pary = []; for (let i = 0; i < w.length; i += 2) kolo.pary.push([w[i], w[i + 1] || null]); zmena = true; }
-        if (!nadosah(kolo.den, POHAR_HOD)) break;
+        if (!nadosah(kolo.den, KOLO_HOD)) break;
         kolo.vitazi = [];
         for (const [a, b] of kolo.pary) {
           const tA = a && tim(a), tB = b && tim(b);
           if (!tA || !tB) { kolo.vitazi.push(tA ? a : tB ? b : null); continue; }
           const r2 = simuluj(tA, tB, true, { vyrazka: true });
-          vlozZapas(s, 'pohar', r + 1, a, b, r2, kolo.den, POHAR_HOD, 1);
+          vlozZapas(s, 'pohar', r + 1, a, b, r2, kolo.den, KOLO_HOD, 1);
           kolo.vitazi.push(vitaz({ dom: a, hos: b, gd: r2.gA, gh: r2.gB, pen: r2.pen ? JSON.stringify(r2.pen) : null }));
         }
         kolo.vitazi = kolo.vitazi.filter((x, i, L) => x !== null || L.length === 1);
@@ -458,7 +469,12 @@ export function manazer(room, path, body, meno, rows, sql) {
       }
       if (zmena) { sql('UPDATE mz_sez SET pohar=? WHERE id=?', JSON.stringify(pg), s.id); s = aktSez(); }
     }
-    // po skončení živého prenosu sa pripíšu následky
+    poZapasoch(s);
+    const pg2 = J(s.pohar, null);
+    if (s.odohrane >= s.n && !s.archiv && pg2 && pg2.kola.every(k => k.hotove) && !rows('SELECT 1 FROM mz_zapas WHERE sez=? AND vyzva=0 AND hotovo=0', s.id).length) { koniecSezony(s); s = aktSez(); }
+    return s;
+  };
+  const poZapasoch = s => { // po skončení živého prenosu sa pripíšu následky
     for (const z of rows('SELECT * FROM mz_zapas WHERE sez=? AND vyzva=0 AND hotovo=0', s.id)) {
       if (!skoncene(z.den, z.hod || KOLO_HOD)) continue;
       const u = JSON.parse(z.udalosti), tA = tim(z.dom), tB = tim(z.hos);
@@ -467,10 +483,8 @@ export function manazer(room, path, body, meno, rows, sql) {
       if (tB) poZapase(tB, hh, z.gh, z.gd, u.ev, 'h', z);
       sql('UPDATE mz_zapas SET hotovo=1 WHERE id=?', z.id);
     }
-    const pg2 = J(s.pohar, null);
-    if (s.odohrane >= s.n && !s.archiv && (!pg2 || pg2.kola.every(k => k.hotove)) && !rows('SELECT 1 FROM mz_zapas WHERE sez=? AND vyzva=0 AND hotovo=0', s.id).length) { koniecSezony(s); s = aktSez(); }
-    return s;
   };
+  const denKola = (s, k) => { const d = J(s.dni, null); return plusDni(s.start, d && d[k - 1] != null ? d[k - 1] : k - 1); };
   const tabulka = (s, div = 1) => {
     const D = J(s.divizie, null), cl2 = D ? D[div - 1] || [] : JSON.parse(s.timy), T = {};
     for (const m of cl2) { const t = tim(m); if (!t) continue; T[m] = { meno: m, nazov: t.nazov, erb: t.erb, f1: t.f1, f2: t.f2, z: 0, v: 0, r: 0, p: 0, gs: 0, gi: 0, b: 0, forma: [] }; }
@@ -629,17 +643,17 @@ export function manazer(room, path, body, meno, rows, sql) {
   const timy = rows('SELECT meno, nazov, erb, f1, f2 FROM mz_tim ORDER BY nazov');
   const nm = m => (timy.find(x => x.meno === m) || {}).nazov || m;
   let sez = null;
-  if (s && !s.rozpis) { const nd = timy.length > DIV_LIMIT ? Math.ceil(timy.length / 2) : timy.length, k = Math.max(1, nd + (nd % 2) - 1); sez = { id: s.id, start: s.start, pripravuje: true, n: Math.ceil(MIN_KOL / k) * k, dveLigy: timy.length > DIV_LIMIT }; }
+  if (s && !s.rozpis) { const nd = timy.length > DIV_LIMIT ? Math.ceil(timy.length / 2) : timy.length, k = Math.max(1, nd + (nd % 2) - 1); sez = { id: s.id, start: s.start, pripravuje: true, n: 2 * k, dni: Math.max(LIGA_DNI, 2 * k), dveLigy: timy.length > DIV_LIMIT }; }
   else if (s) {
     const vsetky = rows('SELECT id, kolo, typ, div, dom, hos, gd, gh, den, hod, hotovo, udalosti, vyzva, t0, pen FROM mz_zapas WHERE sez=? AND vyzva=0 ORDER BY den DESC, hod DESC, id', s.id).map(zivo);
     const liga = vsetky.filter(z => z.typ === 'liga'), roz = JSON.parse(s.rozpis), D = J(s.divizie, [JSON.parse(s.timy)]);
     const mojaDiv = Math.max(1, D.findIndex(d => d.includes(meno)) + 1);
-    const dalsie = s.odohrane < s.n ? { kolo: s.odohrane + 1, den: plusDni(s.start, s.odohrane), zapasy: roz[s.odohrane] } : null;
+    const dalsie = s.odohrane < s.n ? { kolo: s.odohrane + 1, den: denKola(s, s.odohrane + 1), zapasy: roz[s.odohrane] } : null;
     const pg = J(s.pohar, null), sup = J(s.super, null);
     sez = {
       id: s.id, start: s.start, n: s.n, odohrane: s.odohrane, majster: s.majster, archiv: J(s.archiv, null), dveLigy: D.length > 1, mojaDiv, ucastnik: D.some(d => d.includes(meno)),
-      tabulky: D.map((_, i) => tabulka(s, i + 1)), posledne: liga.filter(z => z.kolo === s.odohrane), mojeZapasy: liga.filter(z => z.dom === meno || z.hos === meno), dalsie, koniec: plusDni(s.start, s.n - 1),
-      pohar: pg ? { K: pg.K, vitaz: pg.vitaz, kola: pg.kola.map((k, i) => ({ den: k.den, pary: k.pary, zapasy: vsetky.filter(z => z.typ === 'pohar' && z.kolo === i + 1) })) } : null,
+      tabulky: D.map((_, i) => tabulka(s, i + 1)), posledne: liga.filter(z => z.kolo === s.odohrane), mojeZapasy: liga.filter(z => z.dom === meno || z.hos === meno), dalsie, koniec: denKola(s, s.n), pohar_max: POHAR_MAX,
+      pohar: pg ? { K: pg.K, vitaz: pg.vitaz, timy: pg.timy || null, kola: pg.kola.map((k, i) => ({ den: k.den, pary: k.pary, zapasy: vsetky.filter(z => z.typ === 'pohar' && z.kolo === i + 1) })) } : null,
       super: sup ? { ...sup, zapas: vsetky.find(z => z.typ === 'super') || null } : null,
       strelci: rows('SELECT meno, tim, goly, zapasy FROM mz_stat WHERE sez=? AND goly>0 ORDER BY goly DESC, zapasy LIMIT 10', s.id),
       ziveTeraz: vsetky.filter(z => z.live != null),
