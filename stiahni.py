@@ -427,6 +427,33 @@ def scrape_group(lg, prev):
             'teams': teams if ok else prev.get('teams', teams), 'matches': list(ms.values()) if ok else prev.get('matches', []), 'stats': []}
 
 
+def scrape_turnaj(lg, prev):
+    """Jednorazový turnaj (napr. halový turnaj ZsFZ). Sportnet ukazuje skupiny len cez karty na webe,
+    preto sa zápasy berú zo stránky súťaže a zo stránok Beše (program, výsledky) podľa zoznamu tímov."""
+    B = lg['url']
+    names = list(dict.fromkeys(lg.get('timy', []) + [US]))
+    team = TEAM_URL
+    got = get_many([B, B + 'vysledky/', B + 'program/', team + 'program/', team + 'vysledky/'])
+    ms = {m['id']: dict(m) for m in prev.get('matches', [])}
+    for u, soup in got.items():
+        if soup is None:
+            continue
+        for m in parse_matches(soup, names):
+            if '/zsfz/zapas/' not in m['url'] or m['home'] not in names or m['away'] not in names:
+                continue
+            merge(ms, m)
+    if not any(US in (m['home'], m['away']) for m in ms.values()):
+        for i, z in enumerate(lg.get('zapasy', [])):   # záloha, kým Sportnet nič neukáže
+            ms.setdefault(f"{lg['id']}-{i}", {'id': f"{lg['id']}-{i}", 'round': None, 'home': z['home'], 'away': z['away'],
+                                              'hs': None, 'as': None, 'date': z.get('date'), 'time': z.get('time'), 'url': ''})
+    now = datetime.datetime.now(datetime.timezone.utc)
+    print(f'  turnaj: {len(ms)} zápasov, Beša {sum(US in (m["home"], m["away"]) for m in ms.values())}')
+    out = {k: lg[k] for k in ('id', 'name', 'url', 'den', 'popis', 'skupina', 'hlasovanie_od', 'miesto') if k in lg}
+    out.update({'home': False, 'turnaj': True, 'at': now.isoformat(timespec='seconds'), 'teams': [],
+                'matches': list(ms.values()), 'stats': []})
+    return out
+
+
 def main():
     leagues = json.loads((ROOT / 'ligy.json').read_text(encoding='utf-8'))
     old = {}
@@ -439,7 +466,7 @@ def main():
     for lg in leagues:
         print(lg['name'])
         try:
-            res.append((scrape_group if lg.get('teams') else scrape)(lg, old.get(lg['id'], {})))
+            res.append((scrape_turnaj if lg.get('turnaj') else scrape_group if lg.get('teams') else scrape)(lg, old.get(lg['id'], {})))
         except Exception as e:
             print(f'  CHYBA {e}')
             if lg['id'] in old:

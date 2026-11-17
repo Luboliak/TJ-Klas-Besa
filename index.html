@@ -567,6 +567,27 @@ const played=m=>m.hs!=null;
 const byDate=(a,b)=>((a.date||'')+(a.time||'')).localeCompare((b.date||'')+(b.time||''));
 function resFor(m){ if(m.hs==null) return null; const my=m.home===US?m.hs:m.as, th=m.home===US?m.as:m.hs; return my>th?'V':my<th?'P':'R'; }
 const ours=()=>home().matches.filter(m=>(m.home===US||m.away===US)&&m.home!==BYE&&m.away!==BYE).sort(byDate);
+/* jednorazové turnaje (napr. halový turnaj ZsFZ): zobrazujú sa ako zápas, nerátajú sa do ligy ani do výplat */
+const turnaje=()=>LIGY.filter(l=>l.turnaj);
+const turnajMs=l=>(l.matches||[]).filter(m=>m.home===US||m.away===US).sort(byDate);
+const turnajDen=l=>l.den||(turnajMs(l)[0]||{}).date||'';
+function turnajAktual(){ const t=new Date(today()+'T12:00').getTime(); return turnaje().filter(l=>{ const d=turnajDen(l); if(!d) return false; const x=(new Date(d+'T12:00').getTime()-t)/864e5; return x>=-6&&x<=30; }); }
+function turnajMvp(l){ // hlasovanie o hráča turnaja: otvorí sa po poslednom zápase Beše v deň turnaja (najskôr v čase hlasovanie_od)
+  const den=turnajDen(l), ms=turnajMs(l).filter(m=>m.date===den&&m.time), last=ms.length?new Date(den+'T'+ms[ms.length-1].time).getTime()+40*60000:0;
+  const od=Math.max(last, l.hlasovanie_od?new Date(l.hlasovanie_od).getTime():0)||new Date(den+'T14:00').getTime();
+  return {id:'turnaj-'+l.id+'-'+den, turnaj:l, date:den, time:'00:00', home:US, away:'', mvpStart:od-100*60000};
+}
+function turnajTab(l){ const sk=l.skupina||[]; if(!sk.length) return [];
+  return computeTable({teams:sk.map(n=>({name:n})), matches:(l.matches||[]).filter(m=>sk.includes(m.home)&&sk.includes(m.away))},'all'); }
+function turnajCard(l,full){
+  const ms=turnajMs(l), den=turnajDen(l), T=turnajTab(l), hral=T.some(t=>t.z);
+  let h=`<div class="next tcard"><div class="when">🏆 Turnaj · ${dLabel(den)}${l.miesto?', '+esc(l.miesto):''}</div><div class="vs">${esc(l.name)}</div>${l.popis?`<div class="ref">${esc(l.popis)}</div>`:''}</div>`;
+  h+=ms.length?ms.map(m=>mRow(m,true)).join(''):'<p class="note">Rozpis zápasov Beše ešte nie je zverejnený.</p>';
+  if(!full) h+=rsvp('turnaj-'+l.id);
+  if(T.length&&(hral||full)) h+=`<h2>Skupina Beše</h2><table class="lt"><thead><tr><th></th><th class="l">Klub</th><th>Z</th><th>Skóre</th><th>B</th></tr></thead><tbody>`+T.map(t=>`<tr class="${t.name===US?'us':''}"><td class="pos">${t.pos}</td><td class="tm"><div>${esc(t.name)}</div></td><td>${t.z}</td><td>${t.g}</td><td class="pts">${t.b}</td></tr>`).join('')+'</tbody></table>';
+  if(!full) h+=`<button class="btn" style="width:100%;margin:8px 0 4px" data-tlg="${esc(l.id)}">Celý turnaj</button>`;
+  return h;
+}
 
 function head(){
   const t=home().teams.find(t=>t.name===US);
@@ -632,6 +653,7 @@ function fmtAt(a){ if(!a) return ''; const d=new Date(a); return d.getDate()+'. 
 function vTable(){
   if(tabSrc==='eu') return vEuro();
   const l=L();
+  if(l.turnaj){ const T=turnajTab(l); return srcSeg()+pick()+(T.length?`<h2 style="margin-top:4px">Skupina Beše</h2><table class="lt"><thead><tr><th></th><th class="l">Klub</th><th>Z</th><th>Skóre</th><th>B</th></tr></thead><tbody>`+T.map(t=>`<tr class="${t.name===US?'us':''}"><td class="pos">${t.pos}</td><td class="tm"><div>${esc(t.name)}</div></td><td>${t.z}</td><td>${t.g}</td><td class="pts">${t.b}</td></tr>`).join('')+'</tbody></table><p class="note">Tabuľka je spočítaná z výsledkov zápasov skupiny.</p>':'<div class="empty">Tabuľka turnaja zatiaľ nie je k dispozícii.</div>')+stamp(l); }
   if(!l.teams||!l.teams.length) return srcSeg()+pick()+'<div class="empty">Tabuľka zatiaľ nie je k dispozícii.</div>';
   const rowsT = tabMode==='all' ? l.teams : computeTable(l, tabMode);
   const full=rowsT.every(t=>t.v!=null);
@@ -668,7 +690,7 @@ function score(m){
   if(d && (d.closed || liveInfo(d)) && d.score) return [d.score[0], d.score[1]];
   return played(m) ? [m.hs, m.as] : null;
 }
-function findMatch(id){ for(const l of LIGY) for(const m of l.matches||[]) if(m.id===id) return m; return null; }
+function findMatch(id){ for(const l of LIGY) for(const m of l.matches||[]) if(m.id===id) return m; for(const l of turnaje()){ const t=turnajMvp(l); if(t.id===id) return t; } return null; }
 
 function mRow(m,our,forceLabel){
   const sc=score(m), li=liveInfo(LIVE[m.id]) || (forceLabel?{label:forceLabel}:null);
@@ -820,8 +842,10 @@ function vMatches(){
   let h=pick();
   if(isHome) h+=`<div class="seg"><button data-z="nase" class="${zapMode==='nase'?'on':''}">Beša</button><button data-z="liga" class="${zapMode==='liga'?'on':''}">Celá liga</button></div>`;
   if(!l.matches||!l.matches.length) return h+'<div class="empty">Zápasy zatiaľ nie sú k dispozícii.</div>';
+  if(l.turnaj){ h+=turnajCard(l,true)+rsvp('turnaj-'+l.id); const g={}; (l.matches||[]).forEach(m=>{(g[m.date||'']=g[m.date||'']||[]).push(m);}); h+='<h2>Všetky zápasy turnaja</h2>'; Object.keys(g).sort().forEach(d=>{ h+=`<div class="kolo">${esc(d?dLabel(d):'Bez dátumu')}</div>`+g[d].sort(byDate).map(m=>mRow(m,false)).join(''); }); return h+stamp(l)+(l.url?`<p class="note"><a href="${esc(l.url)}" target="_blank" rel="noopener" style="color:inherit">Turnaj na Sportnete</a></p>`:''); }
   if(mode==='nase'){
     h+=mvpSlots();
+    turnajAktual().forEach(t=>{ h+=turnajCard(t); });
     const ms=ours(), up=ms.filter(m=>!played(m)&&(!m.date||m.date>=today())), done=ms.filter(played).reverse();
     if(up[0]){ const n=up[0], hm=n.home===US, li=liveInfo(LIVE[n.id]), sc=score(n); h+=`<div class="next" data-mid="${esc(n.id)}"><div class="when">${li?'Práve sa hrá':'Najbližší zápas'}, ${dLabel(n.date)} o ${esc(n.time||'?')}${n.round?', '+n.round+'. kolo':''}</div><div class="vs">${hm?'Doma proti':'Vonku v'} ${esc(hm?n.away:n.home)}${li&&sc?` ${sc[0]}:${sc[1]} <span class="live">${li.label}</span>`:''}</div>${n.ref?`<div class="ref">Rozhodca: ${esc(n.ref)}</div>`:''}${wxWanted(n)?`<div data-wx="${esc(n.id)}" data-short="1"></div>`:''}</div>`+rsvp(n.id); }
     if(up.length>1) h+='<h2>Program</h2>'+up.slice(1).map(m=>mRow(m,true)).join('');
@@ -846,6 +870,7 @@ function vTren(){
   if(!up.length) h+='<div class="empty">Najbližší tréning ešte nie je zapísaný.</div>';
   else h+='<h2 style="margin-top:0">Najbližší tréning</h2>'+card(up[0],'first')+(up[0].zrus?'':rsvp('tren-'+up[0].d))+(up.length>1?'<h2>Ďalšie tréningy</h2>'+up.slice(1,9).map(x=>card(x,'')).join(''):'');
   if(nextMatch) h+=`<h2>Najbližší zápas</h2><div class="next" data-mid="${esc(nextMatch.id)}"><div class="when">${dLabel(nextMatch.date)} o ${esc(nextMatch.time||'?')}</div><div class="vs">${nextMatch.home===US?'Doma proti':'Vonku v'} ${esc(nextMatch.home===US?nextMatch.away:nextMatch.home)}</div>${wxWanted(nextMatch)?`<div data-wx="${esc(nextMatch.id)}" data-short="1"></div>`:''}</div>`+rsvp(nextMatch.id);
+  turnajAktual().forEach(t=>{ h+='<h2>Turnaj</h2>'+turnajCard(t); });
   if(past.length) h+='<h2>Posledné tréningy</h2>'+past.map(x=>card(x,'past')).join('');
   return h;
 }
@@ -1233,16 +1258,16 @@ async function chatClick(b){
 
 /* ===== HRÁČ ZÁPASU ===== */
 const MVP={};
-function mvpWin(m){ const s=new Date(m.date+'T'+(m.time||'15:00')).getTime(); return {start:s, opens:s+100*60000, closes:s+105*60000+72*3600000}; }
-function mvpTitle(m){ return m.home===US?`Beša – ${m.away}`:`${m.home} – Beša`; }
+function mvpWin(m){ const s=m.mvpStart||new Date(m.date+'T'+(m.time||'15:00')).getTime(); return {start:s, opens:s+100*60000, closes:s+105*60000+72*3600000}; }
+function mvpTitle(m){ if(m.turnaj) return m.turnaj.name; return m.home===US?`Beša – ${m.away}`:`${m.home} – Beša`; }
 function mvpPolls(){
   // zápasy Beše, kde hlasovanie práve beží alebo skončilo pred menej ako 5 dňami
   const now=Date.now();
-  return ours().filter(m=>m.date&&m.time).filter(m=>{ const w=mvpWin(m); return now>=w.opens && now<=w.closes+5*864e5; }).reverse();
+  return ours().filter(m=>m.date&&m.time).concat(turnaje().map(turnajMvp)).filter(m=>{ const w=mvpWin(m); return now>=w.opens && now<=w.closes+5*864e5; }).sort(byDate).reverse();
 }
 function mvpDone(id){ return (KLUB&&KLUB.mvp||[]).find(p=>p.id===id); }
 function mvpCandidates(m){
-  const played=(KLUB&&KLUB.hraci||[]).filter(p=>(p.matches||[]).some(x=>x.id===m.id)).map(p=>p.name);
+  const played=m.turnaj?[]:(KLUB&&KLUB.hraci||[]).filter(p=>(p.matches||[]).some(x=>x.id===m.id)).map(p=>p.name);
   return (played.length?played:squad()).filter(n=>n!==JA).sort((a,b)=>a.localeCompare(b,'sk'));
 }
 const dtl=t=>{ const d=new Date(t); return DNI[d.getDay()]+' '+d.getDate()+'.'+(d.getMonth()+1)+'. o '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); };
@@ -1252,10 +1277,10 @@ function mvpBanner(m){
   if(Date.now()>w.closes){
     const r=done||(st&&st.results&&st.results.length?{winners:st.results.filter(x=>x[1]===st.results[0][1]).map(x=>x[0]),top:st.results}:null);
     if(!r) return '';
-    return `<button class="mvpb done" data-mvp="${esc(m.id)}"><span class="mvi">🏆</span><span><b>Hráč zápasu ${esc(mvpTitle(m))}</b><small>${r.winners.map(esc).join(', ')}, ${r.top[0][1]} ${r.top[0][1]===1?'hlas':r.top[0][1]<5?'hlasy':'hlasov'}</small></span></button>`;
+    return `<button class="mvpb done" data-mvp="${esc(m.id)}"><span class="mvi">🏆</span><span><b>${m.turnaj?'Hráč turnaja':'Hráč zápasu'} ${esc(mvpTitle(m))}</b><small>${r.winners.map(esc).join(', ')}, ${r.top[0][1]} ${r.top[0][1]===1?'hlas':r.top[0][1]<5?'hlasy':'hlasov'}</small></span></button>`;
   }
   const mine=st&&st.mine;
-  return `<button class="mvpb" data-mvp="${esc(m.id)}"><span class="mvi">🏆</span><span><b>Hlasuj za hráča zápasu</b><small>${esc(mvpTitle(m))}, do ${dtl(w.closes)}${mine?`. Tvoj hlas: ${esc(mine)}`:''}</small></span></button>`;
+  return `<button class="mvpb" data-mvp="${esc(m.id)}"><span class="mvi">🏆</span><span><b>Hlasuj za hráča ${m.turnaj?'turnaja':'zápasu'}</b><small>${esc(mvpTitle(m))}, do ${dtl(w.closes)}${mine?`. Tvoj hlas: ${esc(mine)}`:''}</small></span></button>`;
 }
 async function mvpFetch(ids){
   if(!PROXY||!CHPIN||!ids.length) return;
@@ -1275,7 +1300,7 @@ function mvpSlots(){ return mvpPolls().map(m=>`<div data-mvpslot="${esc(m.id)}">
 async function openMvp(id){
   const m=findMatch(id); if(!m) return;
   const close=`<button class="ibtn" data-close="1" aria-label="Zavrieť"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
-  const w=mvpWin(m), head=`<h3><span>Hráč zápasu</span>${close}</h3><p class="note" style="margin-top:-6px">${esc(mvpTitle(m))}${m.hs!=null?' '+m.hs+':'+m.as:''}, ${dLabel(m.date)}. Víťaz hlasovania dostane ${BONUS.mvp} € k výplate.</p>`;
+  const w=mvpWin(m), head=`<h3><span>Hráč ${m.turnaj?'turnaja':'zápasu'}</span>${close}</h3><p class="note" style="margin-top:-6px">${esc(mvpTitle(m))}${m.hs!=null?' '+m.hs+':'+m.as:''}, ${dLabel(m.date)}. Víťaz hlasovania dostane ${BONUS.mvp} € k výplate.</p>`;
   if(!CHPIN){ openSheet(head+`<p>Hlasovať môžu len hráči klubu. Zadaj klubový PIN, ten istý ako do chatu.</p>
       <div class="acts"><input type="text" id="mvpPin" inputmode="numeric" autocomplete="off" placeholder="PIN" style="flex:1"><button class="btn pri" data-mvppin="${esc(id)}">Pokračovať</button></div>`); return; }
   if(!JA){ pickName(); return; }
@@ -1285,12 +1310,12 @@ async function openMvp(id){
   let h=head;
   if(now>w.closes){
     const res=st.results||(mvpDone(id)||{}).top||[];
-    if(!res.length) h+='<div class="empty">V tomto zápase nikto nehlasoval.</div>';
+    if(!res.length) h+=`<div class="empty">${m.turnaj?'Za hráča turnaja':'V tomto zápase'} nikto nehlasoval.</div>`;
     else h+='<h2 style="margin-top:4px">Výsledky</h2>'+res.map((r,i)=>`<div class="mvr ${r[1]===res[0][1]?'win':''}"><span>${r[1]===res[0][1]?'🏆 ':''}${esc(r[0])}</span><b>${r[1]}</b></div>`).join('')+`<p class="note">Hlasovanie skončilo ${dtl(w.closes)}.</p>`;
     openSheet(h); return;
   }
   const ja=normN((typeof jaMeno==='function'&&PPIN?jaMeno():'')||JA), cands=mvpCandidates(m).filter(n=>normN(n)!==ja), mine=st.mine||'';
-  h+=`<p>Koho by si vyhlásil za najlepšieho hráča zápasu? Za seba hlasovať nemôžeš. Hlas môžeš zmeniť do ${dtl(w.closes)}.</p>
+  h+=`<p>Koho by si vyhlásil za najlepšieho hráča ${m.turnaj?'turnaja':'zápasu'}? Za seba hlasovať nemôžeš. Hlas môžeš zmeniť do ${dtl(w.closes)}.</p>
     <div class="names">${cands.map(n=>`<button class="btn ${n===mine?'pri':''}" data-mvpvote="${esc(id)}" data-za="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <p class="note">Hlasovalo ${st.n||0} ${(st.n||0)===1?'hráč':(st.n||0)>=2&&(st.n||0)<=4?'hráči':'hráčov'}. Výsledky sa ukážu po skončení hlasovania.${mine?' Ťukni znova na svoj hlas, ak ho chceš zrušiť.':''}</p>`;
   openSheet(h);
@@ -3499,6 +3524,7 @@ document.addEventListener('click',e=>{
   if(b.id==='bTheme'){ toggleTheme(); return; }
   if(b.dataset.t){ tab=b.dataset.t; render(); scrollTo(0, tab==='chat'?document.body.scrollHeight:0); if(tab==='chat'&&CH.state==='ok'&&!CH.ws) chatConnect(); }
   else if(b.dataset.z){ zapMode=b.dataset.z; render(); }
+  else if(b.dataset.tlg){ cur=b.dataset.tlg; tab='zap'; render(); scrollTo(0,0); }
   else if(b.dataset.tm){ tabMode=b.dataset.tm; render(); }
   else if(b.dataset.tsrc){ tabSrc=b.dataset.tsrc; try{localStorage.setItem('tabSrc',tabSrc);}catch(e){} render(); }
   else if(b.dataset.eusim){ tab='hry'; hsub='zap'; HRY_L=b.dataset.eusim; SIM.run=null; SIM.many=null; SIM.kolo=null; simKolo(); scrollTo(0,0); }

@@ -6,6 +6,44 @@
     "home": true
   },
   {
+    "id": "zsfz-hala",
+    "name": "Halový turnaj o Pohár predsedu ZsFZ",
+    "url": "https://sportnet.sme.sk/futbalnet/z/zsfz/s/halovy-turnaj-o-pohar-predsedu-zsfz/",
+    "turnaj": true,
+    "den": "2026-11-22",
+    "popis": "Beša reprezentuje ObFZ Levice na turnaji Západoslovenského futbalového zväzu.",
+    "skupina": [
+      "TJ Klas Beša",
+      "OŠK Trenčianske Stankovce B",
+      "Futbalový klub Koniarovce",
+      "MFC SPARTAK Bánovce nad Bebravou",
+      "DSC Orechová Potôň",
+      "FC Veľký Kýr"
+    ],
+    "timy": [
+      "TJ Klas Beša",
+      "OŠK Trenčianske Stankovce B",
+      "Futbalový klub Koniarovce",
+      "MFC SPARTAK Bánovce nad Bebravou",
+      "DSC Orechová Potôň",
+      "FC Veľký Kýr",
+      "FK Biely Kostol",
+      "TJ Agro Kameničná",
+      "OŠK Vinohrady nad Váhom",
+      "TJ Priehrada Udiča",
+      "FK Svätoplukovo"
+    ],
+    "hlasovanie_od": "2026-11-22T14:00",
+    "zapasy": [
+      {
+        "home": "OŠK Trenčianske Stankovce B",
+        "away": "TJ Klas Beša",
+        "date": "2026-11-22",
+        "time": "08:30"
+      }
+    ]
+  },
+  {
     "id": "levice-8",
     "name": "VIII. liga ObFZ Levice",
     "url": "https://sportnet.sme.sk/futbalnet/z/obfz-levice/s/viii-liga-obfz-levice/"

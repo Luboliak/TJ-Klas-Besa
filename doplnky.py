@@ -73,13 +73,15 @@ def dlabel(d):
 
 # ---------------------------------------------------------------- zápasy Beše
 
-def our_matches():
+def our_matches(turnaje=False):
+    """Zápasy Beše v domácej lige. S turnaje=True aj zápasy jednorazových turnajov (kalendár, upozornenia),
+    štatistiky hráčov a výplaty rátajú len ligu."""
     ligy = jload(DATA / 'ligy.json', {}).get('ligy', [])
-    home = next((l for l in ligy if l.get('home')), None)
-    if not home:
+    zdroj = [l for l in ligy if l.get('home') or (turnaje and l.get('turnaj'))]
+    if not zdroj:
         return []
     out = []
-    for m in home.get('matches', []):
+    for m in [m for l in zdroj for m in l.get('matches', [])]:
         if US not in (m.get('home'), m.get('away')) or BYE in (m.get('home'), m.get('away')):
             continue
         det = jload(DATA / 'zapasy' / f"{m['id']}.json", None)
@@ -424,7 +426,7 @@ def ics_dt(d, t):
 def calendar():
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     ev = []
-    for m, det in our_matches():
+    for m, det in our_matches(True):
         d = pdate(m.get('date'))
         if not d or not m.get('time'):
             continue
@@ -521,7 +523,7 @@ def notify():
         sent.add(key)
         msgs.append({'title': title, 'message': text, 'tags': [tags], 'priority': prio})
 
-    for m, det in our_matches():
+    for m, det in our_matches(True):
         d = pdate(m.get('date'))
         if not d or abs((d - TODAY).days) > 1:
             continue
