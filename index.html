@@ -572,6 +572,7 @@ const ours=()=>home().matches.filter(m=>(m.home===US||m.away===US)&&m.home!==BYE
 /* jednorazové turnaje (napr. halový turnaj ZsFZ): zobrazujú sa ako zápas, nerátajú sa do ligy ani do výplat */
 const turnaje=()=>LIGY.filter(l=>l.turnaj);
 const turnajMs=l=>(l.matches||[]).filter(m=>m.home===US||m.away===US).sort(byDate);
+const turnajZapas=id=>turnaje().some(l=>(l.matches||[]).some(x=>x.id===id)); // jednotlivý zápas turnaja (bez vlastného hlasovania)
 const turnajDen=l=>l.den||(turnajMs(l)[0]||{}).date||'';
 function turnajAktual(){ const t=new Date(today()+'T12:00').getTime(); return turnaje().filter(l=>{ const d=turnajDen(l); if(!d) return false; const x=(new Date(d+'T12:00').getTime()-t)/864e5; return x>=-6&&x<=30; }); }
 function turnajMvp(l){ // hlasovanie o hráča turnaja: otvorí sa po poslednom zápase Beše v deň turnaja (najskôr v čase hlasovanie_od)
@@ -750,7 +751,7 @@ function vDetail(m,d){
   h+=`<div class="dh"><small>${dLabel(m.date)} o ${esc(m.time||'?')}${d&&d.ground?', '+esc(d.ground):''}</small>
     <div class="dsc"><div class="tn h">${esc(m.home)}</div><div class="big">${sc?sc[0]+':'+sc[1]:'–'}</div><div class="tn">${esc(m.away)}</div></div>
     <small>${li?`<span class="live">${li.label}</span>`:d&&d.closed?'Koniec':''}${d&&d.phases&&d.phases[0]&&(d.closed||li)?' polčas '+d.phases[0][0]+':'+d.phases[0][1]:''}</small></div>`;
-  if((m.home===US||m.away===US) && m.date && m.time && Date.now()>=mvpWin(m).opens && Date.now()<=mvpWin(m).closes+30*864e5) h+=`<div data-mvpslot="${esc(m.id)}"></div>`;
+  if((m.home===US||m.away===US) && !turnajZapas(m.id) && m.date && m.time && Date.now()>=mvpWin(m).opens && Date.now()<=mvpWin(m).closes+30*864e5) h+=`<div data-mvpslot="${esc(m.id)}"></div>`;
   if(!(d&&d.closed) && !played(m)) h+=matchTools(m,d)+preMatch(m);
   if(!d){ return h+(played(m)?'<div class="empty">Detail tohto zápasu zatiaľ nie je k dispozícii.</div>':''); }
   const ev=(d.events||[]).filter(e=>e.t!=='substitution').sort((a,b)=>(+a.min||0)-(+b.min||0));
@@ -1540,7 +1541,7 @@ async function vedSync(manual){
         Object.entries(V.kq||{}).forEach(([m,ns])=>give('kq:'+m,ns,BONUS.kviz,last(m),'víťaz kvízu za '+MESF[+m.slice(5)-1]));
         Object.entries(V.pk||{}).forEach(([m,ns])=>give('pk:'+m,ns,BONUS.pk,last(m),'víťaz penált za '+MESF[+m.slice(5)-1],n=>{ const x=(V.pkInfo||{})[m+'|'+n]||{}; return {score:x.score,dur:x.dur}; }));
         (V.mz||[]).forEach(x=>give('mz:'+x.id,[x.vitaz||x.majster],BONUS.manazer,x.koniec,'víťaz pohára v Beša manažérovi – sezóna '+x.id));
-        (V.mvp||[]).forEach(p=>{ const mt=findMatch(p.id), d=(mt&&mt.date)||iso(new Date(p.closes)); give('mvp:'+p.id,p.mena||[],BONUS.mvp,d,'hráč zápasu'+(mt?' – '+(mt.home===US?mt.away:mt.home):'')); });
+        (V.mvp||[]).forEach(p=>{ if(turnajZapas(p.id)) return; /* v turnaji sa platí len hráč turnaja */ const mt=findMatch(p.id), d=(mt&&mt.date)||iso(new Date(p.closes)); give('mvp:'+p.id,p.mena||[],BONUS.mvp,d,mt&&mt.turnaj?'hráč turnaja – '+mt.turnaj.name:'hráč zápasu'+(mt?' – '+(mt.home===US?mt.away:mt.home):'')); });
       } }catch(e){ err++; } }
     D.miss=[...miss].sort((a,b)=>a.localeCompare(b,'sk')); D.syncAt=Date.now(); save(); kmFetch(); if(!nNew&&!nUpd) profSchedule();
     SYNC.msg=(err?'Časť údajov sa nenačítala. ':'')+(nNew||nUpd?`Zapísané: ${nNew} nových, ${nUpd} upravených.`:'Všetko je aktuálne.');
