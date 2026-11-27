@@ -952,6 +952,7 @@ let IHR={};
 const BESA_GEO=[48.141,18.407];
 const okGeo=g=>g&&Math.hypot((g[0]-BESA_GEO[0])*111,(g[1]-BESA_GEO[1])*74)<90?g:null;
 function groundOf(m,d){
+  if(m.miesto&&!(d&&d.ground)){ const x=m.ihrisko&&IHR[m.ihrisko]; return {ground:m.miesto, geo:x?okGeo(x.geo):null}; } // prípravný zápas mimo domáceho ihriska
   const g=IHR[m.home]||{};
   const ground=(d&&d.ground)||g.ground, geo=okGeo(d&&d.geo)||okGeo(g.geo);
   return ground||geo?{ground,geo}:null;
@@ -959,6 +960,7 @@ function groundOf(m,d){
 function navUrl(m,d){
   const g=groundOf(m,d);
   if(g&&g.geo) return `https://www.google.com/maps/dir/?api=1&destination=${g.geo[0]},${g.geo[1]}`;
+  if(m.miesto) return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent('futbalové ihrisko '+m.miesto.replace(/\s*\(.*\)/,''));
   return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(((g&&g.ground)||'Futbalové ihrisko')+' '+m.home);
 }
 const WMO=[[0,'☀️','jasno'],[1,'🌤️','prevažne jasno'],[2,'⛅','polojasno'],[3,'☁️','zamračené'],[45,'🌫️','hmla'],[48,'🌫️','hmla'],

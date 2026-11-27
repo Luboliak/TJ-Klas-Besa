@@ -465,7 +465,7 @@ def scrape_pripravne(lg, prev):
     for z in lg.get('zapasy', []):
         mid = f"{lg['id']}-{z['date']}"
         ms.append({'id': mid, 'round': None, 'home': z['home'], 'away': z['away'], 'hs': z.get('hs'), 'as': z.get('as'),
-                   'date': z.get('date'), 'time': z.get('time'), 'url': z.get('url', ''), 'miesto': z.get('miesto'), 'pripravny': True})
+                   'date': z.get('date'), 'time': z.get('time'), 'url': z.get('url', ''), 'miesto': z.get('miesto'), 'ihrisko': z.get('ihrisko'), 'pripravny': True})
     out = {k: lg[k] for k in ('id', 'name', 'popis') if k in lg}
     out.update({'home': False, 'pripravne': True, 'at': now.isoformat(timespec='seconds'), 'teams': [], 'matches': ms, 'stats': []})
     return out
