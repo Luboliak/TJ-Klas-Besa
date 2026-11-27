@@ -77,7 +77,7 @@ def our_matches(turnaje=False):
     """Zápasy Beše v domácej lige. S turnaje=True aj zápasy jednorazových turnajov (kalendár, upozornenia),
     štatistiky hráčov a výplaty rátajú len ligu."""
     ligy = jload(DATA / 'ligy.json', {}).get('ligy', [])
-    zdroj = [l for l in ligy if l.get('home') or (turnaje and l.get('turnaj'))]
+    zdroj = [l for l in ligy if l.get('home') or (turnaje and (l.get('turnaj') or l.get('pripravne')))]
     if not zdroj:
         return []
     out = []
@@ -444,7 +444,7 @@ def calendar():
                    f"DTSTART:{start.astimezone(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}",
                    f"DTEND:{end.astimezone(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}",
                    f"SUMMARY:{ics_text(('⚽ Beša – ' if home else '⚽ ') + (opp if home else opp + ' – Beša'))}",
-                   f"LOCATION:{ics_text((det or {}).get('ground') or ('Futbalové ihrisko Beša' if home else ''))}",
+                   f"LOCATION:{ics_text((det or {}).get('ground') or m.get('miesto') or ('Futbalové ihrisko Beša' if home else ''))}",
                    f"DESCRIPTION:{ics_text(chr(10).join(desc))}", 'END:VEVENT'])
     for t in trainings(TODAY - datetime.timedelta(days=14), TODAY + datetime.timedelta(days=120)):
         uid = f"trening-{t['d'].isoformat()}@tjklas-besa"

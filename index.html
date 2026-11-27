@@ -572,7 +572,13 @@ const ours=()=>home().matches.filter(m=>(m.home===US||m.away===US)&&m.home!==BYE
 /* jednorazové turnaje (napr. halový turnaj ZsFZ): zobrazujú sa ako zápas, nerátajú sa do ligy ani do výplat */
 const turnaje=()=>LIGY.filter(l=>l.turnaj);
 const turnajMs=l=>(l.matches||[]).filter(m=>m.home===US||m.away===US).sort(byDate);
-const turnajZapas=id=>turnaje().some(l=>(l.matches||[]).some(x=>x.id===id)); // jednotlivý zápas turnaja (bez vlastného hlasovania)
+const pripravne=()=>LIGY.filter(l=>l.pripravne);
+const turnajZapas=id=>LIGY.some(l=>(l.turnaj||l.pripravne)&&(l.matches||[]).some(x=>x.id===id)); // zápas turnaja alebo prípravný: bez hlasovania o hráča zápasu a bez bonusu
+function pripravneBlok(){ // prípravné zápasy Beše: nadchádzajúce a odohrané za posledných 30 dní
+  const t=iso(new Date(Date.now()-30*864e5)); let h='';
+  pripravne().forEach(l=>{ const ms=(l.matches||[]).filter(m=>(m.home===US||m.away===US)&&m.date>=t).sort(byDate); if(!ms.length) return;
+    h+=`<h2>${esc(l.name)}</h2>${l.popis?`<p class="note" style="margin-top:0">${esc(l.popis)}</p>`:''}`+ms.map(m=>mRow(m,true)).join(''); });
+  return h; }
 const turnajDen=l=>l.den||(turnajMs(l)[0]||{}).date||'';
 function turnajAktual(){ const t=new Date(today()+'T12:00').getTime(); return turnaje().filter(l=>{ const d=turnajDen(l); if(!d) return false; const x=(new Date(d+'T12:00').getTime()-t)/864e5; return x>=-6&&x<=30; }); }
 function turnajMvp(l){ // hlasovanie o hráča turnaja: otvorí sa po poslednom zápase Beše v deň turnaja (najskôr v čase hlasovanie_od)
@@ -701,7 +707,7 @@ function mRow(m,our,forceLabel){
   const scH = sc ? `<div>${sc[0]}</div><div>${sc[1]}</div>` : `<div style="font-size:13px;color:var(--mute)">${esc(m.time||'')}</div>`;
   const nm=x=>esc(x===BYE?'voľno':x);
   const click = m.home!==BYE && m.away!==BYE ? `data-mid="${esc(m.id)}"` : '';
-  return `<div class="mrow" ${click}><div class="d">${dLabel(m.date)}${m.round?'<br>'+m.round+'. kolo':''}</div><div class="t"><div class="${m.home===US?'me':''}">${nm(m.home)}${li?`<span class="live">${li.label}</span>`:''}</div><div class="${m.away===US?'me':''}">${nm(m.away)}</div>${m.ref?`<div class="ref">R: ${esc(m.ref)}</div>`:''}</div><div class="s">${scH}</div>${our?`<div class="res ${r||'x'}">${r||''}</div>`:''}</div>`;
+  return `<div class="mrow" ${click}><div class="d">${dLabel(m.date)}${m.round?'<br>'+m.round+'. kolo':''}</div><div class="t"><div class="${m.home===US?'me':''}">${nm(m.home)}${li?`<span class="live">${li.label}</span>`:''}</div><div class="${m.away===US?'me':''}">${nm(m.away)}</div>${m.ref?`<div class="ref">R: ${esc(m.ref)}</div>`:''}${m.miesto?`<div class="ref">📍 ${esc(m.miesto)}</div>`:''}</div><div class="s">${scH}</div>${our?`<div class="res ${r||'x'}">${r||''}</div>`:''}</div>`;
 }
 
 let sheetTimer=null, sheetMatch=null;
@@ -748,7 +754,7 @@ function vDetail(m,d){
   const started = d && (d.closed || (d.timer && Object.keys(d.timer).length));
   const li=liveInfo(d);
   const sc = started && d.score ? d.score : (played(m)?[m.hs,m.as]:null);
-  h+=`<div class="dh"><small>${dLabel(m.date)} o ${esc(m.time||'?')}${d&&d.ground?', '+esc(d.ground):''}</small>
+  h+=`<div class="dh"><small>${m.pripravny?'Prípravný zápas · ':''}${dLabel(m.date)}${m.time?' o '+esc(m.time):', čas sa upresní'}${d&&d.ground?', '+esc(d.ground):m.miesto?', '+esc(m.miesto):''}</small>
     <div class="dsc"><div class="tn h">${esc(m.home)}</div><div class="big">${sc?sc[0]+':'+sc[1]:'–'}</div><div class="tn">${esc(m.away)}</div></div>
     <small>${li?`<span class="live">${li.label}</span>`:d&&d.closed?'Koniec':''}${d&&d.phases&&d.phases[0]&&(d.closed||li)?' polčas '+d.phases[0][0]+':'+d.phases[0][1]:''}</small></div>`;
   if((m.home===US||m.away===US) && !turnajZapas(m.id) && m.date && m.time && Date.now()>=mvpWin(m).opens && Date.now()<=mvpWin(m).closes+30*864e5) h+=`<div data-mvpslot="${esc(m.id)}"></div>`;
@@ -849,6 +855,7 @@ function vMatches(){
   if(mode==='nase'){
     h+=mvpSlots();
     turnajAktual().forEach(t=>{ h+=turnajCard(t); });
+    h+=pripravneBlok();
     const ms=ours(), up=ms.filter(m=>!played(m)&&(!m.date||m.date>=today())), done=ms.filter(played).reverse();
     if(up[0]){ const n=up[0], hm=n.home===US, li=liveInfo(LIVE[n.id]), sc=score(n); h+=`<div class="next" data-mid="${esc(n.id)}"><div class="when">${li?'Práve sa hrá':'Najbližší zápas'}, ${dLabel(n.date)} o ${esc(n.time||'?')}${n.round?', '+n.round+'. kolo':''}</div><div class="vs">${hm?'Doma proti':'Vonku v'} ${esc(hm?n.away:n.home)}${li&&sc?` ${sc[0]}:${sc[1]} <span class="live">${li.label}</span>`:''}</div>${n.ref?`<div class="ref">Rozhodca: ${esc(n.ref)}</div>`:''}${wxWanted(n)?`<div data-wx="${esc(n.id)}" data-short="1"></div>`:''}</div>`+rsvp(n.id); }
     if(up.length>1) h+='<h2>Program</h2>'+up.slice(1).map(m=>mRow(m,true)).join('');

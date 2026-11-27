@@ -45,6 +45,42 @@
     "miesto": "Topoľčany"
   },
   {
+    "id": "pripravne-zima-2027",
+    "name": "Prípravné zápasy – zima 2027",
+    "pripravne": true,
+    "popis": "Prípravné zápasy pred jarnou časťou. Nerátajú sa do tabuľky ani do výplat.",
+    "zapasy": [
+      {
+        "home": "TJ Klas Beša",
+        "away": "FC ViOn Zlaté Moravce - Vráble C",
+        "date": "2027-01-31",
+        "time": null,
+        "miesto": "Zlaté Moravce, umelá tráva"
+      },
+      {
+        "home": "TJ - FO Martin nad Žitavou",
+        "away": "TJ Klas Beša",
+        "date": "2027-02-13",
+        "time": null,
+        "miesto": "Radava"
+      },
+      {
+        "home": "TJ Klas Beša",
+        "away": "MŠK Hurbanovo",
+        "date": "2027-02-21",
+        "time": null,
+        "miesto": "Levice, umelá tráva"
+      },
+      {
+        "home": "TJ Klas Beša",
+        "away": "ŠK Sokol Starý Tekov",
+        "date": "2027-02-27",
+        "time": null,
+        "miesto": "tráva – Beša alebo Starý Tekov (upresní sa)"
+      }
+    ]
+  },
+  {
     "id": "levice-8",
     "name": "VIII. liga ObFZ Levice",
     "url": "https://sportnet.sme.sk/futbalnet/z/obfz-levice/s/viii-liga-obfz-levice/"

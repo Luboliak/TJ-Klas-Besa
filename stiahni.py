@@ -365,14 +365,18 @@ def grounds(res, olds, fetch):
         ih = json.loads(p.read_text(encoding='utf-8'))
     except Exception:
         ih = {}
-    for det in olds.values():
+    # turnaje a prípravné zápasy sa hrajú inde (napr. hala v Topoľčanoch) – domáce ihrisko z nich neberieme
+    mimo = {m['id'] for lg in res if lg.get('turnaj') or lg.get('pripravne') for m in lg.get('matches', [])}
+    for mid, det in olds.items():
+        if mid in mimo:
+            continue
         if det and det.get('home') and det.get('geo'):
             ih[det['home']] = {'ground': det.get('ground'), 'geo': det['geo']}
     missing = {}
     for lg in res:
         for m in sorted(lg.get('matches', []), key=lambda x: x.get('date') or '', reverse=True):
             h = m.get('home')
-            if h and h != BYE and h not in ih and h not in missing and m.get('url') and m.get('hs') is not None:
+            if h and h != BYE and h not in ih and h not in missing and m.get('url') and m.get('hs') is not None and m['id'] not in mimo:
                 missing[h] = m
     todo = list(missing.values())[:30]
     if todo:
@@ -454,6 +458,19 @@ def scrape_turnaj(lg, prev):
     return out
 
 
+def scrape_pripravne(lg, prev):
+    """Prípravné zápasy zadané ručne v ligy.json (Sportnet ich väčšinou nemá). Výsledok sa dá dopísať do configu (hs/as)."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    ms = []
+    for z in lg.get('zapasy', []):
+        mid = f"{lg['id']}-{z['date']}"
+        ms.append({'id': mid, 'round': None, 'home': z['home'], 'away': z['away'], 'hs': z.get('hs'), 'as': z.get('as'),
+                   'date': z.get('date'), 'time': z.get('time'), 'url': z.get('url', ''), 'miesto': z.get('miesto'), 'pripravny': True})
+    out = {k: lg[k] for k in ('id', 'name', 'popis') if k in lg}
+    out.update({'home': False, 'pripravne': True, 'at': now.isoformat(timespec='seconds'), 'teams': [], 'matches': ms, 'stats': []})
+    return out
+
+
 def main():
     leagues = json.loads((ROOT / 'ligy.json').read_text(encoding='utf-8'))
     old = {}
@@ -466,7 +483,7 @@ def main():
     for lg in leagues:
         print(lg['name'])
         try:
-            res.append((scrape_turnaj if lg.get('turnaj') else scrape_group if lg.get('teams') else scrape)(lg, old.get(lg['id'], {})))
+            res.append((scrape_pripravne if lg.get('pripravne') else scrape_turnaj if lg.get('turnaj') else scrape_group if lg.get('teams') else scrape)(lg, old.get(lg['id'], {})))
         except Exception as e:
             print(f'  CHYBA {e}')
             if lg['id'] in old:
